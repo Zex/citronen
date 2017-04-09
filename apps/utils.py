@@ -4,7 +4,7 @@ import numpy as np
 
 def plot_decision_regions(X, y, classifier, test_idx=None, resolution=0.02):
     markers = ('s', 'x', 'o', '^', 'v')
-    colors = ('red', 'blue', 'lightgreen', 'gray', 'cyan')
+    colors = ('red', 'darkblue', 'darkgreen', 'blue', 'cyan')
     cmap = ListedColormap(colors[:len(np.unique(y))])
 
     x1_min, x1_max = X[:, 0].min() - 1, X[:, 0].max() + 1
@@ -28,8 +28,8 @@ def plot_decision_regions(X, y, classifier, test_idx=None, resolution=0.02):
                     label=cls)
     if test_idx:
         X_test, y_test = X[test_idx, :], y[test_idx]
-        plt.scatter(X_test[:, 0], X_test[:, 1], c='',
-                alpha=1.0, linewidth=1, marker='o',
+        plt.scatter(X_test[:, 0], X_test[:, 1], c='orange',
+                alpha=1.0, linewidth=1, marker='*',
                 s=55, label='test set')
 
 
