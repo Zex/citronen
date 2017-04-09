@@ -18,6 +18,7 @@ def logistic_regression(X_train_std, y_train, X_test_std, y_test):
     X_comb_std = np.vstack((X_train_std, X_test_std))
     y_comb = np.hstack((y_train, y_test))
     plot_decision_regions(X_comb_std, y_comb, classifier=lr, test_idx=range(105, 150))
+    plt.title('IRIS with Logistic regiression')
     plt.xlabel('petal length [standardized]')
     plt.ylabel('petal width [standardized]')
     plt.legend(loc='upper left')
@@ -45,6 +46,7 @@ def logistic_regression_ovr(X_train_std, y_train, X_test_std, y_test):
     weights = np.array(weights)
     plt.plot(params, weights[:, 0], label='petal length')
     plt.plot(params, weights[:, 1], linestyle='-', label='petal width')
+    plt.title('IRIS with OvR Logistic regiression')
     plt.xlabel('C')
     plt.ylabel('weight coefficient')
     plt.legend(loc='upper left')
@@ -59,11 +61,27 @@ def linear_kernel(X_train_std, y_train, X_test_std, y_test):
     y_comb = np.hstack((y_train, y_test))
     plot_decision_regions(X_comb_std, y_comb,
             classifier=svm, test_idx=range(105, 150))
+    plt.title('IRIS with linear kernel')
     plt.xlabel('petal length [standardized]')
     plt.ylabel('petal width [standardized]')
     plt.legend(loc='upper left')
     plt.show()
-    
+    plt.close()
+
+def rbf_kernel(X_train_std, y_train, X_test_std, y_test):
+    svm = SVC(kernel='rbf', gamma=0.2, C=1.0, random_state=0)
+    svm.fit(X_train_std, y_train)
+    X_comb_std = np.vstack((X_train_std, X_test_std))
+    y_comb = np.hstack((y_train, y_test))
+    plot_decision_regions(X_comb_std, y_comb,
+            classifier=svm, test_idx=range(105, 150))
+    plt.title('IRIS with RBF kernel')
+    plt.xlabel('petal length [standardized]')
+    plt.ylabel('petal width [standardized]')
+    plt.legend(loc='upper left')
+    plt.show()
+    plt.close()
+
 def selftest():
     """
 Stack
@@ -115,6 +133,7 @@ svm = SGDClassifier(loss='hinge')
     logistic_regression(X_train_std, y_train, X_test_std, y_test)
 #    logistic_regression_ovr(X_train_std, y_train, X_test_std, y_test)
     linear_kernel(X_train_std, y_train, X_test_std, y_test)
+    rbf_kernel(X_train_std, y_train, X_test_std, y_test)
 
 if __name__ == '__main__':
     selftest()
