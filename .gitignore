@@ -1,5 +1,5 @@
 */*.pyc
-*/__cache__/*
+*/__pycache__/*
 *.out
 build/*
 logs/*
