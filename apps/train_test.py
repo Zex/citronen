@@ -11,6 +11,8 @@ from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from apps.utils import plot_decision_regions
+from sklearn.tree import DecisionTreeClassifier, export_graphviz
+from sklearn.ensemble import RandomForestClassifier
 
 def logistic_regression(X_train_std, y_train, X_test_std, y_test):
     lr = LogisticRegression(C=1000.0, random_state=0)
@@ -82,6 +84,38 @@ def rbf_kernel(X_train_std, y_train, X_test_std, y_test):
     plt.show()
     plt.close()
 
+def sk_decision_tree(X_train, y_train, X_test, y_test):
+    """
+    dot -Tpng build/tree.dot -o build/tree.png
+    """
+    tree = DecisionTreeClassifier(criterion='entropy', max_depth=3, random_state=0)
+    tree.fit(X_train, y_train)
+    export_graphviz(tree, out_file='build/tree.dot', feature_names=['petal length', 'petal width'])
+    X_comb = np.vstack((X_train, X_test))
+    y_comb = np.hstack((y_train, y_test))
+    plot_decision_regions(X_comb, y_comb, classifier=tree, test_idx=range(105, 150))
+    plt.title('IRIS with Decision Tree')
+    plt.xlabel('petal length [cm]')
+    plt.ylabel('petal width [cm]')
+    plt.legend(loc='upper left')
+    plt.show()
+    plt.close()
+
+def random_forest(X_train, y_train, X_test, y_test):
+    forest = RandomForestClassifier(criterion='entropy',
+            n_estimators=10, random_state=1, n_jobs=2)
+    forest.fit(X_train, y_train)
+    X_comb = np.vstack((X_train, X_test))
+    y_comb = np.hstack((y_train, y_test))
+    plot_decision_regions(X_comb, y_comb,
+            classifier=forest, test_idx=range(105, 150))
+    plt.title('IRIS with Random Forest')
+    plt.xlabel('petal length')
+    plt.ylabel('petal width')
+    plt.legend(loc='upper left')
+    plt.show()
+    plt.close()
+
 def selftest():
     """
 Stack
@@ -129,11 +163,15 @@ svm = SGDClassifier(loss='hinge')
     y_pred = ppn.predict(X_test_std)
     print('Misclassified samples: %d' % (y_test!=y_pred).sum())
     print('Accuracy: %.2f' % accuracy_score(y_test, y_pred))
+    """
     decision_regions(X_train_std, y_train, X_test_std, y_test, ppn)
     logistic_regression(X_train_std, y_train, X_test_std, y_test)
 #    logistic_regression_ovr(X_train_std, y_train, X_test_std, y_test)
     linear_kernel(X_train_std, y_train, X_test_std, y_test)
     rbf_kernel(X_train_std, y_train, X_test_std, y_test)
+    sk_decision_tree(X_train, y_train, X_test, y_test)
+    """
+    random_forest(X_train, y_train, X_test, y_test)
 
 if __name__ == '__main__':
     selftest()
