@@ -40,7 +40,7 @@ def decision_regions(X_train_std, y_train, X_test_std, y_test, classifier):
 
 def logistic_regression_ovr(X_train_std, y_train, X_test_std, y_test):
     weights, params = [], []
-    for c in np.arange(-5, 5): # !! pydata/numexpr/issues/272
+    for c in np.arange(-5, 5): # !! numpy/numpy/issues/8917
         C = 10**c
         lr = LogisticRegression(C=C, random_state=0)
         lr.fit(X_train_std, y_train)
