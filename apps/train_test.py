@@ -13,6 +13,7 @@ from sklearn.svm import SVC
 from apps.utils import plot_decision_regions
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
 
 def logistic_regression(X_train_std, y_train, X_test_std, y_test):
     lr = LogisticRegression(C=1000.0, random_state=0)
@@ -116,6 +117,19 @@ def random_forest(X_train, y_train, X_test, y_test):
     plt.show()
     plt.close()
 
+def knn(X_train_std, y_train, X_test_std, y_test):
+    knn = KNeighborsClassifier(n_neighbors=5, p=2, metric='minkowski')
+    knn.fit(X_train_std, y_train)
+    X_comb_std = np.vstack((X_train_std, X_test_std))
+    y_comb = np.hstack((y_train, y_test))
+    plot_decision_regions(X_comb_std, y_comb, classifier=knn, test_idx=range(105, 150))
+    plt.title('IRIS with KNN')
+    plt.xlabel('petal length [standardized]')
+    plt.ylabel('petal width [standardized]')
+    plt.legend(loc='upper left')
+    plt.show()
+    plt.close()
+
 def selftest():
     """
 Stack
@@ -164,14 +178,15 @@ svm = SGDClassifier(loss='hinge')
     print('Misclassified samples: %d' % (y_test!=y_pred).sum())
     print('Accuracy: %.2f' % accuracy_score(y_test, y_pred))
     """
+    """
     decision_regions(X_train_std, y_train, X_test_std, y_test, ppn)
     logistic_regression(X_train_std, y_train, X_test_std, y_test)
 #    logistic_regression_ovr(X_train_std, y_train, X_test_std, y_test)
     linear_kernel(X_train_std, y_train, X_test_std, y_test)
     rbf_kernel(X_train_std, y_train, X_test_std, y_test)
     sk_decision_tree(X_train, y_train, X_test, y_test)
-    """
     random_forest(X_train, y_train, X_test, y_test)
+    knn(X_train_std, y_train, X_test_std, y_test)
 
 if __name__ == '__main__':
     selftest()
