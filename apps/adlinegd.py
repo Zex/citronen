@@ -60,6 +60,7 @@ def selftest():
     ax[1].set_ylabel('log(SSE)')
     ax[1].set_title('Adaline - Learning rate {}'.format(lr2))
     plt.show()
+    plt.close()
     # ada3
     epoch3, lr3 = 15, 0.01
     X_std = np.copy(X)
@@ -73,11 +74,13 @@ def selftest():
     plt.ylabel('petal length [standardized]')
     plt.legend(loc='upper left')
     plt.show()
+    plt.close()
     plt.plot(range(1, len(ada3.cost_) + 1), ada3.cost_, marker='o')
     plt.xlabel('Epochs')
     plt.ylabel('SSE')
 
     plt.show()
+    plt.close()
     
 if __name__ == "__main__":
     selftest()
