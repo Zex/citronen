@@ -14,6 +14,7 @@ from apps.utils import plot_decision_regions
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 def logistic_regression(X_train_std, y_train, X_test_std, y_test):
     lr = LogisticRegression(C=1000.0, random_state=0)
@@ -40,8 +41,8 @@ def decision_regions(X_train_std, y_train, X_test_std, y_test, classifier):
 
 def logistic_regression_ovr(X_train_std, y_train, X_test_std, y_test):
     weights, params = [], []
-    for c in np.arange(-5, 5): # !! numpy/numpy/issues/8917
-        C = 10**c
+    for c in np.arange(-5, 5):
+        C = np.power(10, c) if c >= 0 else 1/np.power(10, -c)
         lr = LogisticRegression(C=C, random_state=0)
         lr.fit(X_train_std, y_train)
         weights.append(lr.coef_[1])
@@ -177,16 +178,16 @@ svm = SGDClassifier(loss='hinge')
     y_pred = ppn.predict(X_test_std)
     print('Misclassified samples: %d' % (y_test!=y_pred).sum())
     print('Accuracy: %.2f' % accuracy_score(y_test, y_pred))
-    """
+    logistic_regression_ovr(X_train_std, y_train, X_test_std, y_test)
     """
     decision_regions(X_train_std, y_train, X_test_std, y_test, ppn)
     logistic_regression(X_train_std, y_train, X_test_std, y_test)
-#    logistic_regression_ovr(X_train_std, y_train, X_test_std, y_test)
     linear_kernel(X_train_std, y_train, X_test_std, y_test)
     rbf_kernel(X_train_std, y_train, X_test_std, y_test)
     sk_decision_tree(X_train, y_train, X_test, y_test)
     random_forest(X_train, y_train, X_test, y_test)
     knn(X_train_std, y_train, X_test_std, y_test)
+    """
 
 if __name__ == '__main__':
     selftest()
