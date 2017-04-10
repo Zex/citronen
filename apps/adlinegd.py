@@ -43,7 +43,7 @@ def selftest():
     """
     SSE - Sum Squared Error
     """
-    X, y = np.random.randn(1000, 1000), np.arange(1000)
+    X, y = np.random.randn(1000, 1000), np.arange(3)
     # ada1
     epoch1, lr1 = 100, 0.01
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
@@ -61,7 +61,10 @@ def selftest():
     ax[1].set_title('Adaline - Learning rate {}'.format(lr2))
     plt.show()
     plt.close()
+
+def selftest2():
     # ada3
+    X, y = np.random.randn(10, 10), np.arange(10)
     epoch3, lr3 = 15, 0.01
     X_std = np.copy(X)
     X_std[:, 0] = (X[:, 0] - X[:, 0].mean())/X[:, 0].std()
@@ -83,4 +86,4 @@ def selftest():
     plt.close()
     
 if __name__ == "__main__":
-    selftest()
+    selftest2()
