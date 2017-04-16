@@ -3,6 +3,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
+from apps.utils import eigenpair, plot_decision_regions
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -61,6 +62,7 @@ def wine_learn():
         weights.append(lr.coef_[1])
         params.append(C)
     weights = np.array(weights)
+    with_pca(X_train_std, y_train, X_test_std)
     plotting(df_wine, weights, params, colors)
     with_randomforest(X_train, y_train, df_wine.columns[1:])
     with_sbs(X_train_std, y_train)
@@ -107,11 +109,33 @@ def with_randomforest(X_train, y_train, feat_labels):
     for f in range(X_train.shape[1]):
         print(f+1, 30, feat_labels[f], importances[indices[f]])
     plt.title('Feature Importances')
-    plt.bar([x for x in range(X_train.shape[1])], importances[indices],
+    plt.bar(range(X_train.shape[1]), importances[indices],
             color='blue', align='center')
-    plt.xticks([x for x in range(X_train.shape[1])], feat_labels, rotation=90)
+    plt.xticks(range(X_train.shape[1]), feat_labels, rotation=90)
     plt.xlim([-1, X_train.shape[1]])
     plt.tight_layout()
+    plt.show()
+    plt.close()
+
+def with_pca(X_train_std, y_train, X_test_std):
+    eigen_vals, eigen_vecs = eigenpair(X_train_std)
+    eigen_pairs = [(np.abs(eigen_vals[i]), eigen_vecs[:, i]) for i in range(len(eigen_vals))]
+    eigen_pairs.sort(reverse=True)
+    w = np.hstack((
+        eigen_pairs[0][1][:, np.newaxis],
+        eigen_pairs[1][1][:, np.newaxis]))
+    X_train_pca = X_train_std[0].dot(w)
+
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    lr = LogisticRegression()
+    X_train_pca = pca.fit_transform(X_train_std)
+    X_test_pca = pca.transform(X_test_std)
+    lr.fit(X_train_pca, y_train)
+    plot_decision_regions(X_train_pca, y_train, classifier=lr)
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+    plt.legend(loc='best')
     plt.show()
     plt.close()
 
