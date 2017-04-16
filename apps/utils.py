@@ -37,4 +37,10 @@ def eigenpair(X):
     eigen_vals, eigen_vecs = np.linalg.eig(cov_mat)
     return eigen_vals, eigen_vecs
 
+def selftest():
+    X = (np.random.randn(3, 3) * 100 + 3).round()
+    print(X)
+    print(eigenpair(X))
 
+if __name__ == '__main__':
+    selftest()
