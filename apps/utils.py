@@ -32,4 +32,9 @@ def plot_decision_regions(X, y, classifier, test_idx=None, resolution=0.02):
                 alpha=1.0, linewidth=1, marker='*',
                 s=55, label='test set')
 
+def eigenpair(X):
+    cov_mat = np.cov(X.T)
+    eigen_vals, eigen_vecs = np.linalg.eig(cov_mat)
+    return eigen_vals, eigen_vecs
+
 
