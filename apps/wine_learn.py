@@ -2,6 +2,7 @@ from sklearn.cross_validation import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -61,6 +62,8 @@ def wine_learn():
         params.append(C)
     weights = np.array(weights)
     plotting(df_wine, weights, params, colors)
+    with_randomforest(X_train, y_train, df_wine.columns[1:])
+    with_sbs(X_train_std, y_train)
 
 def plotting(df_wine, weights, params, colors):
     fig = plt.figure()
@@ -77,8 +80,43 @@ def plotting(df_wine, weights, params, colors):
     plt.legend(loc='upper left')
     ax.legend(loc='upper center', bbox_to_anchor=(1.38, 1.03), ncol=1, fancybox=True)
     plt.show()
+    plt.close()
+
+def with_sbs(X_train_std, y_train):
+    from apps.sbs import SBS
+    knn = KNeighborsClassifier(n_neighbors=2)
+    sbs = SBS(knn, k_features=1)
+    sbs.fit(X_train_std, y_train)
+    k_feat = [len(k) for k in sbs.subsets_]
+    
+    plt.plot(k_feat, sbs.scores_, marker='o')
+    plt.ylim([0.7, 1.1])
+    plt.ylabel('Accuracy')
+    plt.xlabel('Number of features')
+    plt.grid()
+    plt.show()
+    plt.close()
+
+def with_randomforest(X_train, y_train, feat_labels):
+    from sklearn.ensemble import RandomForestClassifier
+    forest = RandomForestClassifier(n_estimators=10000,
+            random_state=0, n_jobs=-1)
+    forest.fit(X_train, y_train)
+    importances = forest.feature_importances_
+    indices = np.argsort(importances)[::-1]
+    for f in range(X_train.shape[1]):
+        print(f+1, 30, feat_labels[f], importances[indices[f]])
+    plt.title('Feature Importances')
+    plt.bar([x for x in range(X_train.shape[1])], importances[indices],
+            color='blue', align='center')
+    plt.xticks([x for x in range(X_train.shape[1])], feat_labels, rotation=90)
+    plt.xlim([-1, X_train.shape[1]])
+    plt.tight_layout()
+    plt.show()
+    plt.close()
 
 if __name__ == '__main__':
     wine_learn()
+    
 
 
