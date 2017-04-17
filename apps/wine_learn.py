@@ -67,6 +67,8 @@ def wine_learn():
     with_randomforest(X_train, y_train, df_wine.columns[1:])
     with_sbs(X_train_std, y_train)
 
+    #with_lda(X_train_std, y_train, X_test_std, y_test)
+
 def plotting(df_wine, weights, params, colors):
     fig = plt.figure()
     ax = plt.subplot(111)
@@ -138,6 +140,25 @@ def with_pca(X_train_std, y_train, X_test_std):
     plt.legend(loc='best')
     plt.show()
     plt.close()
+
+def with_lda(X_train_std, y_train, X_test_std, y_test):
+    from sklearn.lda import LDA
+    lda = LDA(n_components=2)
+    X_train_lda = lda.fit_transform(X_train_std, y_train)
+    lr = LogisticRegression()
+    lr = lr.fit(X_train_lda, y_train)
+    plot_decision_regions(X_train_lda, y_train, classifier=lr)
+    plot.xlabel('LD 1')
+    plot.ylabel('LD 2')
+    plt.legend(loc='lower left')
+    plt.show()
+
+    X_test_lda = lda.transform(X_test_std)
+    plot_decision_regions(X_test_lda, y_test, classifier=lr)
+    plot.xlabel('LD 1')
+    plot.ylabel('LD 2')
+    plt.legend(loc='lower left')
+    plt.show()
 
 if __name__ == '__main__':
     wine_learn()
