@@ -84,7 +84,6 @@ def train(model):
     for train_data in reader:
         model = do_train(train_data, model)
         _pickle.dump(model, open(model_path, 'wb'))
-        break
     del train_data
 
 def test(model):
