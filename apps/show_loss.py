@@ -17,9 +17,12 @@ def get_loss(line):
     iteration, loss = re.search('\d+', line), re.search('[0-9]*\.[0-9]+', line)
     if loss is None:
         loss = line.strip('\n')
+        if len(loss) == 0:
+            loss = -1.0
+        print('iteration:{}, loss:{}'.format('-', loss))
     else:
         iteration, loss = iteration.group(), loss.group()
-        print('epoch:{}, loss:{}'.format(iteration, loss))
+        print('iteration:{}, loss:{}'.format(iteration, loss))
     return float(loss)
 
 def pipe_stdin():
