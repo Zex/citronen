@@ -1,12 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pylab
 import re
 import sys
 
 def show_losses(losses):
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.plot(np.arange(len(losses))+1, losses)
+    ax.plot(np.arange(len(losses)), losses)
     plt.xlabel('iteration')
     plt.ylabel('loss')
     plt.title('Loss/Iteration')
@@ -15,14 +16,16 @@ def show_losses(losses):
 def get_loss(line):
     #Iteration 83, loss = 0.08709494
     iteration, loss = re.search('\d+', line), re.search('[0-9]*\.[0-9]+', line)
-    if loss is None:
-        loss = line.strip('\n')
-        if len(loss) == 0:
-            loss = -1.0
-        print('iteration:{}, loss:{}'.format('-', loss))
-    else:
+    if iteration is not None and loss is not None:
         iteration, loss = iteration.group(), loss.group()
         print('iteration:{}, loss:{}'.format(iteration, loss))
+    elif loss is None:
+        loss = line.strip('\n')
+        if len(loss) == 0 or len(loss.split()) > 0:
+            loss = 1.0
+        print('iteration:{}, loss:{}'.format('-', loss))
+    else:
+        loss = 1.0
     return float(loss)
 
 def pipe_stdin():

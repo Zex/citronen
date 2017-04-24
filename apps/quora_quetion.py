@@ -4,6 +4,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
+import scipy.sparse as sp
 import pandas as pd
 import math
 import matplotlib.pyplot as plt
@@ -15,7 +16,9 @@ import _pickle
 shrink_data_source = '../data/quora/train_shrink.csv'
 train_data_source = '../data/quora/train.csv'
 test_data_source = '../data/quora/test.csv'
-model_path = "../models/quora_mlp_alter.data"
+test_result = '../data/quora/test_result.csv'
+model_path = "../models/quora_mlp.data"
+max_feature = 366
 
 def how_diff(cos_sim):
     angle_in_radians = math.acos(cos_sim)
@@ -31,14 +34,19 @@ def do_train(train_data, model=None):
     q1, q2, labels = train_data['question1'],\
                     train_data['question2'],\
                     train_data['is_duplicate']
-    tfidf_vec = TfidfVectorizer(norm='l2', sublinear_tf=True)#, stop_words='english')
+    tfidf_vec = TfidfVectorizer(norm='l2', sublinear_tf=True, stop_words='english', max_features=max_feature)
+    """
+    tfidf_q1 = tfidf_vec.fit_transform(q1)
+    tfidf_q2 = tfidf_vec.fit_transform(q2)
+    tfidf_q = sp.hstack([tfidf_q1, tfidf_q2], format='csr')
+    """
     tfidf_q = tfidf_vec.fit_transform(q1, q2)
     #print('shape: {}, {}'.format(tfidf_q.shape, labels.shape))
     #lr = LogisticRegression()
     if model is None:
-        model = MLPClassifier(hidden_layer_sizes=(100, ), activation='relu', 
+        model = MLPClassifier(hidden_layer_sizes=(500, ), activation='relu', 
                         solver='adam', alpha=0.0001, batch_size='auto', 
-                        learning_rate='adaptive', learning_rate_init=0.001, 
+                        learning_rate='adaptive', learning_rate_init=0.01, 
                         power_t=0.5, max_iter=1000, shuffle=True, random_state=1,
                         tol=0.0001, verbose=True, warm_start=False, momentum=0.9, 
                         nesterovs_momentum=True, early_stopping=False, 
@@ -48,15 +56,19 @@ def do_train(train_data, model=None):
     return model
 
 def do_test(model, test_data):
-    q1, q2 = test_data['question1'], test_data['question2']
-    tfidf_vec = TfidfVectorizer(norm='l2', sublinear_tf=True)
+    qid, q1, q2 = test_data['test_id'].values.astype('U'), test_data['question1'].values.astype('U'), test_data['question2'].values.astype('U')
+    tfidf_vec = TfidfVectorizer(norm='l2', sublinear_tf=True, stop_words='english', max_features=max_feature)
+    """
+    tfidf_q1 = tfidf_vec.fit_transform(q1)
+    tfidf_q2 = tfidf_vec.fit_transform(q2)
+    tfidf_q = sp.hstack([tfidf_q1, tfidf_q2], format='csr')
+    """
     tfidf_q = tfidf_vec.fit_transform(q1, q2)
-    #score = model.score(test_data, labels)
+    #score = model.score(test_data, targets)
     #print('score: {}'.format(score))
-    return model.predict(tfidf_q)
+    return zip(qid, model.predict(tfidf_q))
 
 def init():
-    plt.ion()
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test'])
     args = parser.parse_args()
@@ -77,22 +89,25 @@ def start(args):
 
 def train(model):
     # data loader
-    chunksize = 10000
+    chunksize = 100
     reader = pd.read_csv(train_data_source, header=0, chunksize=chunksize)
     model = None
     # do train
-    for train_data in reader:
-        model = do_train(train_data, model)
+    for data in reader:
+        model = do_train(data, model)
         _pickle.dump(model, open(model_path, 'wb'))
-    del train_data
 
 def test(model):
     if model is None:
         return
+    chunksize = 500
+    reader = pd.read_csv(test_data_source, header=0, chunksize=chunksize)
     # do test
-    test_data=pd.read_csv(test_data_source,header=0)
-    result=do_test(model, test_data)
-    print('='*30, '\n', result)
+    with open(test_result, 'w+') as fd:
+        fd.write('"test_id","is_duplicate"\n')
+        for data in reader:
+            result = do_test(model, data)
+            [fd.write('{},{}\n'.format(r[0], r[1])) for r in result]
 
 if __name__ == '__main__':
     args = init()
