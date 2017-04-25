@@ -30,10 +30,10 @@ def do_cosine_sim(X, y):
         cos_simi = cosine_similarity(tfidf_q[:1], tfidf_q)
         print('cosine_similarity[exp:{}]: diff:{:0.2f}\n{}'.format(y, how_diff(cos_simi[0,1]), cos_simi))
     
-def do_train(train_data, model=None):
-    q1, q2, labels = train_data['question1'],\
-                    train_data['question2'],\
-                    train_data['is_duplicate']
+def do_train(data, model=None):
+    q1, q2, labels = data['question1'],\
+                    data['question2'],\
+                    data['is_duplicate']
     tfidf_vec = TfidfVectorizer(norm='l2', sublinear_tf=True, stop_words='english', max_features=max_feature)
     """
     tfidf_q1 = tfidf_vec.fit_transform(q1)
@@ -55,8 +55,8 @@ def do_train(train_data, model=None):
     #print(model.loss_, model.n_outputs_, model.intercepts_)
     return model
 
-def do_test(model, test_data):
-    qid, q1, q2 = test_data['test_id'].values.astype('U'), test_data['question1'].values.astype('U'), test_data['question2'].values.astype('U')
+def do_test(model, data):
+    qid, q1, q2 = data['test_id'].values.astype('U'), data['question1'].values.astype('U'), data['question2'].values.astype('U')
     tfidf_vec = TfidfVectorizer(norm='l2', sublinear_tf=True, stop_words='english', max_features=max_feature)
     """
     tfidf_q1 = tfidf_vec.fit_transform(q1)
@@ -64,13 +64,22 @@ def do_test(model, test_data):
     tfidf_q = sp.hstack([tfidf_q1, tfidf_q2], format='csr')
     """
     tfidf_q = tfidf_vec.fit_transform(q1, q2)
-    #score = model.score(test_data, targets)
+    #score = model.score(data, targets)
     #print('score: {}'.format(score))
     return zip(qid, model.predict(tfidf_q))
 
+def do_validate(model, data):
+    q1, q2, labels = data['question1'],\
+                    data['question2'],\
+                    data['is_duplicate']
+    tfidf_vec = TfidfVectorizer(norm='l2', sublinear_tf=True, stop_words='english', max_features=max_feature)
+    tfidf_q = tfidf_vec.fit_transform(q1, q2)
+    score = model.score(tfidf_q, labels)
+    return score
+
 def init():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test'])
+    parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'validate'])
     args = parser.parse_args()
     return args
 
@@ -84,8 +93,10 @@ def start(args):
     if args.mode == 'train':
         model = train(model)
         test(model)
-    else:
+    elif args.mode == 'test':
         test(model)
+    else:
+        validate(model)
 
 def train(model):
     # data loader
@@ -96,6 +107,15 @@ def train(model):
     for data in reader:
         model = do_train(data, model)
         _pickle.dump(model, open(model_path, 'wb'))
+
+def validate(model):
+    # data loader
+    chunksize = 100
+    reader = pd.read_csv(train_data_source, header=0, chunksize=chunksize)
+    # do validate
+    for data in reader:
+        score = do_validate(model, data)
+        print('score: {}'.format(score))
 
 def test(model):
     if model is None:
