@@ -24,24 +24,25 @@ def show_accuracy(accuracy):
 
 def get_accu(line):
     # score: 0.08709494
-    accu = re.search('[0-9]*\.[0-9]+', line)
-    accu = accu.group()
+    accu = re.search('score:[0-9]*\.[0-9]+', line)
+    if accu is None:
+        return None
+    accu = accu.group().split(':')[1]
     print('accuracy:{}'.format(accu))
     return float(accu)
 
 def get_loss(line):
     #Iteration 83, loss = 0.08709494
-    iteration, loss = re.search('\d+', line), re.search('[0-9]*\.[0-9]+', line)
+    line = line.strip('\n')
+    iteration, loss = re.search('\d+', line), re.search('loss = [0-9]*\.[0-9]+', line)
     if iteration is not None and loss is not None:
         iteration, loss = iteration.group(), loss.group()
+        loss = loss.split(' ')[2]
+        if len(loss) == 0:
+            return None
         print('iteration:{}, loss:{}'.format(iteration, loss))
-    elif loss is None:
-        loss = line.strip('\n')
-        if len(loss) == 0 or len(loss.split()) > 0:
-            loss = 1.0
-        print('iteration:{}, loss:{}'.format('-', loss))
     else:
-        loss = 1.0
+        return None
     return float(loss)
 
 def pipe_stdin_loss():
@@ -50,7 +51,9 @@ def pipe_stdin_loss():
         line = sys.stdin.readline()
         if line is None or len(line) == 0:
             break
-        losses.append(get_loss(line))
+        loss = get_loss(line)
+        if loss is not None:
+            losses.append(loss)
     show_losses(losses)
     plt.show()
 
@@ -58,9 +61,12 @@ def pipe_stdin_accu():
     accuracy = []
     while True:
         line = sys.stdin.readline()
+        print(line)
         if line is None or len(line) == 0:
             break
-        accuracy.append(get_accu(line))
+        accu = get_accu(line)
+        if accu is not None:
+            accuracy.append(accu)
     show_accuracy(accuracy)
     plt.show()
 
