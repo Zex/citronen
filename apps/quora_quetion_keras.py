@@ -32,10 +32,10 @@ validation_data_source = '../data/quora/validation.csv'
 test_data_source = '../data/quora/test.csv'
 test_result = '../data/quora/test_result.csv'
 #model_path = "../models/quora_mlp.pkl"
-model_path = "../models/quora_model_alter.h5"
-model_chkpt_path = "../models/quora_chkpt_alter_{epoch:02d}-{acc:.2f}.h5"
+model_path = "../models/quora_model.h5"
+model_chkpt_path = "../models/quora_chkpt_{epoch:02d}-{acc:.2f}.h5"
 max_features = 400
-chunksize = 100
+chunksize = 16
 learning_rate = 0.001
 max_epochs = 1000
 token = Tokenizer()
@@ -52,13 +52,24 @@ def create_model():
     x2_input = Input(shape=(max_features,), dtype='float32', name='x2_input')
 
     x1 = Embedding(output_dim=max_features, input_dim=chunksize, input_length=max_features)(x1_input)
-    x1 = LSTM(max_features)(x1)
-    x2 = Embedding(output_dim=max_features, input_dim=chunksize, input_length=max_features)(x2_input)
-    x2 = LSTM(max_features)(x2)
+    x1 = LSTM(512, return_sequences=True, name='x1_lstm1')(x1)
+    x1 = LSTM(128, return_sequences=True, name='x1_lstm2')(x1)
+    x1 = LSTM(64, return_sequences=True, name='x1_lstm3')(x1)
 
+    x2 = Embedding(output_dim=max_features, input_dim=chunksize, input_length=max_features)(x2_input)
+    x2 = LSTM(512, return_sequences=True, name='x2_lstm1')(x2)
+    x2 = LSTM(128, return_sequences=True, name='x2_lstm2')(x2)
+    x2 = LSTM(64, return_sequences=True, name='x2_lstm3')(x2)
+
+    print('x1.ndim:{}, x2.ndim:{}'.format(K.ndim(x1), K.ndim(x2)))
     x = concatenate([x1, x2])
-    GlobalAveragePooling1D()
+    print('x.ndim:{}'.format(K.ndim(x)))
+    x = LSTM(32, return_sequences=True, name='x_lstm1')(x)
+    x = GlobalAveragePooling1D()(x)
+    x = Dense(100, kernel_initializer='uniform', activation='relu', name='x_relu')(x)
+    print('x.ndim:{}'.format(K.ndim(x)))
     y = Dense(1, kernel_initializer='uniform', activation='softmax', name='output')(x)
+    print('y.ndim:{}'.format(K.ndim(y)))
     model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
     model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['acc'])
     model.summary()
@@ -75,6 +86,8 @@ def process_data(data):
     x2 = token.texts_to_matrix(q2, mode='tfidf')
     x1 = pad_sequences(x1, padding='post', truncating='post', dtype=float, maxlen=max_features)
     x2 = pad_sequences(x2, padding='post', truncating='post', dtype=float, maxlen=max_features)
+#    x1 = x1.reshape((1, *x1.shape))
+#    x2 = x2.reshape((1, *x2.shape))
     return x1, x2, labels
   
 def do_train(model, q1_train, q2_tain, labels, q1_validation, q2_validation, labels_validation):
@@ -127,7 +140,7 @@ def plot_history(history):
 def train():
     model = get_model()
     chkpt = ModelCheckpoint(model_chkpt_path, monitor='loss', verbose=1)
-    history = model.fit_generator(generate_data(), callbacks=[chkpt], verbose=1, steps_per_epoch=10, epochs=10)
+    history = model.fit_generator(generate_data(), callbacks=[chkpt], verbose=1, steps_per_epoch=1000, epochs=10)
     model.save(model_path)
     plot_history(history)
 
