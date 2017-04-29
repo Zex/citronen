@@ -3,6 +3,7 @@ from keras.preprocessing.text import one_hot
 from keras.preprocessing.sequence import pad_sequences
 from keras.layers.pooling import MaxPooling1D
 from keras.layers.convolutional import Conv1D
+from keras.layers import Flatten
 from keras.layers import LSTM
 from keras.layers import Dense
 from keras.layers import concatenate
@@ -29,10 +30,12 @@ test_data_source = '../data/quora/test.csv'
 test_result = '../data/quora/test_result.csv'
 #model_path = "../models/quora_mlp.pkl"
 model_path = "../models/quora_model.h5"
-model_chkpt_path = "../models/quora_chkpt_{epoch:02d}-{acc:.2f}.h5"
+model_path_tmpl = "../models/{}.h5"
+model_chkpt_path_tmpl = "../models/{name:s}_chkpt_{epoch:02d}-{acc:.2f}.h5"
+model_chkpt_path = "../models/quora_model_chkpt_{epoch:02d}-{acc:.2f}.h5"
 max_features = 32
 max_encoded_len = 27
-chunksize = 64
+chunksize = 128
 learning_rate = 0.001
 max_epochs = 1000
 token = Tokenizer()
@@ -50,10 +53,12 @@ def create_model():
 #    x2_input = Input(shape=(max_features,), dtype='int32', name='x2_input')
 
     x1 = Embedding(output_dim=max_features*2, input_dim=100000, input_length=max_features*2)(x1_input)
-    x1 = Conv1D(max_features*2, 4, activation='relu')(x1)
-    x1 = MaxPooling1D(3)(x1)
-    x1 = Conv1D(max_features*2, 4, activation='relu')(x1)
+    x1 = Conv1D(max_features*2, 5, activation='relu')(x1)
     x1 = MaxPooling1D(2)(x1)
+    x1 = Conv1D(max_features*2, 5, activation='relu')(x1)
+    x1 = MaxPooling1D(1)(x1)
+    x1 = Conv1D(max_features*2, 8, activation='relu')(x1)
+    x1 = MaxPooling1D(8)(x1)
     x1 = Conv1D(max_features*2, 2, activation='relu')(x1)
     x1 = MaxPooling1D(1)(x1)
 #    x1 = BatchNormalization()(x1)
@@ -70,11 +75,11 @@ def create_model():
 #    x2 = LSTM(64, return_sequences=True, name='x2_lstm3')(x2)
 
 #    x = concatenate([x1, x2])
-    x = LSTM(32, return_sequences=False, name='x_lstm1')(x1)
-#    x = GlobalAveragePooling1D()(x)
-#    x = BatchNormalization()(x)
+#    x = LSTM(128, return_sequences=True, name='x_lstm1', dropout=0.2)(x1)
+#    x = LSTM(64, return_sequences=True, name='x_lstm2', dropout=0.2)(x)
+#    x = LSTM(32, return_sequences=False, name='x_lstm3', dropout=0.2)(x1)
+    x = Flatten()(x1)
     x = Dense(100, kernel_initializer='uniform', activation='relu', name='x_relu')(x)
-#    x = BatchNormalization()(x)
     y = Dense(2, kernel_initializer='uniform', activation='softmax', name='output')(x)
     model = Model(inputs=[x1_input], outputs=[y],  name='final')
     #model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
@@ -144,37 +149,32 @@ def do_train(model, q1_train, q2_tain, labels, q1_validation, q2_validation, lab
     # train with data
     model.fit([q1_train, q2_train], labels, 
               validation_data=([q1_validation, q2_validation], labels_validation),
-              verbose=1, batch_size=chunksize//4, nb_epoch=max_epochs)
+              verbose=1, batch_size=chunksize, nb_epoch=max_epochs)
     return model
 
 def init():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'validate'])
+    parser.add_argument('--model_prefix', default='quora_model', type=str, help='Mode to run in')
     args = parser.parse_args()
     return args
 
 def start(args):
     if args.mode == 'train':
-        train()
+        train(args.model_prefix)
     else:
-        test(model)
+        test(args.model_prefix)
 
-def generate_data():
-    count = 0
+def generate_data(source):
     while True:
-        reader = pd.read_csv(train_data_source, header=0, chunksize=chunksize)
-        chunk_cnt = 0
+        reader = pd.read_csv(source, header=0, chunksize=chunksize)
         for data in reader:
             x, y = process_data(data)
-            with open('../build/log', 'w+') as fd:
-                fd.write('chunk[{}][{}]:{}, {}\n'.format(count, chunk_cnt, x.shape, y.shape))
-            chunk_cnt += 1
             yield {'x_input': x}, {'output': y}
             #yield {'x1_input': x1, 'x2_input': x2}, {'output': y}
             #x, y = process_data(data)
-        count += 1
 
-def get_model():
+def get_model(model_path):
     model = None
     if isfile(model_path):
         model = load_model(model_path)
@@ -193,24 +193,27 @@ def plot_history(history):
     plt.legend(['acc', 'loss'], loc='upper right')
     plt.show()
 
-def train():
+def train(model_prefix):
     #for x, y in generate_data():
     #    print(len(x['x1_input'][0]), len(x['x2_input'][0]), y['output'][0])
     #return None
-    model = get_model()
-    chkpt = ModelCheckpoint(model_chkpt_path, monitor='loss', verbose=1)
-    history = model.fit_generator(generate_data(), callbacks=[chkpt], verbose=1, steps_per_epoch=1000, epochs=10)
+#    model_path, model_chkpt_path = model_path_tmpl.format(model_prefix), model_chkpt_path_tmpl.format(model_prefix)
+#    print(model_path, model_chkpt_path)
+    model = get_model(model_path)
+    chkpt = ModelCheckpoint(model_chkpt_path, monitor='acc', verbose=1)
+    history = model.fit_generator(generate_data(train_data_source), callbacks=[chkpt],\
+                    verbose=1, steps_per_epoch=30000, epochs=10)
     model.save(model_path)
     plot_history(history)
 
-
 def do_test(model):
 #   steps = round(lines/chunksize)
-    res = model.predict_generator(generate_data(), steps=1000, workers=4, verbose=1)
+    res = model.predict_generator(generate_data(test_data_source), steps=1000, workers=4, verbose=1)
     print('predict:', res)
     return res.argmax(1)
 
-def test():
+def test(model_prefix):
+    model_path, model_chkpt_path = model_path_tmpl.format(model_prefix), model_chkpt_path_tmpl.format(model_prefix)
     if not isfile(model_path):
         print('No model found @ {}'.format(model_path))
         return
