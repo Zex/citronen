@@ -1,41 +1,38 @@
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.text import one_hot
+from keras.preprocessing.sequence import pad_sequences
+from keras.layers.pooling import MaxPooling1D
+from keras.layers.convolutional import Conv1D
+from keras.layers import LSTM
+from keras.layers import Dense
+from keras.layers import concatenate
+from keras.layers import Input
+from keras.layers import Embedding
+from keras.models import load_model
+from keras.models import Model
+from keras.callbacks import ModelCheckpoint
+#from keras.utils.np_utils import to_categorical
+#import keras.backend as K
+import keras
 import pandas as pd
-import math
+#import math
 import matplotlib.pyplot as plt
-from collections import Counter
 import argparse
 import string
 from os.path import isfile
 import numpy as np
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from keras.layers.pooling import GlobalAveragePooling1D
-from keras.models import Sequential
-from keras.models import load_model
-from keras.models import Model
-from keras.optimizers import SGD
-from keras.optimizers import Adagrad
-from keras.layers.core import Flatten
-from keras.layers import LSTM
-from keras.layers import Dense
-from keras.layers import concatenate
-from keras.layers import Merge
-from keras.layers import Input
-from keras.layers import Activation
-from keras.layers import Embedding
-from keras.callbacks import ModelCheckpoint
-from keras.utils.np_utils import to_categorical
-import keras.backend as K
 
 shrink_data_source = '../data/quora/train_shrink.csv'
-train_data_source = '../data/quora/train.csv'
+train_data_source = '../data/quora/origin-train.csv'
 validation_data_source = '../data/quora/validation.csv'
 test_data_source = '../data/quora/test.csv'
 test_result = '../data/quora/test_result.csv'
 #model_path = "../models/quora_mlp.pkl"
 model_path = "../models/quora_model.h5"
 model_chkpt_path = "../models/quora_chkpt_{epoch:02d}-{acc:.2f}.h5"
-max_features = 400
-chunksize = 16
+max_features = 32
+max_encoded_len = 27
+chunksize = 64
 learning_rate = 0.001
 max_epochs = 1000
 token = Tokenizer()
@@ -48,30 +45,67 @@ def preprocess(q):
     return q
 
 def create_model():
-    x1_input = Input(shape=(max_features,), dtype='float32', name='x1_input')
-    x2_input = Input(shape=(max_features,), dtype='float32', name='x2_input')
+    ## with tfidf input
+    x1_input = Input(shape=(max_features*2,), dtype='int32', name='x_input')
+#    x2_input = Input(shape=(max_features,), dtype='int32', name='x2_input')
 
-    x1 = Embedding(output_dim=max_features, input_dim=chunksize, input_length=max_features)(x1_input)
+    x1 = Embedding(output_dim=max_features*2, input_dim=100000, input_length=max_features*2)(x1_input)
+    x1 = Conv1D(max_features*2, 4, activation='relu')(x1)
+    x1 = MaxPooling1D(3)(x1)
+    x1 = Conv1D(max_features*2, 4, activation='relu')(x1)
+    x1 = MaxPooling1D(2)(x1)
+    x1 = Conv1D(max_features*2, 2, activation='relu')(x1)
+    x1 = MaxPooling1D(1)(x1)
+#    x1 = BatchNormalization()(x1)
+#    x1 = LSTM(512, return_sequences=True, name='x1_lstm1')(x1)
+#    x1 = LSTM(128, return_sequences=True, name='x1_lstm2')(x1)
+#    x1 = LSTM(64, return_sequences=True, name='x1_lstm3')(x1)
+
+#    x2 = Embedding(output_dim=max_features, input_dim=100000, input_length=max_features)(x2_input)
+#    x2 = Conv1D(512, 5, activation='relu')(x2)
+#    x2 = MaxPooling1D(5)(x2)
+#    x2 = BatchNormalization()(x2)
+#    x2 = LSTM(512, return_sequences=True, name='x2_lstm1')(x2)
+#    x2 = LSTM(128, return_sequences=True, name='x2_lstm2')(x2)
+#    x2 = LSTM(64, return_sequences=True, name='x2_lstm3')(x2)
+
+#    x = concatenate([x1, x2])
+    x = LSTM(32, return_sequences=False, name='x_lstm1')(x1)
+#    x = GlobalAveragePooling1D()(x)
+#    x = BatchNormalization()(x)
+    x = Dense(100, kernel_initializer='uniform', activation='relu', name='x_relu')(x)
+#    x = BatchNormalization()(x)
+    y = Dense(2, kernel_initializer='uniform', activation='softmax', name='output')(x)
+    model = Model(inputs=[x1_input], outputs=[y],  name='final')
+    #model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['acc'])
+
+    """
+    ## with one-hot input
+    x1_input = Input(shape=(max_encoded_len,), dtype='int32', name='x1_input')
+    #x2_input = Input(shape=(max_encoded_len,), dtype='int32', name='x2_input')
+
+    x1 = Embedding(output_dim=chunksize, input_dim=max_features, input_length=max_encoded_len)(x1_input)
     x1 = LSTM(512, return_sequences=True, name='x1_lstm1')(x1)
     x1 = LSTM(128, return_sequences=True, name='x1_lstm2')(x1)
     x1 = LSTM(64, return_sequences=True, name='x1_lstm3')(x1)
+    x = x1
+#    x2 = Embedding(output_dim=chunksize, input_dim=max_features, input_length=max_encoded_len)(x2_input)
+#    
+#    x = concatenate([x1, x2])
+#
+#    x2 = LSTM(512, return_sequences=True, name='x2_lstm1')(x2)
+#    x2 = LSTM(128, return_sequences=True, name='x2_lstm2')(x2)
+#    x2 = LSTM(64, return_sequences=True, name='x2_lstm3')(x2)
 
-    x2 = Embedding(output_dim=max_features, input_dim=chunksize, input_length=max_features)(x2_input)
-    x2 = LSTM(512, return_sequences=True, name='x2_lstm1')(x2)
-    x2 = LSTM(128, return_sequences=True, name='x2_lstm2')(x2)
-    x2 = LSTM(64, return_sequences=True, name='x2_lstm3')(x2)
-
-    print('x1.ndim:{}, x2.ndim:{}'.format(K.ndim(x1), K.ndim(x2)))
-    x = concatenate([x1, x2])
-    print('x.ndim:{}'.format(K.ndim(x)))
-    x = LSTM(32, return_sequences=True, name='x_lstm1')(x)
+    #x = LSTM(32, return_sequences=True, name='x_lstm1')(x)
     x = GlobalAveragePooling1D()(x)
     x = Dense(100, kernel_initializer='uniform', activation='relu', name='x_relu')(x)
-    print('x.ndim:{}'.format(K.ndim(x)))
     y = Dense(1, kernel_initializer='uniform', activation='softmax', name='output')(x)
-    print('y.ndim:{}'.format(K.ndim(y)))
-    model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
+    #model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
+    model = Model(inputs=[x1_input], outputs=[y],  name='final')
     model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['acc'])
+    """
     model.summary()
     return model
 
@@ -79,16 +113,29 @@ def process_data(data):
     # process train data
     q1, q2, labels = data['question1'].values.astype('U'),\
                      data['question2'].values.astype('U'),\
-                     data['is_duplicate'].values.astype('U').astype(int)
-    token.fit_on_texts(q1)#np.concatenate((q1, q2)))
+                     data['is_duplicate'].values.astype(np.int32)
+    token.fit_on_texts(q1)
     token.fit_on_texts(q2)
-    x1 = token.texts_to_matrix(q1, mode='tfidf')  
-    x2 = token.texts_to_matrix(q2, mode='tfidf')
-    x1 = pad_sequences(x1, padding='post', truncating='post', dtype=float, maxlen=max_features)
-    x2 = pad_sequences(x2, padding='post', truncating='post', dtype=float, maxlen=max_features)
-#    x1 = x1.reshape((1, *x1.shape))
-#    x2 = x2.reshape((1, *x2.shape))
-    return x1, x2, labels
+    x1 = token.texts_to_sequences(q1)  
+    x2 = token.texts_to_sequences(q2)
+    #cosine_similarity = np.dot(x1, x2.T)/(np.linalg.norm(x1)*np.linalg.norm(x2))
+    #print(cosine_similarity)
+    x1 = pad_sequences(x1, padding='post', truncating='post', dtype=int, maxlen=max_features)
+    x2 = pad_sequences(x2, padding='post', truncating='post', dtype=int, maxlen=max_features)
+    x = np.concatenate((np.asarray(x1), np.asarray(x2)), axis=1)
+    """one-hot input
+    x1, x2 = [], []
+    for s1, s2 in zip(q1, q2):
+        x1.append(one_hot(s1, n=max_features))
+        x2.append(one_hot(s2, n=max_features))
+    x1, x2 = np.array(x1), np.array(x2)
+    x1 = pad_sequences(x1, padding='post', truncating='post', dtype=int, value=0, maxlen=max_encoded_len)
+    x2 = pad_sequences(x2, padding='post', truncating='post', dtype=int, value=0, maxlen=max_encoded_len)
+    x = x1+x2 #np.tile(x1, (,1))-x2
+    return x, labels
+    """
+    labels = keras.utils.np_utils.to_categorical(labels, 2)
+    return x, labels
   
 def do_train(model, q1_train, q2_tain, labels, q1_validation, q2_validation, labels_validation):
     # create model
@@ -97,7 +144,7 @@ def do_train(model, q1_train, q2_tain, labels, q1_validation, q2_validation, lab
     # train with data
     model.fit([q1_train, q2_train], labels, 
               validation_data=([q1_validation, q2_validation], labels_validation),
-              verbose=1, batch_size=chunksize, nb_epoch=max_epochs)
+              verbose=1, batch_size=chunksize//4, nb_epoch=max_epochs)
     return model
 
 def init():
@@ -113,10 +160,19 @@ def start(args):
         test(model)
 
 def generate_data():
-    reader = pd.read_csv(train_data_source, header=0, chunksize=chunksize)
-    for data in reader:
-        x1, x2, y = process_data(data)
-        yield {'x1_input': x1, 'x2_input': x2}, {'output': y}
+    count = 0
+    while True:
+        reader = pd.read_csv(train_data_source, header=0, chunksize=chunksize)
+        chunk_cnt = 0
+        for data in reader:
+            x, y = process_data(data)
+            with open('../build/log', 'w+') as fd:
+                fd.write('chunk[{}][{}]:{}, {}\n'.format(count, chunk_cnt, x.shape, y.shape))
+            chunk_cnt += 1
+            yield {'x_input': x}, {'output': y}
+            #yield {'x1_input': x1, 'x2_input': x2}, {'output': y}
+            #x, y = process_data(data)
+        count += 1
 
 def get_model():
     model = None
@@ -138,11 +194,21 @@ def plot_history(history):
     plt.show()
 
 def train():
+    #for x, y in generate_data():
+    #    print(len(x['x1_input'][0]), len(x['x2_input'][0]), y['output'][0])
+    #return None
     model = get_model()
     chkpt = ModelCheckpoint(model_chkpt_path, monitor='loss', verbose=1)
     history = model.fit_generator(generate_data(), callbacks=[chkpt], verbose=1, steps_per_epoch=1000, epochs=10)
     model.save(model_path)
     plot_history(history)
+
+
+def do_test(model):
+#   steps = round(lines/chunksize)
+    res = model.predict_generator(generate_data(), steps=1000, workers=4, verbose=1)
+    print('predict:', res)
+    return res.argmax(1)
 
 def test():
     if not isfile(model_path):
