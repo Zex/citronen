@@ -6,17 +6,21 @@ from keras.layers.convolutional import Conv1D
 from keras.layers import Flatten
 from keras.layers import LSTM
 from keras.layers import Dense
+from keras.layers import Dropout
 from keras.layers import concatenate
 from keras.layers import Input
 from keras.layers import Embedding
 from keras.models import load_model
 from keras.models import Model
 from keras.callbacks import ModelCheckpoint
+from keras.callbacks import EarlyStopping
+from keras.optimizers import RMSprop
+from keras.optimizers import SGD
 #from keras.utils.np_utils import to_categorical
+from keras.utils import plot_model
 #import keras.backend as K
 import keras
 import pandas as pd
-#import math
 import matplotlib.pyplot as plt
 import argparse
 import string
@@ -36,7 +40,7 @@ model_chkpt_path = "../models/quora_model_chkpt_{epoch:02d}-{acc:.2f}.h5"
 max_features = 32
 max_encoded_len = 27
 chunksize = 128
-learning_rate = 0.001
+learning_rate = 0.02
 max_epochs = 1000
 token = Tokenizer()
 
@@ -52,66 +56,35 @@ def create_model():
     x1_input = Input(shape=(max_features*2,), dtype='int32', name='x_input')
 #    x2_input = Input(shape=(max_features,), dtype='int32', name='x2_input')
 
-    x1 = Embedding(output_dim=max_features*2, input_dim=100000, input_length=max_features*2)(x1_input)
-    x1 = Conv1D(max_features*2, 5, activation='relu')(x1)
-    x1 = MaxPooling1D(2)(x1)
-    x1 = Conv1D(max_features*2, 5, activation='relu')(x1)
-    x1 = MaxPooling1D(1)(x1)
-    x1 = Conv1D(max_features*2, 8, activation='relu')(x1)
-    x1 = MaxPooling1D(8)(x1)
-    x1 = Conv1D(max_features*2, 2, activation='relu')(x1)
-    x1 = MaxPooling1D(1)(x1)
-#    x1 = BatchNormalization()(x1)
-#    x1 = LSTM(512, return_sequences=True, name='x1_lstm1')(x1)
-#    x1 = LSTM(128, return_sequences=True, name='x1_lstm2')(x1)
-#    x1 = LSTM(64, return_sequences=True, name='x1_lstm3')(x1)
-
-#    x2 = Embedding(output_dim=max_features, input_dim=100000, input_length=max_features)(x2_input)
-#    x2 = Conv1D(512, 5, activation='relu')(x2)
-#    x2 = MaxPooling1D(5)(x2)
-#    x2 = BatchNormalization()(x2)
-#    x2 = LSTM(512, return_sequences=True, name='x2_lstm1')(x2)
-#    x2 = LSTM(128, return_sequences=True, name='x2_lstm2')(x2)
-#    x2 = LSTM(64, return_sequences=True, name='x2_lstm3')(x2)
-
+    x = Embedding(output_dim=max_features*2, input_dim=100000, input_length=max_features*2)(x1_input)
+    x = Conv1D(max_features*2, 5, activation='relu')(x)
+    x = MaxPooling1D(2)(x)
+    x = Conv1D(max_features*2, 5, activation='relu')(x)
+    x = MaxPooling1D(1)(x)
+    x = Conv1D(max_features*2, 8, activation='relu')(x)
+    x = MaxPooling1D(8)(x)
+    x = Conv1D(max_features*2, 2, activation='relu')(x)
+    x = MaxPooling1D(1)(x)
 #    x = concatenate([x1, x2])
-#    x = LSTM(128, return_sequences=True, name='x_lstm1', dropout=0.2)(x1)
+#    x = LSTM(128, return_sequences=False, name='x_lstm1', dropout=0.2)(x)
 #    x = LSTM(64, return_sequences=True, name='x_lstm2', dropout=0.2)(x)
 #    x = LSTM(32, return_sequences=False, name='x_lstm3', dropout=0.2)(x1)
-    x = Flatten()(x1)
-    x = Dense(100, kernel_initializer='uniform', activation='relu', name='x_relu')(x)
+    x = Flatten()(x)
+    x = Dense(500, kernel_initializer='uniform', activation='relu', name='x_dense1')(x)
+    x = Dropout(0.2)(x)
+    x = Dense(200, kernel_initializer='uniform', activation='relu', name='x_dense2')(x)
+    x = Dropout(0.2)(x)
+    x = Dense(100, kernel_initializer='uniform', activation='relu', name='x_dense3')(x)
+    x = Dropout(0.2)(x)
     y = Dense(2, kernel_initializer='uniform', activation='softmax', name='output')(x)
     model = Model(inputs=[x1_input], outputs=[y],  name='final')
-    #model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['acc'])
+#    model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
+#    rmsprop = RMSprop(lr=learning_rate)
+    sdg = SGD(lr=0.01, momentum=0.9)
+    model.compile(loss='categorical_crossentropy', optimizer=sdg, metrics=['acc'])
 
-    """
-    ## with one-hot input
-    x1_input = Input(shape=(max_encoded_len,), dtype='int32', name='x1_input')
-    #x2_input = Input(shape=(max_encoded_len,), dtype='int32', name='x2_input')
-
-    x1 = Embedding(output_dim=chunksize, input_dim=max_features, input_length=max_encoded_len)(x1_input)
-    x1 = LSTM(512, return_sequences=True, name='x1_lstm1')(x1)
-    x1 = LSTM(128, return_sequences=True, name='x1_lstm2')(x1)
-    x1 = LSTM(64, return_sequences=True, name='x1_lstm3')(x1)
-    x = x1
-#    x2 = Embedding(output_dim=chunksize, input_dim=max_features, input_length=max_encoded_len)(x2_input)
-#    
-#    x = concatenate([x1, x2])
-#
-#    x2 = LSTM(512, return_sequences=True, name='x2_lstm1')(x2)
-#    x2 = LSTM(128, return_sequences=True, name='x2_lstm2')(x2)
-#    x2 = LSTM(64, return_sequences=True, name='x2_lstm3')(x2)
-
-    #x = LSTM(32, return_sequences=True, name='x_lstm1')(x)
-    x = GlobalAveragePooling1D()(x)
-    x = Dense(100, kernel_initializer='uniform', activation='relu', name='x_relu')(x)
-    y = Dense(1, kernel_initializer='uniform', activation='softmax', name='output')(x)
-    #model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
-    model = Model(inputs=[x1_input], outputs=[y],  name='final')
-    model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['acc'])
-    """
     model.summary()
+    plot_model(model, to_file='{}.png'.format(model_path), show_shapes=True, show_layer_names=True)
     return model
 
 def process_data(data):
@@ -128,17 +101,6 @@ def process_data(data):
     x1 = pad_sequences(x1, padding='post', truncating='post', dtype=int, maxlen=max_features)
     x2 = pad_sequences(x2, padding='post', truncating='post', dtype=int, maxlen=max_features)
     x = np.concatenate((np.asarray(x1), np.asarray(x2)), axis=1)
-    """one-hot input
-    x1, x2 = [], []
-    for s1, s2 in zip(q1, q2):
-        x1.append(one_hot(s1, n=max_features))
-        x2.append(one_hot(s2, n=max_features))
-    x1, x2 = np.array(x1), np.array(x2)
-    x1 = pad_sequences(x1, padding='post', truncating='post', dtype=int, value=0, maxlen=max_encoded_len)
-    x2 = pad_sequences(x2, padding='post', truncating='post', dtype=int, value=0, maxlen=max_encoded_len)
-    x = x1+x2 #np.tile(x1, (,1))-x2
-    return x, labels
-    """
     labels = keras.utils.np_utils.to_categorical(labels, 2)
     return x, labels
   
@@ -155,7 +117,7 @@ def do_train(model, q1_train, q2_tain, labels, q1_validation, q2_validation, lab
 def init():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'validate'])
-    parser.add_argument('--model_prefix', default='quora_model', type=str, help='Mode to run in')
+    parser.add_argument('--model_prefix', default='quora_model', type=str, help='Prefix for model persistance')
     args = parser.parse_args()
     return args
 
@@ -172,13 +134,12 @@ def generate_data(source):
             x, y = process_data(data)
             yield {'x_input': x}, {'output': y}
             #yield {'x1_input': x1, 'x2_input': x2}, {'output': y}
-            #x, y = process_data(data)
 
 def get_model(model_path):
     model = None
     if isfile(model_path):
         model = load_model(model_path)
-    if model is None:
+    else:
         model = create_model() 
     return model
 
@@ -194,21 +155,19 @@ def plot_history(history):
     plt.show()
 
 def train(model_prefix):
-    #for x, y in generate_data():
-    #    print(len(x['x1_input'][0]), len(x['x2_input'][0]), y['output'][0])
-    #return None
 #    model_path, model_chkpt_path = model_path_tmpl.format(model_prefix), model_chkpt_path_tmpl.format(model_prefix)
 #    print(model_path, model_chkpt_path)
     model = get_model(model_path)
     chkpt = ModelCheckpoint(model_chkpt_path, monitor='acc', verbose=1)
-    history = model.fit_generator(generate_data(train_data_source), callbacks=[chkpt],\
-                    verbose=1, steps_per_epoch=30000, epochs=10)
+    early_stop = EarlyStopping(monitor='loss', verbose=1, patience=3, min_delta=0.0001)
+    history = model.fit_generator(generate_data(train_data_source), callbacks=[chkpt, early_stop],\
+                    verbose=1, steps_per_epoch=3700, epochs=20, initial_epoch=0)# workers=4, pickle_safe=True)
     model.save(model_path)
     plot_history(history)
 
 def do_test(model):
 #   steps = round(lines/chunksize)
-    res = model.predict_generator(generate_data(test_data_source), steps=1000, workers=4, verbose=1)
+    res = model.predict_generator(generate_data(test_data_source), steps=1000, verbose=1)
     print('predict:', res)
     return res.argmax(1)
 
