@@ -45,10 +45,7 @@ test_result = '../data/quora/test_result.csv'
 #model_path = "../models/quora_mlp.pkl"
 tokenizer_path = "../models/quora_tokenizer.pkl"
 model_id = 'quora_extra'
-model_path = "../models/{}_model.h5".format(model_id)
-model_chkpt_path = "../models/"+model_id+"_model_chkpt_{epoch:02d}-{acc:.2f}.h5"
-tsboard_log = '../build/{}.log'.format(model_id)
-logfd = open('../build/log-{}.csv'.format(model_id), 'w+')
+model_path, model_chkpt_path, tsboard_log, logfd = [None]*4
 max_features = 128
 max_encoded_len = 128
 chunksize = 64
@@ -108,7 +105,7 @@ def create_model(tokenizer=None):
 
     y = Dense(2, kernel_initializer='uniform', activation='softmax', name='output')(x)
     model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
-    model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['loss', 'acc','sparse_categorical_accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['loss', 'acc','sparse_categorical_accuracy', 'binary_accuracy'])
    
     model.summary()
     plot_model(model, to_file='{}.png'.format(model_path), show_shapes=True, show_layer_names=True)
@@ -130,13 +127,15 @@ def process_data(data, tokenizer):
 def init():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'validate'])
-    parser.add_argument('--model_prefix', default='quora_model', type=str, help='Prefix for model persistance')
+    parser.add_argument('--prefix', default=model_id, type=str, help='Prefix for model persistance')
+    parser.add_argument('--train-tokenizer', dest='train_tokenizer', action='store_true', help='Pretrain tokenizer')
     args = parser.parse_args()
     return args
 
 def start(args):
+    update_path(args.prefix)
     if args.mode == 'train':
-        train(args.model_prefix)
+        train(args.model_prefix, args.train_tokenizer)
     else:
         test(args.model_prefix)
 
@@ -170,7 +169,6 @@ def generate_data(source, tokenizer):
         reader = pd.read_csv(source, header=0, chunksize=chunksize)
         for data in reader:
             x1, x2, y = process_data(data, tokenizer)
-            #yield {'x_input': x}, {'output': y}
             yield {'x1_input': x1, 'x2_input': x2}, {'output': y}
 
 def read_data(source, tokenizer):
@@ -183,7 +181,6 @@ def get_model(model_path, tokenizer=None):
     return model
 
 def plot_history(history):
-    # summarize history for accuracy
     keys = ['acc', 'loss',] #val_loss
     for k in keys:
         plt.plot(history.history[k])
@@ -193,14 +190,25 @@ def plot_history(history):
     plt.xlabel('epoch')
     plt.show()
 
-def train(model_prefix):
-#    model_path, model_chkpt_path = model_path_tmpl.format(model_prefix), model_chkpt_path_tmpl.format(model_prefix)
-    tokenizer = get_tokenizer(tokenizer_path, source=train_data_source, train=False)
+def update_path(prefix):
+    global model_path
+    global model_chkpt_path
+    global tsboard_log
+    global logfd
+    model_id = prefix
+    model_path = "../models/{}_model.h5".format(model_id)
+    model_chkpt_path = "../models/"+model_id+"_model_chkpt_{epoch:02d}-{acc:.2f}.h5"
+    tsboard_log = '../build/{}.log'.format(model_id)
+
+def train(model_prefix, train_tokenizer=False):
+    global logfd
+    tokenizer = get_tokenizer(tokenizer_path, source=train_data_source, train=train_tokenizer)
     model = get_model(model_path, tokenizer)
     chkpt = ModelCheckpoint(model_chkpt_path, monitor='acc', verbose=1)
     early_stop = EarlyStopping(monitor='loss', verbose=1, patience=3, min_delta=0.0001)
     plotlog = PlotLog()
     tsboard = TensorBoard('../build/quora.log')
+    logfd = open('../build/log-{}.csv'.format(model_id), 'w+')
     history = model.fit_generator(generate_data(train_data_source, tokenizer), callbacks=[chkpt, early_stop, plotlog, tsboard],\
                     verbose=1, steps_per_epoch=steps_per_epoch, epochs=total_epochs, initial_epoch=init_epoch)# workers=4, pickle_safe=True)
 #    history = model.fit({'x1_input':x1, 'x2_input':x2}, y, nb_epoch=total_epochs, batch_size=chunksize, verbose=1, validation_split=0.1)
@@ -213,7 +221,6 @@ def do_test(model):
     return res.argmax(1)
 
 def test(model_prefix):
-    model_path, model_chkpt_path = model_path_tmpl.format(model_prefix), model_chkpt_path_tmpl.format(model_prefix)
     if not isfile(model_path):
         print('No model found @ {}'.format(model_path))
         return
