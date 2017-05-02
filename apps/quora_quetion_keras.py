@@ -37,7 +37,6 @@ from os.path import isfile
 import sys
 import numpy as np
 import _pickle
-from plot_from_tfevent import plot_scalars
 
 train_data_source = '../data/quora/origin-train.csv'
 evaluate_data_source = '../data/quora/tiny-train.csv'
@@ -127,7 +126,8 @@ def process_data(data, tokenizer):
         labels = data['is_duplicate'].values.astype(np.int32)
         labels = keras.utils.np_utils.to_categorical(labels, 2)
         return x1, x2, labels
-    return x1, x2
+    tid = data['test_id'].values.astype('U')
+    return x1, x2, tid
  
 def init():
     parser = argparse.ArgumentParser()
@@ -197,6 +197,7 @@ def read_data(source, tokenizer):
 def get_model(model_path, tokenizer=None):
     model = load_model(model_path) if isfile(model_path) else create_model(tokenizer)
     K.set_value(model.optimizer.lr, 0.01)
+    del(model.metrics[-1])
     print('name:{} lr:{} len(weights):{}'.format(model.name, K.eval(model.optimizer.lr), len(model.weights)))
     return model
 
@@ -242,13 +243,7 @@ def evaluate(model_prefix):
     model = get_model(model_path, tokenizer)
     scalars = model.evaluate_generator(generate_data(train_data_source, tokenizer), steps=steps_per_epoch)
     print('total scalars:{}'.format(len(scalars)))
-    print(type(scalars[0]))
-    #plot_scalars(scalars)
-
-def do_test(model, tokenizer, x):
-    #res = model.predict_generator(generate_data(test_data_source, tokenizer), verbose=1, steps=steps_per_epoch)
-    res = model.predict(x, batch_size=chunksize, verbose=0)
-    return res.argmax(1)
+    [print("{}:{}".format(m, s)) for m, s in zip(model.metrics_names, scalars)]
 
 def test(model_prefix):
     if not isfile(model_path):
@@ -256,14 +251,16 @@ def test(model_prefix):
         return
     tokenizer = get_tokenizer(tokenizer_path, source=train_data_source, train=False)
     model = get_model(model_path, tokenizer)
-    reader = pd.read_csv(test_data_source, header=0, chunksize=chunksize)
+    batch_size = 55
+    reader = pd.read_csv(test_data_source, header=0, chunksize=batch_size)
     with open(test_result, 'w+') as fd:
         fd.write('test_id,is_duplicate\n')
         for chunk in reader:
-            x1, x2 = process_data(chunk, tokenizer)
+            x1, x2, tid = process_data(chunk, tokenizer)
             x = {'x1_input': x1, 'x2_input': x2}
-            result = do_test(model, tokenizer, x)
-            [fd.write('{},{}\n'.format(c, r)) for c, r in zip(np.arange(len(result)), result)]
+            res = model.predict(x, batch_size=batch_size, verbose=0)
+            res = res.argmax(1)
+            [fd.write('{},{}\n'.format(c, r)) for c, r in zip(tid, res)]
 
 if __name__ == '__main__':
     args = init()
