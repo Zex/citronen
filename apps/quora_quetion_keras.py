@@ -25,7 +25,7 @@ from keras.optimizers import RMSprop
 from keras.optimizers import SGD
 #from keras.utils.np_utils import to_categorical
 from keras.utils import plot_model
-#import keras.backend as K
+import keras.backend as K
 import keras
 import matplotlib
 matplotlib.use("TkAgg")
@@ -37,9 +37,10 @@ from os.path import isfile
 import sys
 import numpy as np
 import _pickle
+from plot_from_tfevent import plot_scalars
 
 train_data_source = '../data/quora/origin-train.csv'
-validation_data_source = '../data/quora/validation.csv'
+evaluate_data_source = '../data/quora/tiny-train.csv'
 test_data_source = '../data/quora/test.csv'
 test_result = '../data/quora/test_result.csv'
 #model_path = "../models/quora_mlp.pkl"
@@ -50,9 +51,11 @@ max_features = 128
 max_encoded_len = 128
 chunksize = 64
 steps_per_epoch = 4000
-total_epochs = 60
-init_epoch = 40
+total_epochs = 100
+init_epoch = 68
 learning_rate = 0.001
+is_training = True
+is_evaluating = False
 
 class PlotLog(keras.callbacks.Callback):
     def on_train_begin(self, logs={}):
@@ -104,7 +107,7 @@ def create_model(tokenizer=None):
     x = Dropout(0.2)(x)
 
     y = Dense(2, kernel_initializer='uniform', activation='softmax', name='output')(x)
-    model = Model(inputs=[x1_input, x2_input], outputs=[y],  name='final')
+    model = Model(inputs=[x1_input, x2_input], outputs=[y], name='final')
     model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['loss', 'acc','sparse_categorical_accuracy', 'binary_accuracy'])
    
     model.summary()
@@ -115,29 +118,38 @@ def create_model(tokenizer=None):
 
 def process_data(data, tokenizer):
     q1, q2, labels = data['question1'].values.astype('U'),\
-                     data['question2'].values.astype('U'),\
-                     data['is_duplicate'].values.astype(np.int32)
+                     data['question2'].values.astype('U'), None
     x1 = tokenizer.texts_to_sequences(q1)#, mode='binary') 
     x2 = tokenizer.texts_to_sequences(q2)#, mode='binary') 
     x1 = pad_sequences(x1, padding='post', truncating='post', dtype=int, maxlen=max_features)
     x2 = pad_sequences(x2, padding='post', truncating='post', dtype=int, maxlen=max_features)
-    labels = keras.utils.np_utils.to_categorical(labels, 2)
-    return x1, x2, labels
+    if is_training or is_evaluating:
+        labels = data['is_duplicate'].values.astype(np.int32)
+        labels = keras.utils.np_utils.to_categorical(labels, 2)
+        return x1, x2, labels
+    return x1, x2
  
 def init():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'validate'])
+    parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'eval'])
     parser.add_argument('--prefix', default=model_id, type=str, help='Prefix for model persistance')
     parser.add_argument('--train-tokenizer', dest='train_tokenizer', action='store_true', help='Pretrain tokenizer')
     args = parser.parse_args()
     return args
 
 def start(args):
+    global is_training
+    global is_evaluating
     update_path(args.prefix)
     if args.mode == 'train':
-        train(args.model_prefix, args.train_tokenizer)
+        is_traininig, is_evaluating = True, False
+        train(args.prefix, args.train_tokenizer)
+    elif args.mode == 'eval':
+        is_traininig, is_evaluating = False, True
+        evaluate(args.prefix)
     else:
-        test(args.model_prefix)
+        is_training, is_evaluating = False, False
+        test(args.prefix)
 
 def pretrain_tokenizer(tokenizer, source, tokenizer_path=None):
     reader = pd.read_csv(source, header=0, chunksize=1000)
@@ -165,11 +177,17 @@ def get_tokenizer(tokenizer_path=None, train=False, source=None):
     return tokenizer
 
 def generate_data(source, tokenizer):
-    while True:
+    if is_training or is_evaluating:
+        while True:
+            reader = pd.read_csv(source, header=0, chunksize=chunksize)
+            for data in reader:
+                x1, x2, y = process_data(data, tokenizer)
+                yield {'x1_input': x1, 'x2_input': x2}, {'output': y}
+    else:
         reader = pd.read_csv(source, header=0, chunksize=chunksize)
         for data in reader:
-            x1, x2, y = process_data(data, tokenizer)
-            yield {'x1_input': x1, 'x2_input': x2}, {'output': y}
+            x1, x2 = process_data(data, tokenizer)
+            yield {'x1_input': x1, 'x2_input': x2}
 
 def read_data(source, tokenizer):
     data = pd.read_csv(source, header=0)
@@ -178,6 +196,8 @@ def read_data(source, tokenizer):
 
 def get_model(model_path, tokenizer=None):
     model = load_model(model_path) if isfile(model_path) else create_model(tokenizer)
+    K.set_value(model.optimizer.lr, 0.01)
+    print('name:{} lr:{} len(weights):{}'.format(model.name, K.eval(model.optimizer.lr), len(model.weights)))
     return model
 
 def plot_history(history):
@@ -211,28 +231,39 @@ def train(model_prefix, train_tokenizer=False):
     logfd = open('../build/log-{}.csv'.format(model_id), 'w+')
     history = model.fit_generator(generate_data(train_data_source, tokenizer), callbacks=[chkpt, early_stop, plotlog, tsboard],\
                     verbose=1, steps_per_epoch=steps_per_epoch, epochs=total_epochs, initial_epoch=init_epoch)# workers=4, pickle_safe=True)
-#    history = model.fit({'x1_input':x1, 'x2_input':x2}, y, nb_epoch=total_epochs, batch_size=chunksize, verbose=1, validation_split=0.1)
+#    history = model.fit({'x1_input':x1, 'x2_input':x2}, y, nb_epoch=total_epochs, batch_size=chunksize, verbose=1, evaluate_split=0.1)
     model.save(model_path)
     plot_history(history)
 
-def do_test(model):
-    res = model.predict_generator(generate_data(test_data_source), steps=1000, verbose=1)
-    print('predict:', res)
+def evaluate(model_prefix):
+    global logfd
+    # TODO: split train data
+    tokenizer = get_tokenizer(tokenizer_path, source=train_data_source, train=False)
+    model = get_model(model_path, tokenizer)
+    scalars = model.evaluate_generator(generate_data(train_data_source, tokenizer), steps=steps_per_epoch)
+    print('total scalars:{}'.format(len(scalars)))
+    print(type(scalars[0]))
+    #plot_scalars(scalars)
+
+def do_test(model, tokenizer, x):
+    #res = model.predict_generator(generate_data(test_data_source, tokenizer), verbose=1, steps=steps_per_epoch)
+    res = model.predict(x, batch_size=chunksize, verbose=0)
     return res.argmax(1)
 
 def test(model_prefix):
     if not isfile(model_path):
         print('No model found @ {}'.format(model_path))
         return
-    model = get_model()
-    # data loader
+    tokenizer = get_tokenizer(tokenizer_path, source=train_data_source, train=False)
+    model = get_model(model_path, tokenizer)
     reader = pd.read_csv(test_data_source, header=0, chunksize=chunksize)
-    # do test
     with open(test_result, 'w+') as fd:
         fd.write('test_id,is_duplicate\n')
-        for data in reader:
-            result = do_test(model, data)
-            [fd.write('{},{}\n'.format(r[0], r[1])) for r in result]
+        for chunk in reader:
+            x1, x2 = process_data(chunk, tokenizer)
+            x = {'x1_input': x1, 'x2_input': x2}
+            result = do_test(model, tokenizer, x)
+            [fd.write('{},{}\n'.format(c, r)) for c, r in zip(np.arange(len(result)), result)]
 
 if __name__ == '__main__':
     args = init()
