@@ -1,6 +1,6 @@
 from keras.callbacks import Callback
 
-class PlotLog(keras.callbacks.Callback):
+class PlotLog(Callback):
     def on_train_begin(self, logs={}):
         self.losses = []
         self.accs = []
