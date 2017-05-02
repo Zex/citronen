@@ -29,21 +29,19 @@ def pipe_csv(ax, fig):
         line = sys.stdin.readline()
         if line is None or len(line) == 0:
             break
-        loss, acc, cate, sparse = line.split(',')
+        loss, acc, _, sparse = line.split(',')
         losses.append(float(loss))
         accs.append(float(acc))
-        cates.append(float(cate))
         sparses.append(float(sparse))
         pylab.plot(np.arange(len(losses)), losses, '.', color='blue', markerfacecolor='blue')
         pylab.plot(np.arange(len(accs)), accs, '.', color='red', markerfacecolor='red')
-        pylab.plot(np.arange(len(cates)), cates, '.', color='green', markerfacecolor='green')
         pylab.plot(np.arange(len(sparses)), sparses, '.', color='yellow', markerfacecolor='yellow')
-        ax.legend(['loss', 'acc', 'cate_acc', 'sparse_cate_acc'], loc='upper left')
+        ax.legend(['loss', 'acc', 'sparse_cate_acc'], loc='upper left')
         fig.canvas.draw()
 
 if __name__ == '__main__':
     plt.ion()
-    fig = plt.figure()
+    fig = plt.figure(figsize=(6, 4), facecolor='darkgray', edgecolor='black')
     ax = fig.add_subplot(111, facecolor='black')
     ax.autoscale(True)
     plt.title('profile')

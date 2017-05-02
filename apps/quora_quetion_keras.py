@@ -1,10 +1,9 @@
+from apps.common import PlotLog
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.text import one_hot
 from keras.preprocessing.sequence import pad_sequences
 from keras.layers.pooling import MaxPooling1D
 from keras.layers.convolutional import Conv1D
-from keras.layers.pooling import MaxPooling2D
-from keras.layers.convolutional import Conv2D
 from keras.layers.normalization import BatchNormalization
 from keras.layers import Flatten
 from keras.layers import LSTM
@@ -51,19 +50,10 @@ max_encoded_len = 128
 chunksize = 64
 steps_per_epoch = 4000
 total_epochs = 100
-init_epoch = 68
+init_epoch = 0
 learning_rate = 0.001
 is_training = True
 is_evaluating = False
-
-class PlotLog(keras.callbacks.Callback):
-    def on_train_begin(self, logs={}):
-        self.losses = []
-        self.accs = []
-
-    def on_batch_end(self, batch, logs={}):
-        logfd.write('{},{},{},{}\n'.format(logs.get('loss'), logs.get('acc'), logs.get('categorical_accuracy'), logs.get('sparse_categorical_accuracy')))
-        logfd.flush()
 
 def preprocess(q):
     q = [x.lower() for x in q]
@@ -92,8 +82,8 @@ def create_model(tokenizer=None):
     x2 = MaxPooling1D(3)(x2)
 
     x = dot([x1, x2], -1, normalize=True)
-#    x = Conv1D(128, 3, activation='relu')(x)
-#    x = MaxPooling1D(3)(x)
+    x = Conv1D(128, 3, activation='relu')(x)
+    x = MaxPooling1D(3)(x)
 #    x = Conv1D(128, 3, activation='relu')(x)
 #    x = MaxPooling1D(3)(x)
 #    x = Conv1D(128, 3, activation='relu')(x)
@@ -107,7 +97,8 @@ def create_model(tokenizer=None):
 
     y = Dense(2, kernel_initializer='uniform', activation='softmax', name='output')(x)
     model = Model(inputs=[x1_input, x2_input], outputs=[y], name='final')
-    model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['loss', 'acc','sparse_categorical_accuracy', 'binary_accuracy'])
+    sgd = SGD(lr=learning_rate)
+    model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['acc','sparse_categorical_accuracy', 'binary_accuracy'])
    
     model.summary()
     plot_model(model, to_file='{}.png'.format(model_path), show_shapes=True, show_layer_names=True)
@@ -143,13 +134,13 @@ def start(args):
     update_path(args.prefix)
     if args.mode == 'train':
         is_traininig, is_evaluating = True, False
-        train(args.prefix, args.train_tokenizer)
+        train(args.train_tokenizer)
     elif args.mode == 'eval':
         is_traininig, is_evaluating = False, True
-        evaluate(args.prefix)
+        evaluate()
     else:
         is_training, is_evaluating = False, False
-        test(args.prefix)
+        test()
 
 def pretrain_tokenizer(tokenizer, source, tokenizer_path=None):
     reader = pd.read_csv(source, header=0, chunksize=1000)
@@ -196,8 +187,7 @@ def read_data(source, tokenizer):
 
 def get_model(model_path, tokenizer=None):
     model = load_model(model_path) if isfile(model_path) else create_model(tokenizer)
-    K.set_value(model.optimizer.lr, 0.01)
-    del(model.metrics[-1])
+    #K.set_value(model.optimizer.lr, 0.01)
     print('name:{} lr:{} len(weights):{}'.format(model.name, K.eval(model.optimizer.lr), len(model.weights)))
     return model
 
@@ -221,22 +211,21 @@ def update_path(prefix):
     model_chkpt_path = "../models/"+model_id+"_model_chkpt_{epoch:02d}-{acc:.2f}.h5"
     tsboard_log = '../build/{}.log'.format(model_id)
 
-def train(model_prefix, train_tokenizer=False):
-    global logfd
+def train(train_tokenizer=False):
     tokenizer = get_tokenizer(tokenizer_path, source=train_data_source, train=train_tokenizer)
     model = get_model(model_path, tokenizer)
     chkpt = ModelCheckpoint(model_chkpt_path, monitor='acc', verbose=1)
     early_stop = EarlyStopping(monitor='loss', verbose=1, patience=3, min_delta=0.0001)
     plotlog = PlotLog()
-    tsboard = TensorBoard('../build/quora.log')
-    logfd = open('../build/log-{}.csv'.format(model_id), 'w+')
+    tsboard = TensorBoard(tsboard_log)
+    PlotLog.logfd = open('../build/log-{}.csv'.format(model_id), 'w+')
     history = model.fit_generator(generate_data(train_data_source, tokenizer), callbacks=[chkpt, early_stop, plotlog, tsboard],\
                     verbose=1, steps_per_epoch=steps_per_epoch, epochs=total_epochs, initial_epoch=init_epoch)# workers=4, pickle_safe=True)
 #    history = model.fit({'x1_input':x1, 'x2_input':x2}, y, nb_epoch=total_epochs, batch_size=chunksize, verbose=1, evaluate_split=0.1)
     model.save(model_path)
     plot_history(history)
 
-def evaluate(model_prefix):
+def evaluate():
     global logfd
     # TODO: split train data
     tokenizer = get_tokenizer(tokenizer_path, source=train_data_source, train=False)
@@ -245,7 +234,7 @@ def evaluate(model_prefix):
     print('total scalars:{}'.format(len(scalars)))
     [print("{}:{}".format(m, s)) for m, s in zip(model.metrics_names, scalars)]
 
-def test(model_prefix):
+def test():
     if not isfile(model_path):
         print('No model found @ {}'.format(model_path))
         return
