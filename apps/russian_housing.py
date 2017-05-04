@@ -1,4 +1,4 @@
-from apps.common import PlotLog
+from apps.common import StateReport
 import matplotlib
 matplotlib.use("TkAgg")
 from pandas import read_csv
@@ -18,47 +18,36 @@ from keras.optimizers import SGD
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import EarlyStopping
 from keras.callbacks import TensorBoard
+from keras.callbacks import Callback
+from keras.preprocessing.text import one_hot
+from keras.initializers import TruncatedNormal
 import keras.backend as K
+import numpy as np
 from os.path import isfile
 import argparse
 
 train_data_source = "../data/russian_housing/train.csv"
 eval_data_source = "../data/russian_housing/eval.csv"
 test_data_source = "../data/russian_housing/test.csv"
-chunksize = 32
+chunksize = 10
 max_features = 290   # remove id and price
 model_id = 'russian_housing'
-model_path, model_chkpt_path, tsboard_log = [None]*3
-steps_per_epoch, init_epoch, total_epochs = 1000, 0, 1000
+strep_log, rep_log, model_path, model_chkpt_path, tsboard_log = [None]*5
+steps_per_epoch, init_epoch, total_epochs = 10, 0, 3
 is_training, is_evaluating = False, False
 
 def create_model():
     x_input = Input(shape=(max_features,), dtype='float32', name='input')
-    x = BatchNormalization()(x_input)
-    x = Reshape((max_features, 1))(x)
+    x = Reshape((max_features, 1))(x_input)
+    x = BatchNormalization()(x)
     x = Conv1D(512, 7, strides=1, padding='valid', dilation_rate=1, activation='relu', use_bias=True,
-        kernel_initializer='glorot_uniform', bias_initializer='zeros',
-        kernel_regularizer=regularizers.l2(0.01),
-        bias_regularizer=regularizers.l2(0.01),
-        activity_regularizer=regularizers.l1(0.02))(x)
-    x = MaxPooling1D(pool_size=2, strides=None, padding='valid')(x)
-    x = Conv1D(512, 7, strides=1, padding='valid', dilation_rate=1, activation='relu', use_bias=True,
-        kernel_initializer='glorot_uniform', bias_initializer='zeros',
-        kernel_regularizer=regularizers.l2(0.01),
-        bias_regularizer=regularizers.l2(0.01),
-        activity_regularizer=regularizers.l1(0.02))(x)
-    x = MaxPooling1D(pool_size=2, strides=None, padding='valid')(x)
-    x = Conv1D(512, 7, strides=1, padding='valid', dilation_rate=1, activation='relu', use_bias=True,
-        kernel_initializer='glorot_uniform', bias_initializer='zeros',
+        kernel_initializer=TruncatedNormal(), bias_initializer='zeros',
         kernel_regularizer=regularizers.l2(0.01),
         bias_regularizer=regularizers.l2(0.01),
         activity_regularizer=regularizers.l1(0.02))(x)
     x = MaxPooling1D(pool_size=2, strides=None, padding='valid')(x)
     
     x = Flatten()(x)
-    x = BatchNormalization()(x)
-    x = Dense(128, kernel_initializer='uniform', activation='softmax')(x)
-    x = Dropout(0.2)(x)
     x = BatchNormalization()(x)
     x = Dense(128, kernel_initializer='uniform', activation='softmax')(x)
     x = Dropout(0.3)(x)
@@ -106,31 +95,6 @@ def test():
 def evaluate():
     pass
 
-def pretrain_tokenizer(tokenizer, source, tokenizer_path=None):
-    reader = pd.read_csv(source, header=0, chunksize=1000)
-    print('-'*40)
-    for data in reader:
-        q1, q2, labels = data['question1'].values.astype('U'),\
-                     data['question2'].values.astype('U'),\
-                     data['is_duplicate'].values.astype(np.int32)
-        tokenizer.fit_on_texts(np.concatenate((q1, q2)))
-        print('tokenizer: word_count:{} word_docs:{} word_index:{} doc_count:{}'.format(
-            len(tokenizer.word_counts), len(tokenizer.word_docs),
-            len(tokenizer.word_index), tokenizer.document_count), end='\r')
-    print('')
-    if tokenizer_path is not None:
-        _pickle.dump(tokenizer, open(tokenizer_path, 'wb'))
-    return tokenizer
-   
-def get_tokenizer(tokenizer_path=None, train=False, source=None):
-    tokenizer = _pickle.load(open(tokenizer_path, 'rb')) if isfile(tokenizer_path) else Tokenizer()
-    if train and source is not None:
-        tokenizer = pretrain_tokenizer(tokenizer, source, tokenizer_path)
-    print('using tokenizer: word_count:{} word_docs:{} word_index:{} doc_count:{}'.format(
-        len(tokenizer.word_counts), len(tokenizer.word_docs),
-        len(tokenizer.word_index), tokenizer.document_count))
-    return tokenizer
-
 def get_model(model_path):
     model = load_model(model_path) if isfile(model_path) else create_model()
     print('name:{} lr:{} len(weights):{}'.format(model.name, K.eval(model.optimizer.lr), len(model.weights)))
@@ -151,32 +115,56 @@ def update_path(prefix):
     global model_chkpt_path
     global tsboard_log
     global logfd
+    global strep_log
+    global rep_log
     model_id = prefix
     model_path = "../models/{}.h5".format(model_id)
     model_chkpt_path = "../models/"+model_id+"_chkpt_{epoch:02d}-{acc:.2f}.h5"
     tsboard_log = '../build/{}.log'.format(model_id)
+    strep_log = '../build/log-{}.csv'.format(model_id)
+    rep_log = '../build/log-{}.rep'.format(model_id)
 
 def train():
     model = get_model(model_path)
     chkpt = ModelCheckpoint(model_chkpt_path, monitor='acc', verbose=1)
     early_stop = EarlyStopping(monitor='loss', verbose=1, patience=3, min_delta=0.0001)
-    plotlog = PlotLog()
+    rep = StateReport(strep_log)
     tsboard = TensorBoard(tsboard_log)
-    PlotLog.logfd = open('../build/log-{}.csv'.format(model_id), 'w+')
     history = model.fit_generator(generate_data(train_data_source),
-                callbacks=[chkpt, early_stop, plotlog, tsboard],\
+                callbacks=[chkpt, early_stop, tsboard, rep],\
                 verbose=1, steps_per_epoch=steps_per_epoch, epochs=total_epochs, initial_epoch=init_epoch)
     model.save(model_path)
     plot_history(history)
+
+def preprocess(source):
+    data = read_csv(source, header=0)
+    data = data.fillna(0.0)
+    data.replace(('yes', 'no'), (1, 0), inplace=True)
+    data.fillna(0.0)
+    ids, y = data['id'], data['price_doc']
+    time = data['timestamp'].astype('datetime64')
+    product_type, sub_area, ecology = data['product_type'], data['sub_area'], data['ecology']
+    data['product_type'] = np.reshape([one_hot(x, n=np.unique(product_type).shape[0]+1) for x in product_type], product_type.shape)
+    data['sub_area'] = np.reshape([one_hot(x, n=np.unique(sub_area).shape[0]+1, split=',') for x in sub_area], sub_area.shape)
+    data['ecology'] = np.reshape([one_hot(x, n=np.unique(ecology).shape[0]+1) for x in ecology], ecology.shape)
+    intermedia = '../build/{}-preprocess.csv'.format(model_id)
+    data.to_csv(intermedia)
+    #x = data.iloc[0:chunksize, 13:30]#, 12:291]
+    #return x, y
 
 def generate_data(source): 
     while True:
         reader = read_csv(source, header=0, chunksize=chunksize)
         for chunk in reader:
-            ids, y = chunk['id'], chunk['price_doc']
+            x, y = preprocess(chunk)
+            yield x, y
 
 if __name__ == '__main__':
     args = init()
-    start(args)
+#    start(args)
+    #for x, y in generate_data(train_data_source):
+        #print(x, y)
+    #    break
+    preprocess(train_data_source)
 
 
