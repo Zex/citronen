@@ -43,14 +43,14 @@ test_data_source = '../data/quora/test.csv'
 test_result = '../data/quora/test_result.csv'
 #model_path = "../models/quora_mlp.pkl"
 tokenizer_path = "../models/quora_tokenizer.pkl"
-model_id = 'quora_extra'
+model_id = 'quora_b'
 model_path, model_chkpt_path, tsboard_log, logfd = [None]*4
 max_features = 128
 max_encoded_len = 128
 chunksize = 64
 steps_per_epoch = 4000
 total_epochs = 300
-init_epoch = 204
+init_epoch = 0
 learning_rate = 0.001
 is_training = True
 is_evaluating = False
@@ -82,8 +82,8 @@ def create_model(tokenizer=None):
     x2 = MaxPooling1D(3)(x2)
 
     x = dot([x1, x2], -1, normalize=True)
-    x = Conv1D(128, 3, activation='relu')(x)
-    x = MaxPooling1D(3)(x)
+#    x = Conv1D(128, 3, activation='relu')(x)
+#    x = MaxPooling1D(3)(x)
 #    x = Conv1D(128, 3, activation='relu')(x)
 #    x = MaxPooling1D(3)(x)
 #    x = Conv1D(128, 3, activation='relu')(x)
@@ -91,9 +91,11 @@ def create_model(tokenizer=None):
 #    x = LSTM(32)(x)
     x = Flatten()(x)
     x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
-    x = Dropout(0.2)(x)
+    x = Dropout(0.3)(x)
     x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
-    x = Dropout(0.2)(x)
+    x = Dropout(0.3)(x)
+    x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
+    x = Dropout(0.3)(x)
 
     y = Dense(2, kernel_initializer='uniform', activation='softmax', name='output')(x)
     model = Model(inputs=[x1_input, x2_input], outputs=[y], name='final')
@@ -129,8 +131,7 @@ def init():
     return args
 
 def start(args):
-    global is_training
-    global is_evaluating
+    global is_training, is_evaluating
     update_path(args.prefix)
     if args.mode == 'train':
         is_traininig, is_evaluating = True, False
@@ -187,7 +188,7 @@ def read_data(source, tokenizer):
 
 def get_model(model_path, tokenizer=None):
     model = load_model(model_path) if isfile(model_path) else create_model(tokenizer)
-    K.set_value(model.optimizer.lr, 0.0005)
+    #K.set_value(model.optimizer.lr, 0.0003)
     print('name:{} lr:{} len(weights):{}'.format(model.name, K.eval(model.optimizer.lr), len(model.weights)))
     return model
 
@@ -202,10 +203,7 @@ def plot_history(history):
     plt.show()
 
 def update_path(prefix):
-    global model_path
-    global model_chkpt_path
-    global tsboard_log
-    global logfd
+    global model_path, model_chkpt_path, tsboard_log, logfd
     model_id = prefix
     model_path = "../models/{}_model.h5".format(model_id)
     model_chkpt_path = "../models/"+model_id+"_model_chkpt_{epoch:02d}-{acc:.2f}.h5"
