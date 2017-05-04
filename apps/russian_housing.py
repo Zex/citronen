@@ -32,6 +32,7 @@ test_data_source = "../data/russian_housing/test.csv"
 chunksize = 10
 max_features = 290   # remove id and price
 model_id = 'russian_housing'
+preprocessed_data = '../build/{}-preprocess.csv'.format(model_id)
 strep_log, rep_log, model_path, model_chkpt_path, tsboard_log = [None]*5
 steps_per_epoch, init_epoch, total_epochs = 10, 0, 3
 is_training, is_evaluating = False, False
@@ -75,9 +76,12 @@ def init():
     return args
 
 def start(args):
-    global is_training
-    global is_evaluating
+    global is_training, is_evaluating
     update_path(args.prefix)
+
+    if not isfile(preprocessed_data):
+        preprocess(train_data_source)
+    return
 
     if args.mode == 'train':
         is_traininig, is_evaluating = True, False
@@ -111,18 +115,14 @@ def plot_history(history):
     plt.show()
 
 def update_path(prefix):
-    global model_path
-    global model_chkpt_path
-    global tsboard_log
-    global logfd
-    global strep_log
-    global rep_log
+    global model_id, model_path, model_chkpt_path, tsboard_log, strep_log, rep_log, preprocessed_data
     model_id = prefix
     model_path = "../models/{}.h5".format(model_id)
     model_chkpt_path = "../models/"+model_id+"_chkpt_{epoch:02d}-{acc:.2f}.h5"
     tsboard_log = '../build/{}.log'.format(model_id)
     strep_log = '../build/log-{}.csv'.format(model_id)
     rep_log = '../build/log-{}.rep'.format(model_id)
+    preprocessed_data = '../build/{}-preprocess.csv'.format(model_id)
 
 def train():
     model = get_model(model_path)
@@ -137,34 +137,34 @@ def train():
     plot_history(history)
 
 def preprocess(source):
-    data = read_csv(source, header=0)
+    data = read_csv(source, header=0)#, nrows=10)
     data = data.fillna(0.0)
     data.replace(('yes', 'no'), (1, 0), inplace=True)
     data.fillna(0.0)
-    ids, y = data['id'], data['price_doc']
     time = data['timestamp'].astype('datetime64')
-    product_type, sub_area, ecology = data['product_type'], data['sub_area'], data['ecology']
+    timestamp, product_type, sub_area, ecology = data['timestamp'].values.astype('datetime64').astype(np.int), data['product_type'].values, data['sub_area'].values, data['ecology'].values
+    data['timestamp'] = timestamp
     data['product_type'] = np.reshape([one_hot(x, n=np.unique(product_type).shape[0]+1) for x in product_type], product_type.shape)
     data['sub_area'] = np.reshape([one_hot(x, n=np.unique(sub_area).shape[0]+1, split=',') for x in sub_area], sub_area.shape)
     data['ecology'] = np.reshape([one_hot(x, n=np.unique(ecology).shape[0]+1) for x in ecology], ecology.shape)
-    intermedia = '../build/{}-preprocess.csv'.format(model_id)
-    data.to_csv(intermedia)
-    #x = data.iloc[0:chunksize, 13:30]#, 12:291]
-    #return x, y
+    data.to_csv(preprocessed_data)
+
+def load_chunk(chunk):
+    ids, y = chunk['id'], chunk['price_doc']
+    x = chunk.iloc[0:chunksize, 1:291] #, 12:291]
+    return x, y
 
 def generate_data(source): 
     while True:
         reader = read_csv(source, header=0, chunksize=chunksize)
         for chunk in reader:
-            x, y = preprocess(chunk)
+            x, y = load_chunk(chunk)
             yield x, y
 
 if __name__ == '__main__':
     args = init()
-#    start(args)
-    #for x, y in generate_data(train_data_source):
-        #print(x, y)
-    #    break
-    preprocess(train_data_source)
+    start(args)
+    
+
 
 
