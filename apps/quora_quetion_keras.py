@@ -1,4 +1,4 @@
-from apps.common import PlotLog
+from apps.common import StateReport
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.text import one_hot
 from keras.preprocessing.sequence import pad_sequences
@@ -49,8 +49,8 @@ max_features = 128
 max_encoded_len = 128
 chunksize = 64
 steps_per_epoch = 4000
-total_epochs = 100
-init_epoch = 0
+total_epochs = 300
+init_epoch = 204
 learning_rate = 0.001
 is_training = True
 is_evaluating = False
@@ -187,7 +187,7 @@ def read_data(source, tokenizer):
 
 def get_model(model_path, tokenizer=None):
     model = load_model(model_path) if isfile(model_path) else create_model(tokenizer)
-    #K.set_value(model.optimizer.lr, 0.01)
+    K.set_value(model.optimizer.lr, 0.0005)
     print('name:{} lr:{} len(weights):{}'.format(model.name, K.eval(model.optimizer.lr), len(model.weights)))
     return model
 
@@ -216,10 +216,9 @@ def train(train_tokenizer=False):
     model = get_model(model_path, tokenizer)
     chkpt = ModelCheckpoint(model_chkpt_path, monitor='acc', verbose=1)
     early_stop = EarlyStopping(monitor='loss', verbose=1, patience=3, min_delta=0.0001)
-    plotlog = PlotLog()
+    rep = StateReport('../build/log-{}.csv'.format(model_id))
     tsboard = TensorBoard(tsboard_log)
-    PlotLog.logfd = open('../build/log-{}.csv'.format(model_id), 'w+')
-    history = model.fit_generator(generate_data(train_data_source, tokenizer), callbacks=[chkpt, early_stop, plotlog, tsboard],\
+    history = model.fit_generator(generate_data(train_data_source, tokenizer), callbacks=[chkpt, early_stop, rep, tsboard],\
                     verbose=1, steps_per_epoch=steps_per_epoch, epochs=total_epochs, initial_epoch=init_epoch)# workers=4, pickle_safe=True)
 #    history = model.fit({'x1_input':x1, 'x2_input':x2}, y, nb_epoch=total_epochs, batch_size=chunksize, verbose=1, evaluate_split=0.1)
     model.save(model_path)
