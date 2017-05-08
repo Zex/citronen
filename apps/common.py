@@ -23,4 +23,8 @@ class StateReport(Callback):
     def on_train_end(self, logs=None):
         self.w.write(''.join(['{}:{} '.format(k, v) for k,v in logs.items()])+'\n')
 
+def mean_squared_error(true, pred):
+  return tf.reduce_sum(tf.square(true - pred)) / tf.to_float(tf.size(pred))
+
+
 
