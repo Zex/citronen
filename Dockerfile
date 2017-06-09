@@ -16,4 +16,8 @@ RUN apk add --no-cache \
   
 RUN ln -s /usr/include/locale.h /usr/include/xlocale.h
 RUN mkdir -p /var/data
+RUN pip3 install \
+  numpy==1.12.1 \
+  pymongo==3.4.0
+
 
