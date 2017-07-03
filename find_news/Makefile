@@ -6,12 +6,14 @@ DEPENDS := github.com/balzaczyy/golucene
 
 .PHONY: index build
 
-export GOPATH $(GOPATH)
-
-all: env_info deps find_news
+all: env_info deps datasets find_news
 
 env_info:
 	$(GO) env
+
+datasets:
+	$(shell data/get.sh)
+	@echo "datasets done"
 
 deps:
 	$(GO) get $(DEPENDS)
@@ -25,5 +27,5 @@ index:
 search:
 	$(BUILD)/find_news -index_base index/bbc -content Apple
 
-clearn:
+clean:
 	rm -rf build index
