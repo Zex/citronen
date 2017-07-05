@@ -21,5 +21,13 @@ RUN pip3 install -U pip; pip3 install \
   pymongo==3.4.0 \
   pytorch
 
-COPY . /opt/citronen
+ENV CITRONEN_ROOT "/opt/citronen"
+COPY README.md $CITRONEN_ROOT/README.md
+COPY apps $CITRONEN_ROOT/apps
+COPY docs $CITRONEN_ROOT/docs
+COPY find_news $CITRONEN_ROOT/find_news
+COPY passenger_screening $CITRONEN_ROOT/passenger_screening
+COPY quora_question $CITRONEN_ROOT/quora_question
+COPY russan_housing $CITRONEN_ROOT/russian_housing
+COPY zillow $CITRONEN_ROOT/zillow
 
