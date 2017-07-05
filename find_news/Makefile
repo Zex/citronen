@@ -1,6 +1,6 @@
 # Find news makefile
-GO			:= go
 GOPATH	:= $(shell pwd)
+GO			:= go
 BUILD		:= "build"
 DEPENDS := github.com/balzaczyy/golucene
 

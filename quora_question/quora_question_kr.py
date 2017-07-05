@@ -89,8 +89,16 @@ def create_model(tokenizer=None):
 #  x = MaxPooling1D(3)(x)
 #  x = Conv1D(128, 3, activation='relu')(x)
 #  x = MaxPooling1D(3)(x)
-#  x = LSTM(32)(x)
-  x = Flatten()(x)
+  x = LSTM(128)(x)
+#  x = Flatten()(x)
+  x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
+  x = Dropout(0.3)(x)
+  x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
+  x = Dropout(0.3)(x)
+  x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
+  x = Dropout(0.3)(x)
+  x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
+  x = Dropout(0.3)(x)
   x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
   x = Dropout(0.3)(x)
   x = Dense(128, kernel_initializer='uniform', activation='relu')(x)
@@ -101,7 +109,7 @@ def create_model(tokenizer=None):
   y = Dense(2, kernel_initializer='uniform', activation='softmax', name='output')(x)
   model = Model(inputs=[x1_input, x2_input], outputs=[y], name='final')
 #  sgd = SGD(lr=learning_rate)
-  opt = RMSprop(lr=0.001, rho=0.9, epsilon=1e-08, decay=0.00000000001)
+  opt = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.00000000001)
   model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['acc','sparse_categorical_accuracy', 'binary_accuracy'])
    
   model.summary()
@@ -127,7 +135,7 @@ def process_data(data, tokenizer):
 def init():
   parser = argparse.ArgumentParser()
   parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'eval'])
-  parser.add_argument('--train-tokenizer', dest='train_tokenizer', action='store_true', help='Pretrain tokenizer')
+  parser.add_argument('--train_tokenizer', dest='train_tokenizer', action='store_true', help='Pretrain tokenizer')
   parser.add_argument('--model_id', default='quora_b', type=str, help='Prefix for model persistance')
   parser.add_argument('--init_epoch', default=0, type=int, help='Initial epoch')
   parser.add_argument('--epochs', default=1000, type=int, help='Total epoch to run')
@@ -215,7 +223,7 @@ def read_data(source, tokenizer):
 
 def get_model(model_path, tokenizer=None):
   model = load_model(model_path) if isfile(model_path) else create_model(tokenizer)
-  K.set_value(model.optimizer.lr, 0.001)
+  #K.set_value(model.optimizer.lr, 0.001)
   K.set_value(model.optimizer.decay, 0.0)
   print('name:{} lr:{} decay:{} len(weights):{}'.format(
     model.name,
