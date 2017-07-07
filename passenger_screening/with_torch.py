@@ -1,4 +1,4 @@
-from read_aps import read_header, read_data, load_labels, get_label, init_plot
+from read_aps import read_header, read_data, load_labels, get_label, init_plot, plt
 import torch
 from torch import from_numpy
 from torch.nn import Module
@@ -117,7 +117,6 @@ def data_generator(data_root, label_path):
     data = data.reshape(16, 512, 660)
     #y = []
     for i in range(data.shape[0]):
-      #y.extend(labels[labels['Id'] == lid]['Probability'].values)
       y = get_label(labels, iid, i)
       yield data[i], y
 
@@ -135,8 +134,9 @@ def start():
   data_root = args.data_root
   losses = []
   try:
+    loss = None
     for i, (data, y) in enumerate(data_generator(data_root, args.label_path)):
-      with Supervisor():
+      with Supervisor('training'):
         print('data.shape', data.shape, 'y.shape', y.shape)
         if y.shape[0] == 0:
           continue
@@ -151,12 +151,15 @@ def start():
 
         loss = step(model, optimizer, loss_fn, X, y)
         if loss:
+          loss = loss.squeeze().data[0]
           losses.append(loss)
+          print('[{}] loss: {:.4f}, losses nr: {}'.format(i+1, loss, len(losses)))
+          plot_loss(losses)
       torch.save({
           'epoch': i+1,
           'model': model.state_dict(),
           'optimizer': optimizer.state_dict(),
-          }, chkpt_path)
+          }, '{}.{}'.format(chkpt_path, loss))
   except Exception as ex:
     print('epoch failed:', ex)
     raise
@@ -177,7 +180,6 @@ def step(model, optimizer, loss_fn, data, label):
     optimizer.zero_grad()
     print('label: {}: {}'.format(label.dim(), label))
     loss = loss_fn(pred, label)
-    print('loss: {}'.format(loss.data))
     loss.backward() 
     optimizer.step()
   except Exception as ex:
@@ -189,7 +191,9 @@ def step(model, optimizer, loss_fn, data, label):
 if __name__ == '__main__':
   global fig, ax
   init_plot()
-  fig = plt.figure(figsize=(16, 16), edgecolor='black', facecolor='black')
+  fig = plt.figure(figsize=(5, 5), edgecolor='black', facecolor='black')
   ax = fig.add_subplot(111)
+  ax.set_facecolor('black')
+  ax.autoscale(True)
   start()
 
