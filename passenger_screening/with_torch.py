@@ -2,9 +2,13 @@ from read_aps import read_header, read_data
 import torch
 from torch import from_numpy
 from torch.nn import Module
+from torch.nn import Sequential
 from torch.nn import Conv2d
 from torch.nn import MaxPool2d
 from torch.nn import CrossEntropyLoss
+from torch.nn import Linear
+from torch.nn import Dropout
+from torch.nn import ReLU
 from torch.autograd import Variable
 from torch.optim import SGD
 import torch.nn.functional as F
@@ -41,39 +45,54 @@ class PassengerScreening(Module):
 
   def __init__(self):
     super(PassengerScreening, self).__init__()
-    self.conv1 = Conv2d(1, 64,
-                        kernel_size=3,
-                        stride=1,
-                        padding=0,
-                        bias=True)
-    self.max_pool1 = MaxPool2d(
-                        kernel_size=3,
-                        )
-    self.conv2 = Conv2d(64, 128,
-                        kernel_size=3,
-                        stride=1,
-                        padding=0,
-                        bias=True)
-    self.max_pool2 = MaxPool2d(
-                        kernel_size=3,
-                        )
-    self.conv3 = Conv2d(128, 256,
-                        kernel_size=3,
-                        stride=1,
-                        padding=0,
-                        bias=True)
-    self.max_pool3 = MaxPool2d(
-                        kernel_size=3,
-                        )
+    self.total_class = 2
+    self.features = Sequential(
+      Conv2d(16, 64,
+             kernel_size=3,
+             stride=1,
+             padding=0,
+             bias=True),
+      ReLU(True),
+      MaxPool2d(kernel_size=3),
+      Conv2d(64, 128,
+             kernel_size=3,
+             stride=1,
+             padding=0,
+             bias=True),
+      ReLU(True),
+      MaxPool2d(kernel_size=3),
+      Conv2d(128, 256,
+             kernel_size=3,
+             stride=1,
+             padding=0,
+             bias=True),
+      ReLU(True),
+      MaxPool2d(kernel_size=3),
+      Conv2d(256, 64,
+             kernel_size=3,
+             stride=1,
+             padding=0,
+             bias=True),
+      ReLU(True),
+      MaxPool2d(kernel_size=3)
+      )
+    # classification
+    self.classifier = Sequential(
+      Linear(1*64*5*7, 128),
+      ReLU(True),
+      Dropout(0.3, True),
+      Linear(128, 64),
+      ReLU(True),
+      Dropout(0.3, True),
+      Linear(64, 2),
+      )
 
   def forward(self, x):
-    x = F.relu(self.conv1(x))
-    x = self.max_pool1(x)
-    print('pool1', x.dim())
-    x = F.relu(self.conv2(x))
-    x = self.max_pool2(x)
-    x = F.relu(self.conv3(x))
-    x = self.max_pool3(x)
+    x = self.features(x)
+    x = x.view(x.size(0), -1)
+    print('final', x)
+    x = self.classifier(x)
+    print('cls', x)
     return x
 
 class Supervisor(object):
@@ -90,12 +109,20 @@ class Supervisor(object):
     print("[{}] {}| Elapsed:{}".format(stack_fmt, self.name, datetime.now()-self.start))
 
 
-def data_generator(data_root):
+def data_generator(data_root, label_path):
+  labels = load_labels(label_path)
   for src in glob.glob(data_root+'/*.aps'):
-    print('current', src)
     header = read_header(src)
     data, _ = read_data(src, header)
-    yield data, src
+    iid = basename(src).split('.')[0]
+    print(src, iid, data.shape)
+    data = data.reshape(16, 512, 660)
+    y = []
+    for i in range(data.shape[0]):
+      lid = '{}_Zone{}'.format(iid, str(i+1))
+      #fr, y = data[:,:,i], labels[labels['Id'] == lid]['Probability']
+      y.extend(labels[labels['Id'] == lid]['Probability'].values)
+    yield data, np.array(y)
 
 def load_labels(label_path):
   # Columns:
@@ -115,26 +142,22 @@ def start():
         momentum=args.momentum, 
         weight_decay=args.weight_decay)
 
-  for child in model.children():
-    print('child:', child)
   # begin
   data_root = args.data_root
-  labels = load_labels(args.label_path)
   try:
-    for i, (data, src) in enumerate(data_generator(data_root)):
-      iid = basename(src).split('.')[0]
-      print(i, data.shape, src, iid)
+    for i, (data, y) in enumerate(data_generator(data_root, args.label_path)):
       with Supervisor():
-        for i in range(data.shape[2]):
-          lid = iid + '_Zone' + str(i+1)
-          fr, y = data[:,:,i], labels[labels['Id'] == lid]['Probability']
-          fr = fr.astype(np.float32)
-          fr = torch.from_numpy(fr).contiguous().view(1, 1, 512, 660)
-          X = Variable(fr, volatile=True)
-          y = y.astype(np.int32)
-          y = torch.from_numpy(y.values)
-          y = Variable(y, volatile=True)
-          step(model, optimizer, loss_fn, X, y)
+        print('data.shape', data.shape, 'y.shape', y.shape)
+        data = data.astype(np.float32)
+        data = torch.from_numpy(data).contiguous().view(1, 16, 512, 660)
+        X = Variable(data, volatile=True)
+
+        #y = np.tile(y, (1, 1, 1, 1)).transpose()
+        y = y.astype(np.int64)
+        y = torch.from_numpy(y)
+        y = Variable(y, volatile=True)
+
+        step(model, optimizer, loss_fn, X, y)
       torch.save({
           'epoch': i+1,
           'model': model.state_dict(),
@@ -147,9 +170,12 @@ def start():
 def step(model, optimizer, loss_fn, data, label):
   try:
     output = model(data)
-    print('output', output)
+    print('output', output.dim())
+    _, pred = torch.max(output.data, 1)
+    #c = (pred == label).squeeze()
+    #print('c', c, (pred == label))
     optimizer.zero_grad()
-    print('opt', optimizer)
+    print('label', label.dim(), label)
     loss_fn(output, label).backward() 
     optimizer.step()
   except Exception as ex:
