@@ -1,11 +1,13 @@
-import numpy as np
-import glob
 import matplotlib
 matplotlib.use("TkAgg")
 matplotlib.rc('animation', html='html5')
+import numpy as np
+import glob
 from matplotlib import animation
 from matplotlib import pyplot as plt
-import os
+import os, sys
+from pandas import read_csv
+from os.path import isfile, basename
 
 HEADER_SIZE = 512
 
@@ -17,6 +19,20 @@ def count_aps(src):
       if len(buf) == 0:
         break
       data.append(buf)
+
+def load_labels(label_path):
+  # Columns:
+  #  - Id,Probability
+  if not isfile(label_path):
+    raise FileNotFoundError(label_path)
+  labels = read_csv(label_path, header=0)  
+  return labels
+
+def get_label(labels, iid, i):
+  lid = '{}_Zone{}'.format(iid, str(i+1))
+  #y.extend(labels[labels['Id'] == lid]['Probability'].values)
+  y = labels[labels['Id'] == lid]['Probability'].values
+  return y
 
 def read_header(src):
   header = {}
@@ -106,47 +122,71 @@ def read_header(src):
     header['spare_end'] = np.fromfile(fd, dtype=np.float32, count=10)
   return header
 
-def read_data(fsrc, header):
+def read_data(src, header):
   x, y, t = int(header.get('num_x_pts')),\
               int(header.get('num_y_pts')),\
               int(header.get('num_t_pts'))
-  with open(fsrc, 'rb') as fd:
+  with open(src, 'rb') as fd:
     fd.seek(HEADER_SIZE)
     buf = np.fromfile(fd, dtype=np.uint16, count=x*y*t)
   #buf = buf.astype(np.float32) * header.get('data_scale_factor')
   buf = np.reshape(buf, (x, y, t), order='F')
-#  plot_image(buf)
-#  show_frame(buf)
+  if __name__ == '__main__':
+    iid = basename(src).split('.')[0]
+    show_frame(buf, iid)
   return buf, x*y*t
 
-def show_frame(data):
-  plt.ion()
-  fig = plt.figure(figsize=(16, 16), frameon=True, edgecolor='black')
-  rows, cols = 4, 4
-  fig.show()
+label_path = '../data/passenger_screening/stage1_labels.csv'
+labels = load_labels(label_path)
+def show_frame(data, iid):
+  global fig, ax
   for i in range(data.shape[2]):
-    ax = fig.add_subplot(data.shape[2], 1, 1)#i//cols+1, i%rows+1))
+    print('iid', iid)
+    y = get_label(labels, iid, i)
+    if y.squeeze() != 1:
+      continue
+    print('lbl found')
     ax.imshow(data[:,:,i])
+    fig.canvas.draw()
+    break
 
 def plot_image(data):
-  fig = plt.figure(figsize=(8, 8), facecolor='darkgray', edgecolor='black')
+  fig = plt.figure(figsize=(4, 4), facecolor='darkgray', edgecolor='black')
   ax = fig.add_subplot(111)
   def animate(i):
     im = ax.imshow(np.flipud(data[:,:,i].transpose()), cmap = 'viridis')
     return [im]
   return animation.FuncAnimation(fig, animate, frames=range(0, data.shape[2]), interval=200, blit=True)
 
+def show_header(header):
+  for k, v in header.items():
+    print('{}: {}'.format(k, v))
+
 def try_read():
   total = 0
   data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_aps')
+  #data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_a3daps')
 
-  for src in glob.glob(data_root+'/*.aps'):
-    header = read_header(src)
-    data, sz = read_data(src, header)
-    break
+  for src in glob.glob(data_root+'/*'):
+    print(src)
+    try:
+      header = read_header(src)
+      show_header(header)
+      data, sz = read_data(src, header)
+    except KeyboardInterrupt:
+      print('terminated')
+      sys.exit()
+    except Exception as ex:
+      print('try read failed', ex)
 
 def init_plot():
   plt.ion()
   plt.show()
 
-
+if __name__ == '__main__':
+  global fig, ax
+  fig = plt.figure(figsize=(4, 4), facecolor='black', edgecolor='black')
+  ax = fig.add_subplot(111)
+  plt.ion()
+  fig.show()
+  try_read()
