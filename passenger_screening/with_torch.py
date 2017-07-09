@@ -97,37 +97,36 @@ class PassengerScreening(Module):
       Linear(1*64*2*3, 64),
       ReLU(False),
       Dropout(0.3, False),
-      Linear(64, 64),
+      Linear(64, 32),
       ReLU(False),
       Dropout(0.3, False),
-      Linear(64, 2),
+      Linear(32, 2),
       )
+
+    self.axs = init_axs(64, 8)
 
   def forward(self, x):
     x = self.features(x)
     print('features', x.data.numpy().shape)
     # plot im data
-    data, axs = init_axs(x)
-    plot_img(data, axs)
+    plot_img(x, self.axs)
     x = x.view(x.size(0), -1)
     x = self.classifier(x)
     return x
 
 
-def init_axs(x):
-  data = x.data.numpy()
-  data = np.squeeze(data)
+def init_axs(tot, rows):
   axs = []
-  rows = 8
-  tot = data.shape[0]
   gs = gridspec.GridSpec(rows, tot//rows)
   for i in range(tot):
     axs.append(fig_img.add_subplot(gs[i]))
     axs[-1].set_facecolor('black')
     axs[-1].autoscale(True)
-  return data, axs
+  return axs
 
-def plot_img(data, axs):
+def plot_img(x, axs):
+  data = x.data.numpy()
+  data = np.squeeze(data)
   for i in range(data.shape[0]):
     axs[i%len(axs)].imshow(data[i,:,:])
     fig_img.canvas.draw()
@@ -212,7 +211,9 @@ def step(model, optimizer, loss_fn, data, label):
   try:
     output = model(data)
     #output = output.squeeze()
+    print('output', output)
     pred = F.softmax(output)
+    print('pred', pred, 'label', label)
     optimizer.zero_grad()
     loss = loss_fn(pred, label)
     loss.backward() 
