@@ -13,9 +13,11 @@ from torch.autograd import Variable
 from torch.optim import SGD
 import torch.nn.functional as F
 from torchvision import transforms
+from torchvision.utils import make_grid
 from datetime import datetime
 from pandas import read_csv, DataFrame
 from os.path import isfile, basename
+import matplotlib.gridspec as gridspec
 import numpy as np
 import argparse
 import inspect
@@ -68,20 +70,34 @@ class PassengerScreening(Module):
              bias=True),
       ReLU(False),
       MaxPool2d(kernel_size=3),
-      Conv2d(256, 64,
+      Conv2d(256, 220,
              kernel_size=3,
              stride=1,
              padding=0,
              bias=True),
       ReLU(False),
-      MaxPool2d(kernel_size=3)
+      MaxPool2d(kernel_size=2),
+      Conv2d(220, 100,
+             kernel_size=3,
+             stride=1,
+             padding=0,
+             bias=True),
+      ReLU(False),
+      MaxPool2d(kernel_size=2),
+      Conv2d(100, 64,
+             kernel_size=3,
+             stride=1,
+             padding=2,
+             bias=True),
+      ReLU(False),
+      MaxPool2d(kernel_size=2),
       )
     # classification
     self.classifier = Sequential(
-      Linear(1*64*5*7, 128),
+      Linear(1*64*2*3, 64),
       ReLU(False),
       Dropout(0.3, False),
-      Linear(128, 64),
+      Linear(64, 64),
       ReLU(False),
       Dropout(0.3, False),
       Linear(64, 2),
@@ -89,9 +105,32 @@ class PassengerScreening(Module):
 
   def forward(self, x):
     x = self.features(x)
+    print('features', x.data.numpy().shape)
+    # plot im data
+    data, axs = init_axs(x)
+    plot_img(data, axs)
     x = x.view(x.size(0), -1)
     x = self.classifier(x)
     return x
+
+
+def init_axs(x):
+  data = x.data.numpy()
+  data = np.squeeze(data)
+  axs = []
+  rows = 8
+  tot = data.shape[0]
+  gs = gridspec.GridSpec(rows, tot//rows)
+  for i in range(tot):
+    axs.append(fig_img.add_subplot(gs[i]))
+    axs[-1].set_facecolor('black')
+    axs[-1].autoscale(True)
+  return data, axs
+
+def plot_img(data, axs):
+  for i in range(data.shape[0]):
+    axs[i%len(axs)].imshow(data[i,:,:])
+    fig_img.canvas.draw()
 
 class Supervisor(object):
   def __init__(self, name=None):
@@ -113,7 +152,7 @@ def data_generator(data_root, label_path):
     header = read_header(src)
     data, _ = read_data(src, header)
     iid = basename(src).split('.')[0]
-    print(src, iid, data.shape)
+#    print(src, iid, data.shape)
     data = data.reshape(16, 512, 660)
     #y = []
     for i in range(data.shape[0]):
@@ -137,7 +176,6 @@ def start():
     loss = None
     for i, (data, y) in enumerate(data_generator(data_root, args.label_path)):
       with Supervisor('training'):
-        print('data.shape', data.shape, 'y.shape', y.shape)
         if y.shape[0] == 0:
           continue
         data = data.astype(np.float32)
@@ -154,7 +192,7 @@ def start():
           loss = loss.squeeze().data[0]
           losses.append(loss)
           print('[{}] loss: {:.4f}, losses nr: {}'.format(i+1, loss, len(losses)))
-          plot_loss(losses)
+#          plot_loss(losses)
       torch.save({
           'epoch': i+1,
           'model': model.state_dict(),
@@ -165,20 +203,17 @@ def start():
     raise
 
 def plot_loss(losses):
-  global fig, ax
+  global fig_loss, ax
   ax.plot(np.arange(len(losses)), losses, '.', color='blue', markerfacecolor='blue')
-  fig.canvas.draw()
+  fig_loss.canvas.draw()
 
 def step(model, optimizer, loss_fn, data, label):
   loss = None
   try:
     output = model(data)
     #output = output.squeeze()
-    print('output: {}: {}'.format(output.dim(), output))
     pred = F.softmax(output)
-    print('pred: {}: {}'.format(pred.dim(), pred))
     optimizer.zero_grad()
-    print('label: {}: {}'.format(label.dim(), label))
     loss = loss_fn(pred, label)
     loss.backward() 
     optimizer.step()
@@ -189,10 +224,13 @@ def step(model, optimizer, loss_fn, data, label):
 
 
 if __name__ == '__main__':
-  global fig, ax
+  global fig_loss, ax, fig_img
   init_plot()
-  fig = plt.figure(figsize=(5, 5), edgecolor='black', facecolor='black')
-  ax = fig.add_subplot(111)
+  fig_img = plt.figure(figsize=(8, 8), edgecolor='black', facecolor='black')
+  fig_img.suptitle('X')
+  fig_loss = plt.figure(figsize=(4, 4), edgecolor='black', facecolor='black')
+  fig_loss.suptitle('loss')
+  ax = fig_loss.add_subplot(111)
   ax.set_facecolor('black')
   ax.autoscale(True)
   start()
