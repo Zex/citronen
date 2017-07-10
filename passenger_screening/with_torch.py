@@ -100,16 +100,16 @@ class PassengerScreening(Module):
       Linear(64, 32),
       ReLU(False),
       Dropout(0.3, False),
-      Linear(32, 2),
+      Linear(32, self.total_class),
       )
 
-    self.axs = init_axs(64, 8)
+#    self.axs = init_axs(64, 8)
 
   def forward(self, x):
     x = self.features(x)
     print('features', x.data.numpy().shape)
     # plot im data
-    plot_img(x, self.axs)
+#    plot_img(x, self.axs)
     x = x.view(x.size(0), -1)
     x = self.classifier(x)
     return x
@@ -162,7 +162,7 @@ def start():
   args = PassengerScreening.init()
   chkpt_path = '{}/{}.chkpt'.format(args.model_root, args.model_id)
   # setup
-  model = PassengerScreening()
+  model = torch.load(chkpt_path) if isfile(chkpt_path) else PassengerScreening()
   loss_fn = CrossEntropyLoss().cpu()
   optimizer = SGD(model.parameters(), args.lr, 
         momentum=args.momentum, 
@@ -177,8 +177,11 @@ def start():
       with Supervisor('training'):
         if y.shape[0] == 0:
           continue
+        nor = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
         data = data.astype(np.float32)
         data = torch.from_numpy(data).contiguous().view(1, 1, 512, 660)
+        X = nor(data)
         X = Variable(data, volatile=False)
 
         #y = np.tile(y, (1, 1, 1, 1)).transpose()
@@ -196,7 +199,7 @@ def start():
           'epoch': i+1,
           'model': model.state_dict(),
           'optimizer': optimizer.state_dict(),
-          }, '{}.{}'.format(chkpt_path, loss))
+          }, '{}-{}-{:.4f}'.format(chkpt_path, i+1, loss))
   except Exception as ex:
     print('epoch failed:', ex)
     raise
@@ -215,9 +218,13 @@ def step(model, optimizer, loss_fn, data, label):
     pred = F.softmax(output)
     print('pred', pred, 'label', label)
     optimizer.zero_grad()
-    loss = loss_fn(pred, label)
+    loss = loss_fn(output, label)
     loss.backward() 
+    for p in model.parameters():
+      print('bw', p)
     optimizer.step()
+    for p in model.parameters():
+      print('step', p)
   except Exception as ex:
     print('step failed:', ex)
     raise
