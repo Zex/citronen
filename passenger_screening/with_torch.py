@@ -6,11 +6,13 @@ from torch.nn import Sequential
 from torch.nn import Conv2d
 from torch.nn import MaxPool2d
 from torch.nn import CrossEntropyLoss
+from torch.nn import BCELoss
 from torch.nn import Linear
 from torch.nn import Dropout
 from torch.nn import ReLU
 from torch.autograd import Variable
 from torch.optim import SGD
+from torch.optim import RMSprop
 import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.utils import make_grid
@@ -35,13 +37,14 @@ class PassengerScreening(Module):
     parser.add_argument('--model_id', default='model-{}'.format(np.random.randint(0xffff)), type=str, help='Prefix for model persistance')
     parser.add_argument('--init_epoch', default=0, type=int, help='Initial epoch')
     parser.add_argument('--epochs', default=1000, type=int, help='Total epoch to run')
-    parser.add_argument('--lr', default=0.001, type=float, help='Initial learning rate')
-    parser.add_argument('--momentum', default=0.09, type=float, help='Momentum value')
-    parser.add_argument('--weight_decay', default=0.001, type=float, help='Weight decay rate')
+    parser.add_argument('--lr', default=1e-2, type=float, help='Initial learning rate')
+    parser.add_argument('--momentum', default=9e-2, type=float, help='Momentum value')
+    parser.add_argument('--weight_decay', default=1e-3, type=float, help='Weight decay rate')
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--data_root', default='.', type=str, help='Data root')
     parser.add_argument('--label_path', default='.', type=str, help='Label path')
     parser.add_argument('--model_root', default='.', type=str, help='Model path root')
+    parser.add_argument('--chkpt', default='.', type=str, help='Check point path')
     args = parser.parse_args()
     return args
 
@@ -144,6 +147,13 @@ class Supervisor(object):
     stack_fmt = ('/{}'*len(inspect.stack())).format(*[s[3] for s in inspect.stack()])
     print("[{}] {}| Elapsed:{}".format(stack_fmt, self.name, datetime.now()-self.start))
 
+def accuracy(output, target, topk=5):
+  ret, pred = output.topk(topk, 1, True, False)
+  pred = pred.t()
+  correct = pred.eq(target.view(1, -1).expand_as(pred))
+  print('corr', correct)
+  corr_k = correct[:topk].view(-1).float().sum(0)
+  return corr_k
 
 def data_generator(data_root, label_path):
   labels = load_labels(label_path)
@@ -160,49 +170,72 @@ def data_generator(data_root, label_path):
 
 def start():
   args = PassengerScreening.init()
-  chkpt_path = '{}/{}.chkpt'.format(args.model_root, args.model_id)
+  model_path = '{}/{}.chkpt'.format(args.model_root, args.model_id)
+  chkpt_path = args.chkpt
   # setup
-  model = torch.load(chkpt_path) if isfile(chkpt_path) else PassengerScreening()
+  if isfile(chkpt_path):
+    print('loading chkpt_path:', chkpt_path)
+    model = torch.load(chkpt_path)
+    optimizer = model.get('optimizer')
+    init_epoch = model.get('epoch')
+    model = model.get('model')
+    #print(type(optimizer), type(init_epoch), type(model))
+  else:
+    model = PassengerScreening()
+    init_epoch = args.init_epoch
+
+  #loss_fn = BCELoss().cpu()
   loss_fn = CrossEntropyLoss().cpu()
-  optimizer = SGD(model.parameters(), args.lr, 
+#  optimizer = SGD(model.parameters(), args.lr, 
+#        momentum=args.momentum, 
+#        weight_decay=args.weight_decay)
+  optimizer = RMSprop(model.parameters(), args.lr,
         momentum=args.momentum, 
         weight_decay=args.weight_decay)
+  nor = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225])
 
   # begin
-  data_root = args.data_root
-  losses = []
+  losses, accs = [], []
+  for i in range(args.epochs): 
+    global_epoch = init_epoch+i+1
+    loss, acc = epoch(model, optimizer, nor, loss_fn, global_epoch, args)
+
+    if loss:
+      losses.append(loss)
+    if acc:
+      accs.append(acc)
+    print('[{}] loss: {:.4f}, acc: {}, losses nr: {}'.format(global_epoch, loss, acc, len(losses)), flush=True)
+  return losses, accs
+
+def epoch(model, optimizer, nor, loss_fn, global_epoch, args):
   try:
-    loss = None
-    for i, (data, y) in enumerate(data_generator(data_root, args.label_path)):
-      with Supervisor('training'):
-        if y.shape[0] == 0:
-          continue
-        nor = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-        data = data.astype(np.float32)
-        data = torch.from_numpy(data).contiguous().view(1, 1, 512, 660)
-        X = nor(data)
-        X = Variable(data, volatile=False)
+    loss, acc = None, None
+    for i, (data, y) in enumerate(data_generator(args.data_root, args.label_path)):
+      if y.shape[0] == 0:
+        continue
+      data = data.astype(np.float32)
+      data = torch.from_numpy(data).contiguous().view(1, 1, 512, 660)
+      X = nor(data)
+      X = Variable(X, volatile=False)
 
-        #y = np.tile(y, (1, 1, 1, 1)).transpose()
-        y = y.astype(np.int64)
-        y = torch.from_numpy(y)
-        y = Variable(y, volatile=False)
+      y = y.astype(np.int64)
+      y = torch.from_numpy(y)
+      y = Variable(y, volatile=False)
 
-        loss = step(model, optimizer, loss_fn, X, y)
-        if loss:
-          loss = loss.squeeze().data[0]
-          losses.append(loss)
-          print('[{}] loss: {:.4f}, losses nr: {}'.format(i+1, loss, len(losses)))
-#          plot_loss(losses)
-      torch.save({
-          'epoch': i+1,
-          'model': model.state_dict(),
-          'optimizer': optimizer.state_dict(),
-          }, '{}-{}-{:.4f}'.format(chkpt_path, i+1, loss))
+      loss, acc = step(model, optimizer, loss_fn, X, y)
+      loss = loss.squeeze().data[0]
+      acc = acc.squeeze().data[0]
+      print('[{}] loss: {:.4f}, acc: {}'.format(global_epoch, loss, acc, flush=True))
+    torch.save({
+        'epoch': global_epoch,
+        'model': model,
+        'optimizer': optimizer,
+        }, '{}-{}-{:.4f}'.format(model_path, global_epoch, loss))
   except Exception as ex:
     print('epoch failed:', ex)
     raise
+  return loss, acc
 
 def plot_loss(losses):
   global fig_loss, ax
@@ -214,21 +247,18 @@ def step(model, optimizer, loss_fn, data, label):
   try:
     output = model(data)
     #output = output.squeeze()
-    print('output', output)
+#    print('output', output)
     pred = F.softmax(output)
-    print('pred', pred, 'label', label)
+    print('pred', pred.data[0][0], pred.data[0][1], 'label', label.data[0])
     optimizer.zero_grad()
+    acc = accuracy(output, label, topk=2)
     loss = loss_fn(output, label)
     loss.backward() 
-    for p in model.parameters():
-      print('bw', p)
     optimizer.step()
-    for p in model.parameters():
-      print('step', p)
   except Exception as ex:
     print('step failed:', ex)
     raise
-  return loss
+  return loss, acc
 
 
 if __name__ == '__main__':
