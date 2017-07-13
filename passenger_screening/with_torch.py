@@ -247,15 +247,16 @@ def step(model, optimizer, loss_fn, data, label):
   loss = None
   try:
     output = model(data)
-    #output = output.squeeze()
+#    output = output.view(-1, 2)
+#    output = output.squeeze()
 #    print('output', output)
 #    pred = F.softmax(output)
 #    print('pred', pred.data[0][0], pred.data[0][1], 'label', label.data[0])
     optimizer.zero_grad()
     pred, acc = accuracy(output, label, topk=2)
-    print('pred', pred.data, 'label', label.data[0])
+    print('pred', pred.data[0][0], ',', pred.data[1][0], 'target', label.data[0])
     optimizer.zero_grad()
-    loss = loss_fn(output, label)
+    loss = loss_fn(pred, label)
     loss.backward() 
     optimizer.step()
   except Exception as ex:
