@@ -114,7 +114,9 @@ class PassengerScreening(Module):
     # plot im data
 #    plot_img(x, self.axs)
     x = x.view(x.size(0), -1)
+    print('view', x.data.numpy().shape)
     x = self.classifier(x)
+    print('classification', x.data.numpy().shape)
     return x
 
 
@@ -148,12 +150,11 @@ class Supervisor(object):
     print("[{}] {}| Elapsed:{}".format(stack_fmt, self.name, datetime.now()-self.start))
 
 def accuracy(output, target, topk=5):
-  ret, pred = output.topk(topk, 1, True, False)
+  ret, pred = output.topk(topk, 1, True, True)
   pred = pred.t()
   correct = pred.eq(target.view(1, -1).expand_as(pred))
-  print('corr', correct)
   corr_k = correct[:topk].view(-1).float().sum(0)
-  return corr_k
+  return correct, corr_k
 
 def data_generator(data_root, label_path):
   labels = load_labels(label_path)
@@ -206,6 +207,11 @@ def start():
     if acc:
       accs.append(acc)
     print('[{}] loss: {:.4f}, acc: {}, losses nr: {}'.format(global_epoch, loss, acc, len(losses)), flush=True)
+    torch.save({
+        'epoch': global_epoch,
+        'model': model,
+        'optimizer': optimizer,
+        }, '{}-{}-{:.4f}'.format(model_path, global_epoch, loss))
   return losses, accs
 
 def epoch(model, optimizer, nor, loss_fn, global_epoch, args):
@@ -227,11 +233,6 @@ def epoch(model, optimizer, nor, loss_fn, global_epoch, args):
       loss = loss.squeeze().data[0]
       acc = acc.squeeze().data[0]
       print('[{}] loss: {:.4f}, acc: {}'.format(global_epoch, loss, acc, flush=True))
-    torch.save({
-        'epoch': global_epoch,
-        'model': model,
-        'optimizer': optimizer,
-        }, '{}-{}-{:.4f}'.format(model_path, global_epoch, loss))
   except Exception as ex:
     print('epoch failed:', ex)
     raise
@@ -248,10 +249,12 @@ def step(model, optimizer, loss_fn, data, label):
     output = model(data)
     #output = output.squeeze()
 #    print('output', output)
-    pred = F.softmax(output)
-    print('pred', pred.data[0][0], pred.data[0][1], 'label', label.data[0])
+#    pred = F.softmax(output)
+#    print('pred', pred.data[0][0], pred.data[0][1], 'label', label.data[0])
     optimizer.zero_grad()
-    acc = accuracy(output, label, topk=2)
+    pred, acc = accuracy(output, label, topk=2)
+    print('pred', pred.data, 'label', label.data[0])
+    optimizer.zero_grad()
     loss = loss_fn(output, label)
     loss.backward() 
     optimizer.step()
