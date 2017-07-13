@@ -84,5 +84,5 @@ if __name__ == '__main__':
     pipe_loss(args.flow, args.trim_level, args.stage_size, args.emp, args.window_size)
     time.sleep(10000)
   except KeyboardInterrupt:
-    fig.close()
+    pass
 
