@@ -3,3 +3,5 @@ python3 with_torch.py \
   --label_path ../data/passenger_screening/stage1_labels.csv \
   --model_root ../models \
   --model_id pgscr
+ # --chkpt ../models/pgscr.chkpt-19952-0.1062
+  
