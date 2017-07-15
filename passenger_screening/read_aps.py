@@ -171,7 +171,7 @@ def try_read():
     print(src)
     try:
       header = read_header(src)
-      show_header(header)
+      #show_header(header)
       data, sz = read_data(src, header)
     except KeyboardInterrupt:
       print('terminated')
