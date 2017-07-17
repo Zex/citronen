@@ -1,4 +1,8 @@
+from read_aps import read_header, read_data, load_labels, get_label, init_plot, plt
+from os.path import isfile, basename
 import argparse
+import numpy as np
+import glob
 
 class Supervisor(object):
   def __init__(self, name=None):
@@ -17,7 +21,7 @@ modes = ['train', 'test', 'eval']
 
 def init():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=PassengerScreening.modes)
+  parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=modes)
   parser.add_argument('--model_id', default='model-{}'.format(np.random.randint(0xffff)), type=str, help='Prefix for model persistance')
   parser.add_argument('--init_epoch', default=0, type=int, help='Initial epoch')
   parser.add_argument('--epochs', default=1000, type=int, help='Total epoch to run')
@@ -47,3 +51,27 @@ def plot_img(x, axs):
   for i in range(data.shape[0]):
     axs[i%len(axs)].imshow(data[i,:,:])
     fig_img.canvas.draw()
+
+def reinit_plot():
+  global fig_loss, ax, fig_img
+  init_plot()
+  fig_img = plt.figure(figsize=(8, 8), edgecolor='black', facecolor='black')
+  fig_img.suptitle('X')
+  fig_loss = plt.figure(figsize=(4, 4), edgecolor='black', facecolor='black')
+  fig_loss.suptitle('loss')
+  ax = fig_loss.add_subplot(111)
+  ax.set_facecolor('black')
+  ax.autoscale(True)
+
+def data_generator(data_root, label_path):
+  labels = load_labels(label_path)
+  for src in glob.iglob(data_root+'/*.aps'):
+    header = read_header(src)
+    data, _ = read_data(src, header)
+    iid = basename(src).split('.')[0]
+    data = data.reshape(16, 512, 660)
+    for i in range(data.shape[0]):
+      y = get_label(labels, iid, i)
+      yield data[i], y
+
+

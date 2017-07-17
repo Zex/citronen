@@ -1,5 +1,4 @@
-from read_aps import read_header, read_data, load_labels, get_label, init_plot, plt
-from common import init, plog_img, init_axs
+from common import init, plot_img, init_axs, data_generator, reinit
 from datetime import datetime
 from pandas import read_csv, DataFrame
 from os.path import isfile, basename
@@ -7,7 +6,6 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 import argparse
 import inspect
-import glob
 import torch
 from torch import from_numpy
 from torch.nn import Module
@@ -107,19 +105,6 @@ def accuracy(output, target, topk=5):
   corr_k = correct[:topk].view(-1).float().sum(0)
   return correct, corr_k
 
-def data_generator(data_root, label_path):
-  labels = load_labels(label_path)
-  for src in glob.glob(data_root+'/*.aps'):
-    header = read_header(src)
-    data, _ = read_data(src, header)
-    iid = basename(src).split('.')[0]
-#    print(src, iid, data.shape)
-    data = data.reshape(16, 512, 660)
-    #y = []
-    for i in range(data.shape[0]):
-      y = get_label(labels, iid, i)
-      yield data[i], y
-
 def start():
   args = PassengerScreening.init()
   model_path = '{}/{}.chkpt'.format(args.model_root, args.model_id)
@@ -217,14 +202,5 @@ def step(model, optimizer, loss_fn, data, label):
 
 
 if __name__ == '__main__':
-  global fig_loss, ax, fig_img
-  init_plot()
-  fig_img = plt.figure(figsize=(8, 8), edgecolor='black', facecolor='black')
-  fig_img.suptitle('X')
-  fig_loss = plt.figure(figsize=(4, 4), edgecolor='black', facecolor='black')
-  fig_loss.suptitle('loss')
-  ax = fig_loss.add_subplot(111)
-  ax.set_facecolor('black')
-  ax.autoscale(True)
   start()
 
