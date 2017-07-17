@@ -13,7 +13,7 @@ def get_accu(line):
   accu = re.search('score:[0-9]*\.[0-9]+', line)
   if accu is None:
       return None
-  accu = accu.group().split(':')[1]
+  accu = accu.group().trim('[]')
   return float(accu)
 
 def get_loss(line, emp=10):
@@ -21,7 +21,7 @@ def get_loss(line, emp=10):
   line = line.strip('\n')
   epoch, loss = re.search('\[[\d]+\]', line), re.search('loss: [0-9]*\.[0-9]+', line)
   if epoch:
-    epoch = epoch.group()[1]
+    epoch = epoch.group().strip('[]')
   if loss:
     loss = loss.group().split(' ')[1]
   return epoch, np.round(float(loss)*emp, 4)
