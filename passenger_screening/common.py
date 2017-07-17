@@ -23,7 +23,7 @@ def init():
   parser.add_argument('--epochs', default=1000, type=int, help='Total epoch to run')
   parser.add_argument('--lr', default=1e-2, type=float, help='Initial learning rate')
   parser.add_argument('--momentum', default=9e-2, type=float, help='Momentum value')
-  parser.add_argument('--weight_decay', default=1e-3, type=float, help='Weight decay rate')
+  parser.add_argument('--decay_rate', default=1e-3, type=float, help='Decay rate')
   parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
   parser.add_argument('--data_root', default='.', type=str, help='Data root')
   parser.add_argument('--label_path', default='.', type=str, help='Label path')
