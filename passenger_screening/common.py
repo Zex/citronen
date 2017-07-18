@@ -1,4 +1,5 @@
 from read_aps import read_header, read_data, load_labels, get_label, init_plot, plt
+import matplotlib.gridspec as gridspec
 from os.path import isfile, basename
 import argparse
 import numpy as np
@@ -65,11 +66,12 @@ def reinit_plot():
 
 def data_generator(data_root, label_path):
   labels = load_labels(label_path)
-  for src in glob.iglob(data_root+'/*.aps'):
+  for src in glob.iglob(data_root+'/*'):
+    print(src)
     header = read_header(src)
     data, _ = read_data(src, header)
     iid = basename(src).split('.')[0]
-    data = data.reshape(16, 512, 660)
+    data = data.reshape(data.shape[2], 512, 660)
     for i in range(data.shape[0]):
       y = get_label(labels, iid, i)
       yield data[i], y

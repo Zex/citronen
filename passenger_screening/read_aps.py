@@ -129,6 +129,7 @@ def read_data(src, header):
   with open(src, 'rb') as fd:
     fd.seek(HEADER_SIZE)
     buf = np.fromfile(fd, dtype=np.uint16, count=x*y*t)
+  t = 64
   #buf = buf.astype(np.float32) * header.get('data_scale_factor')
   buf = np.reshape(buf, (x, y, t), order='F')
   if __name__ == '__main__':
@@ -138,17 +139,15 @@ def read_data(src, header):
 
 label_path = '../data/passenger_screening/stage1_labels.csv'
 labels = load_labels(label_path)
+
 def show_frame(data, iid):
   global fig, ax
   for i in range(data.shape[2]):
-    print('iid', iid)
     y = get_label(labels, iid, i)
     if y.squeeze() != 1:
       continue
-    print('lbl found')
     ax.imshow(data[:,:,i])
     fig.canvas.draw()
-    break
 
 def plot_image(data):
   fig = plt.figure(figsize=(4, 4), facecolor='darkgray', edgecolor='black')
@@ -164,11 +163,10 @@ def show_header(header):
 
 def try_read():
   total = 0
-  data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_aps')
-  #data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_a3daps')
+  #data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_aps')
+  data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_a3daps')
 
   for src in glob.glob(data_root+'/*'):
-    print(src)
     try:
       header = read_header(src)
       #show_header(header)
@@ -185,6 +183,7 @@ def init_plot():
 
 if __name__ == '__main__':
   global fig, ax
+  init_plot()
   fig = plt.figure(figsize=(4, 4), facecolor='black', edgecolor='black')
   ax = fig.add_subplot(111)
   plt.ion()

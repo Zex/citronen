@@ -1,4 +1,4 @@
-from common import init, plot_img, init_axs, data_generator, reinit
+from common import init, plot_img, init_axs, data_generator, reinit_plot
 from datetime import datetime
 from pandas import read_csv, DataFrame
 from os.path import isfile, basename
@@ -14,6 +14,7 @@ from torch.nn import Conv2d
 from torch.nn import MaxPool2d
 from torch.nn import CrossEntropyLoss
 from torch.nn import BCELoss
+from torch.nn import MSELoss
 from torch.nn import Linear
 from torch.nn import Dropout
 from torch.nn import ReLU
@@ -91,7 +92,7 @@ class PassengerScreening(Module):
     x = self.features(x)
     print('features', x.data.numpy().shape)
     # plot im data
-#    plot_img(x, self.axs)
+    #plot_img(x, self.axs)
     x = x.view(x.size(0), -1)
     print('view', x.data.numpy().shape)
     x = self.classifier(x)
@@ -106,7 +107,7 @@ def accuracy(output, target, topk=5):
   return correct, corr_k
 
 def start():
-  args = PassengerScreening.init()
+  args = init()
   model_path = '{}/{}.chkpt'.format(args.model_root, args.model_id)
   chkpt_path = args.chkpt
   # setup
@@ -123,12 +124,13 @@ def start():
 
   #loss_fn = BCELoss().cpu()
   loss_fn = CrossEntropyLoss().cpu()
+  #loss_fn = MSELoss()
 #  optimizer = SGD(model.parameters(), args.lr, 
 #        momentum=args.momentum, 
-#        weight_decay=args.weight_decay)
+#        weight_decay=args.decay_rate)
   optimizer = RMSprop(model.parameters(), args.lr,
         momentum=args.momentum, 
-        weight_decay=args.weight_decay)
+        weight_decay=args.decay_rate)
   nor = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                             std=[0.229, 0.224, 0.225])
 
@@ -142,6 +144,7 @@ def start():
       losses.append(loss)
     if acc:
       accs.append(acc)
+    print(global_epoch, loss, acc, len(losses))
     print('[{}] loss: {:.4f}, acc: {}, losses nr: {}'.format(global_epoch, loss, acc, len(losses)), flush=True)
     torch.save({
         'epoch': global_epoch,
@@ -171,7 +174,6 @@ def epoch(model, optimizer, nor, loss_fn, global_epoch, args):
       print('[{}] loss: {:.4f}, acc: {}'.format(global_epoch, loss, acc, flush=True))
   except Exception as ex:
     print('epoch failed:', ex)
-    raise
   return loss, acc
 
 def plot_loss(losses):
@@ -192,7 +194,7 @@ def step(model, optimizer, loss_fn, data, label):
     pred, acc = accuracy(output, label, topk=2)
     print('pred', pred.data[0][0], ',', pred.data[1][0], 'target', label.data[0])
     optimizer.zero_grad()
-    loss = loss_fn(pred, label)
+    loss = loss_fn(output, label)
     loss.backward() 
     optimizer.step()
   except Exception as ex:
@@ -202,5 +204,6 @@ def step(model, optimizer, loss_fn, data, label):
 
 
 if __name__ == '__main__':
+  #reinit_plot()
   start()
 
