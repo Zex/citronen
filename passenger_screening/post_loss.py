@@ -63,7 +63,7 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
 if __name__ == '__main__':
   global fig, ax1, ax2
   plt.ion()
-  fig = plt.figure(figsize=(16, 16), facecolor='darkgray', edgecolor='black')
+  fig = plt.figure(figsize=(8, 8), facecolor='darkgray', edgecolor='black')
   ax1 = fig.add_subplot(211, facecolor='black')
   ax2 = fig.add_subplot(212, facecolor='black')
   ax1.autoscale(True)
