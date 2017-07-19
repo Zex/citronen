@@ -129,7 +129,6 @@ def read_data(src, header):
   with open(src, 'rb') as fd:
     fd.seek(HEADER_SIZE)
     buf = np.fromfile(fd, dtype=np.uint16, count=x*y*t)
-  t = 64
   #buf = buf.astype(np.float32) * header.get('data_scale_factor')
   buf = np.reshape(buf, (x, y, t), order='F')
   if __name__ == '__main__':
