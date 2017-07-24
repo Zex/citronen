@@ -19,7 +19,7 @@ def get_accu(line):
 def get_loss(line, emp=10):
   #Iteration 83, loss = 0.08709494
   line = line.strip('\n')
-  epoch, loss = re.search('\[[\d]+\]', line), re.search('loss: [0-9]*\.[0-9]+', line)
+  epoch, loss = re.search('\[[\d]+\]', line), re.search('loss: (-){0,1}[0-9]*\.[0-9]+', line)
   if epoch:
     epoch = epoch.group().strip('[]')
   if loss:
@@ -53,7 +53,7 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
     if len(losses) % stage_size != 0:
       continue
     else:
-      marker = '.'
+      marker = '-'
       ax2.cla()
       ax2.plot(np.arange(len(losses)), losses, marker, color='blue', markerfacecolor='blue')
       plt.title('[{}] {}/{}'.format(epoch, len(losses), loss))
@@ -74,7 +74,7 @@ if __name__ == '__main__':
   fig.show()
   parser = argparse.ArgumentParser()
   parser.add_argument('--flow', default=False, type=bool)
-  parser.add_argument('--trim_level', default=None, type=int)
+  parser.add_argument('--trim_level', default=None, type=float)
   parser.add_argument('--stage_size', default=1000, type=int)
   parser.add_argument('--window_size', default=100, type=int)
   parser.add_argument('--emp', default=10, type=int)
