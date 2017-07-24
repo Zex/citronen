@@ -137,7 +137,7 @@ def start():
 
   #loss_fn = BCELoss().cpu()
   #loss_fn = CrossEntropyLoss().cpu()
-  loss_fn = MSELoss()
+  loss_fn = BCELoss()
   optimizer = RMSprop(model.parameters(), args.lr,
         momentum=args.momentum, 
         weight_decay=args.decay_rate)
