@@ -37,7 +37,7 @@ def init():
   args = parser.parse_args()
   return args
 
-def init_axs(tot, rows):
+def init_axs(tot, rows, fig_img):
   axs = []
   gs = gridspec.GridSpec(rows, tot//rows)
   for i in range(tot):
@@ -46,7 +46,7 @@ def init_axs(tot, rows):
     axs[-1].autoscale(True)
   return axs
 
-def plot_img(x, axs):
+def plot_img(x, axs, fig_img):
   data = x.data.numpy()
   data = np.squeeze(data)
   for i in range(data.shape[0]):
@@ -54,7 +54,6 @@ def plot_img(x, axs):
     fig_img.canvas.draw()
 
 def reinit_plot():
-  global fig_loss, ax, fig_img
   init_plot()
   fig_img = plt.figure(figsize=(8, 8), edgecolor='black', facecolor='black')
   fig_img.suptitle('X')
@@ -63,16 +62,17 @@ def reinit_plot():
   ax = fig_loss.add_subplot(111)
   ax.set_facecolor('black')
   ax.autoscale(True)
+  return fig_loss, ax, fig_img
 
 def data_generator(data_root, label_path):
   labels = load_labels(label_path)
   for src in glob.iglob(data_root+'/*'):
-    print(src)
     header = read_header(src)
     data, _ = read_data(src, header)
     iid = basename(src).split('.')[0]
     data = data.reshape(data.shape[2], 512, 660)
     for i in range(data.shape[0]):
+      print('{}::{}'.format(src, i+1))
       y = get_label(labels, iid, i)
       yield data[i], y
 
