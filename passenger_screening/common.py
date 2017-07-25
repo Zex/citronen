@@ -65,8 +65,11 @@ def reinit_plot():
   return fig_loss, ax, fig_img
 
 def data_generator(data_root, label_path):
+  np.random.seed(1737113)
   labels = load_labels(label_path)
-  for src in glob.iglob(data_root+'/*'):
+  shuffle_grp = glob.glob(data_root+'/*')
+  np.random.shuffle(shuffle_grp)
+  for src in shuffle_grp:#glob.iglob(data_root+'/*'):
     header = read_header(src)
     data, _ = read_data(src, header)
     iid = basename(src).split('.')[0]
