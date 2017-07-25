@@ -28,7 +28,7 @@ def get_loss(line, emp=10):
 
 def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=100):
   global fig, ax1, ax2
-  losses, accs = [], []
+  trim_nr, losses, accs = 0, [], []
   while True:
     line = sys.stdin.readline()
     if line is None or len(line) == 0:
@@ -36,6 +36,7 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
     epoch, loss = get_loss(line, emp)
     print('epoch:{}, loss:{}'.format(epoch, loss))
     if trim_level and loss > trim_level:
+      trim_nr += 1
       continue
     losses.append(loss)
 
@@ -47,7 +48,7 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
       marker = '-'
       ax1.cla()
       ax1.plot(np.arange(len(sub_losses)), sub_losses, marker, color='yellow', markerfacecolor='yellow')
-      plt.title('[{}] {}/{}'.format(epoch, len(losses), loss))
+      plt.title('[{}] {}/{} -{}'.format(epoch, len(losses), loss, trim_nr))
       fig.canvas.draw()
 
     if len(losses) % stage_size != 0:
@@ -56,7 +57,7 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
       marker = '-'
       ax2.cla()
       ax2.plot(np.arange(len(losses)), losses, marker, color='blue', markerfacecolor='blue')
-      plt.title('[{}] {}/{}'.format(epoch, len(losses), loss))
+      plt.title('[{}] {}/{} -{}'.format(epoch, len(losses), loss, trim_nr))
       fig.canvas.draw()
 
 
