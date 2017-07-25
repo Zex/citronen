@@ -20,7 +20,8 @@ from torch.nn import BCELoss
 from torch.nn import MSELoss
 from torch.nn import Linear
 from torch.nn import Dropout
-from torch.nn import ReLU
+from torch.nn import LeakyReLU
+from torch.nn import Tanh
 from torch.autograd import Variable
 from torch.optim import SGD
 from torch.optim import RMSprop
@@ -36,66 +37,66 @@ class PassengerScreening(Module):
     self.total_class = 2
     self.features = Sequential(
       Conv2d(1, 64,
-             kernel_size=3,
+             kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(64),
-      ReLU(False),
-      MaxPool2d(kernel_size=3),
+      LeakyReLU(False),
+      MaxPool2d(kernel_size=2),
       Conv2d(64, 128,
-             kernel_size=3,
+             kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(128),
-      ReLU(False),
-      MaxPool2d(kernel_size=3),
-      Conv2d(128, 256,
-             kernel_size=3,
-             stride=1,
-             padding=0,
-             bias=True),
-      BatchNorm2d(256),
-      ReLU(False),
-      MaxPool2d(kernel_size=3),
-      Conv2d(256, 220,
-             kernel_size=3,
+      LeakyReLU(False),
+      MaxPool2d(kernel_size=2),
+      Conv2d(128, 220,
+             kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(220),
-      ReLU(False),
+      LeakyReLU(False),
       MaxPool2d(kernel_size=2),
-      Conv2d(220, 100,
-             kernel_size=3,
+      Conv2d(220, 384,
+             kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
-      BatchNorm2d(100),
-      ReLU(False),
+      BatchNorm2d(384),
+      LeakyReLU(False),
       MaxPool2d(kernel_size=2),
-      Conv2d(100, 64,
+      Conv2d(384, 256,
              kernel_size=2,
              stride=1,
-             padding=2,
+             padding=0,
              bias=True),
-      BatchNorm2d(64),
-      ReLU(False),
+      BatchNorm2d(256),
+      LeakyReLU(False),
       MaxPool2d(kernel_size=2),
-      Conv2d(64, 1,
+      Conv2d(256, 52,
+             kernel_size=2,
+             stride=1,
+             padding=0,
+             bias=True),
+      BatchNorm2d(52),
+      LeakyReLU(False),
+      MaxPool2d(kernel_size=2),
+      Conv2d(52, 1,
              kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(1),
-      ReLU(False),
-      AvgPool2d(kernel_size=2),
+      LeakyReLU(False),
+      MaxPool2d(kernel_size=2),
       )
     # classification
     self.classifier = Sequential(
-      Linear(1*64*2*3, self.total_class),
-      ReLU(False),
+      Linear(1*1*3*4, self.total_class),
+      LeakyReLU(False),
       Dropout(0.5, False),
       )
 
@@ -108,8 +109,8 @@ class PassengerScreening(Module):
     #plot_img(x, self.axs)
     x = x.view(x.size(0), -1)
     print('view', x.data.numpy().shape)
-    #x = self.classifier(x)
-    #print('classification', x.data.numpy().shape)
+    x = self.classifier(x)
+    print('classification', x.data.numpy().shape)
     return x
 
 def accuracy(output, target, topk=5):
@@ -137,7 +138,7 @@ def start():
 
   #loss_fn = BCELoss().cpu()
   #loss_fn = CrossEntropyLoss().cpu()
-  loss_fn = BCELoss()
+  loss_fn = MSELoss()
   optimizer = RMSprop(model.parameters(), args.lr,
         momentum=args.momentum, 
         weight_decay=args.decay_rate)
@@ -186,8 +187,8 @@ def epoch(model, optimizer, nor, loss_fn, global_epoch, args):
       y = Variable(y, volatile=False)
       return y
 
+  loss, acc = None, None
   try:
-    loss, acc = None, None
     for i, (data, y) in enumerate(data_generator(args.data_root, args.label_path)):
       if args.mode == 'test':
         output = model(get_x(data))
@@ -224,9 +225,9 @@ def step(model, optimizer, loss_fn, data, label):
     optimizer.zero_grad()
     pred, acc = accuracy(output, label, topk=1)
     optimizer.zero_grad()
-    #loss = loss_fn(output[0][label.data.numpy()[0]], label.float())
-    loss = loss_fn(output, label.float())
-    print('label', label.float().data.numpy().squeeze(), 
+    rep_label = Variable(label.data.repeat(1, 2))
+    loss = loss_fn(output, rep_label.float())
+    print('label', rep_label.float().data.numpy().squeeze(), 
         'output', output.data.numpy().squeeze(),
         'pred', pred.data.numpy().squeeze(),
         'acc', acc.data.numpy().squeeze(),
