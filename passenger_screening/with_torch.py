@@ -36,68 +36,69 @@ class PassengerScreening(Module):
     super(PassengerScreening, self).__init__()
     self.total_class = 2
     self.features = Sequential(
+      BatchNorm2d(1),
       Conv2d(1, 64,
              kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(64),
-      LeakyReLU(False),
       MaxPool2d(kernel_size=2),
+      LeakyReLU(False),
       Conv2d(64, 128,
              kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
+      MaxPool2d(kernel_size=2),
       BatchNorm2d(128),
       LeakyReLU(False),
-      MaxPool2d(kernel_size=2),
       Conv2d(128, 220,
              kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(220),
-      LeakyReLU(False),
       MaxPool2d(kernel_size=2),
+      LeakyReLU(False),
       Conv2d(220, 384,
              kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(384),
-      LeakyReLU(False),
       MaxPool2d(kernel_size=2),
+      LeakyReLU(False),
       Conv2d(384, 256,
              kernel_size=2,
              stride=1,
              padding=0,
              bias=True),
+      MaxPool2d(kernel_size=2),
       BatchNorm2d(256),
       LeakyReLU(False),
-      MaxPool2d(kernel_size=2),
       Conv2d(256, 52,
-             kernel_size=2,
+             kernel_size=3,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(52),
-      LeakyReLU(False),
       MaxPool2d(kernel_size=2),
+      LeakyReLU(False),
       Conv2d(52, 1,
-             kernel_size=2,
+             kernel_size=3,
              stride=1,
              padding=0,
              bias=True),
       BatchNorm2d(1),
+      MaxPool2d(kernel_size=4),
       LeakyReLU(False),
-      MaxPool2d(kernel_size=2),
       )
     # classification
     self.classifier = Sequential(
       Linear(1*1*3*4, self.total_class),
-      LeakyReLU(False),
       Dropout(0.5, False),
+      LeakyReLU(False),
       )
 
 #    self.axs = init_axs(64, 8)
@@ -109,16 +110,18 @@ class PassengerScreening(Module):
     #plot_img(x, self.axs)
     x = x.view(x.size(0), -1)
     print('view', x.data.numpy().shape)
-    x = self.classifier(x)
-    print('classification', x.data.numpy().shape)
+    #x = self.classifier(x)
+    #print('classification', x.data.numpy().shape)
     return x
 
 def accuracy(output, target, topk=5):
   ret, pred = output.topk(topk, 1, True, True)
   pred = pred.t()
-  correct = pred.eq(target.view(1, -1).expand_as(pred))
-  corr_k = correct[:topk].view(-1).float().sum(0)
-  return correct, corr_k
+  pred = F.softmax(output)
+  correct = pred.eq(target.float()) 
+  #correct = pred.eq(target.view(1, -1).expand_as(pred))
+  #corr_k = correct[:topk].view(-1).float().sum(0)
+  return pred, correct
 
 def start():
   args = init()
@@ -138,7 +141,7 @@ def start():
 
   #loss_fn = BCELoss().cpu()
   #loss_fn = CrossEntropyLoss().cpu()
-  loss_fn = MSELoss()
+  loss_fn = MSELoss().cpu()
   optimizer = RMSprop(model.parameters(), args.lr,
         momentum=args.momentum, 
         weight_decay=args.decay_rate)
@@ -152,14 +155,10 @@ def start():
   if args.mode == 'train':
     for i in range(args.epochs): 
       global_epoch = init_epoch+i+1
-      loss, acc = epoch(model, optimizer, nor, loss_fn, global_epoch, args)
+      loss, acc = epoch(model, optimizer, nor, loss_fn, global_epoch, args, accs, losses)
       if not loss or not acc:
         break
-      if loss:
-        losses.append(loss)
-      if acc:
-        accs.append(acc)
-      print('[{}] loss: {:.4f}, acc: {}, losses nr: {}'.format(global_epoch, loss, acc, len(losses)), flush=True)
+      #print('[{}] loss: {:.4f}, acc: {}, losses nr: {}'.format(global_epoch, loss, acc, len(losses)), flush=True)
       torch.save({
           'epoch': global_epoch,
           'model': model,
@@ -167,18 +166,18 @@ def start():
           }, '{}-{}-{:.4f}'.format(model_path, global_epoch, loss))
   elif args.mode == 'test':
     global_epoch = init_epoch
-    epoch(model, optimizer, nor, loss_fn, global_epoch, args)
+    epoch(model, optimizer, nor, loss_fn, global_epoch, args, accs, losses)
   else: # eval
     pass
     
   return losses, accs
 
-def epoch(model, optimizer, nor, loss_fn, global_epoch, args):
+def epoch(model, optimizer, nor, loss_fn, global_epoch, args, accs, losses):
   def get_x(data):
       data = data.astype(np.float32)
       data = torch.from_numpy(data).contiguous().view(1, 1, 512, 660)
-      X = nor(data)
-      X = Variable(X, volatile=False)
+      #X = nor(data)
+      X = Variable(data, volatile=False)
       return X
 
   def get_y(label):
@@ -205,7 +204,11 @@ def epoch(model, optimizer, nor, loss_fn, global_epoch, args):
         break
       loss = loss.squeeze().data[0]
       acc = acc.squeeze().data[0]
-      print('[{}] loss: {:.4f}, acc: {}'.format(global_epoch, loss, acc), flush=True)
+      accs.append(acc)
+      losses.append(loss)
+      total_acc = len([a for a in accs if a])/len(accs)
+      total_loss = sum(losses)/len(losses)
+      print('[{}] loss: {:.4f}, acc: {:.4}'.format(global_epoch, loss, total_acc), flush=True)
   except Exception as ex:
     print('epoch failed:', ex)
   return loss, acc
@@ -223,16 +226,18 @@ def step(model, optimizer, loss_fn, data, label):
 #    output = output.squeeze()
 #    pred = F.softmax(output)
     optimizer.zero_grad()
+#    rep_label = Variable(label.float().data.repeat(1, 2))
+    output = output.squeeze()
+    output = output.repeat(1, 1)
+    label = label.repeat(1, 1)
     pred, acc = accuracy(output, label, topk=1)
-    optimizer.zero_grad()
-    rep_label = Variable(label.data.repeat(1, 2))
-    loss = loss_fn(output, rep_label.float())
-    print('label', rep_label.float().data.numpy().squeeze(), 
+    loss = loss_fn(output, label.float())
+    print('label', label.float().data.numpy().squeeze(), 
         'output', output.data.numpy().squeeze(),
         'pred', pred.data.numpy().squeeze(),
         'acc', acc.data.numpy().squeeze(),
         'loss', loss.data.numpy().squeeze())
-    loss.backward() 
+    loss.backward()
     optimizer.step()
     iter_params(model)
   except Exception as ex:
