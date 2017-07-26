@@ -19,12 +19,16 @@ def get_accu(line):
 def get_loss(line, emp=10):
   #Iteration 83, loss = 0.08709494
   line = line.strip('\n')
-  epoch, loss = re.search('\[[\d]+\]', line), re.search('loss: (-){0,1}[0-9]*\.[0-9]+', line)
+  epoch, loss, acc = re.search('\[[\d]+\]', line), \
+                     re.search('loss: (-){0,1}[0-9]*\.[0-9]+', line),\
+                     re.search('acc: (-){0,1}[0-9]*\.[0-9]+', line)
   if epoch:
     epoch = epoch.group().strip('[]')
   if loss:
     loss = loss.group().split(' ')[1]
-  return epoch, np.round(float(loss)*emp, 4)
+  if acc:
+    acc = acc.group().split(' ')[1]
+  return epoch, np.round(float(loss)*emp, 4), acc
 
 def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=100):
   global fig, ax1, ax2
@@ -33,21 +37,25 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
     line = sys.stdin.readline()
     if line is None or len(line) == 0:
         break
-    epoch, loss = get_loss(line, emp)
-    print('epoch:{}, loss:{}'.format(epoch, loss))
+    epoch, loss, acc = get_loss(line, emp)
+    print('epoch:{}, loss:{}, acc:{}'.format(epoch, loss, acc))
     if trim_level and loss > trim_level:
       trim_nr += 1
       continue
     losses.append(loss)
+    accs.append(acc)
 
     if flow:
       if len(losses) > window_size:
         sub_losses = losses[-window_size:]
+        sub_accs = accs[-window_size:]
       else:
         sub_losses = losses[:]
+        sub_accs = accs[:]
       marker = '-'
       ax1.cla()
       ax1.plot(np.arange(len(sub_losses)), sub_losses, marker, color='yellow', markerfacecolor='yellow')
+      ax1.plot(np.arange(len(sub_accs)), sub_accs, marker, color='red', markerfacecolor='red')
       plt.title('[{}] {}/{} -{}'.format(epoch, len(losses), loss, trim_nr))
       fig.canvas.draw()
 
@@ -56,7 +64,8 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
     else:
       marker = '-'
       ax2.cla()
-      ax2.plot(np.arange(len(losses)), losses, marker, color='blue', markerfacecolor='blue')
+      #ax2.plot(np.arange(len(losses)), losses, marker, color='blue', markerfacecolor='blue')
+      ax2.plot(np.arange(len(accs)), accs, marker, color='red', markerfacecolor='red')
       plt.title('[{}] {}/{} -{}'.format(epoch, len(losses), loss, trim_nr))
       fig.canvas.draw()
 
