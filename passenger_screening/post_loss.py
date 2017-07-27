@@ -30,7 +30,7 @@ def get_loss(line, emp=10):
     acc = acc.group().split(' ')[1]
   return epoch, np.round(float(loss)*emp, 4), acc
 
-def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=100):
+def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=100, with_acc=False):
   global fig, ax1, ax2
   trim_nr, losses, accs = 0, [], []
   while True:
@@ -55,7 +55,8 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
       marker = '-'
       ax1.cla()
       ax1.plot(np.arange(len(sub_losses)), sub_losses, marker, color='yellow', markerfacecolor='yellow')
-      ax1.plot(np.arange(len(sub_accs)), sub_accs, marker, color='red', markerfacecolor='red')
+      if with_acc:
+        ax1.plot(np.arange(len(sub_accs)), sub_accs, marker, color='red', markerfacecolor='red')
       plt.title('[{}] {}/{} -{}'.format(epoch, len(losses), loss, trim_nr))
       fig.canvas.draw()
 
@@ -64,8 +65,9 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
     else:
       marker = '-'
       ax2.cla()
-      #ax2.plot(np.arange(len(losses)), losses, marker, color='blue', markerfacecolor='blue')
-      ax2.plot(np.arange(len(accs)), accs, marker, color='red', markerfacecolor='red')
+      ax2.plot(np.arange(len(losses)), losses, marker, color='blue', markerfacecolor='blue')
+      if with_acc:
+        ax2.plot(np.arange(len(accs)), accs, marker, color='red', markerfacecolor='red')
       plt.title('[{}] {}/{} -{}'.format(epoch, len(losses), loss, trim_nr))
       fig.canvas.draw()
 
@@ -87,11 +89,12 @@ if __name__ == '__main__':
   parser.add_argument('--trim_level', default=None, type=float)
   parser.add_argument('--stage_size', default=1000, type=int)
   parser.add_argument('--window_size', default=100, type=int)
+  parser.add_argument('--acc', default=False, type=bool)
   parser.add_argument('--emp', default=10, type=int)
   args = parser.parse_args()
 
   try:
-    pipe_loss(args.flow, args.trim_level, args.stage_size, args.emp, args.window_size)
+    pipe_loss(args.flow, args.trim_level, args.stage_size, args.emp, args.window_size, args.acc)
     time.sleep(10000)
   except KeyboardInterrupt:
     pass
