@@ -19,31 +19,39 @@ def get_accu(line):
 def get_loss(line, emp=10):
   #Iteration 83, loss = 0.08709494
   line = line.strip('\n')
-  epoch, loss, acc = re.search('\[[\d]+\]', line), \
+  epoch, loss, acc, is_eval = re.search('\[[\d]+/[\d]+\]', line), \
                      re.search('loss: (-){0,1}[0-9]*\.[0-9]+', line),\
-                     re.search('acc: (-){0,1}[0-9]*\.[0-9]+', line)
+                     re.search('acc: (-){0,1}[0-9]*\.[0-9]+', line),\
+                     re.search('\[eval\]', line)
+
   if epoch:
-    epoch = epoch.group().strip('[]')
+    epoch = epoch.group().strip('[]').split('/')[0]
   if loss:
     loss = loss.group().split(' ')[1]
   if acc:
     acc = acc.group().split(' ')[1]
-  return epoch, np.round(float(loss)*emp, 4), acc
+  if is_eval:
+    is_eval = is_eval.group().strip('[]') == 'eval' and True or False
+  return epoch, np.round(float(loss)*emp, 4), acc, is_eval
 
 def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=100, with_acc=False):
   global fig, ax1, ax2
   trim_nr, losses, accs = 0, [], []
+  accs_eval = []
   while True:
     line = sys.stdin.readline()
     if line is None or len(line) == 0:
         break
-    epoch, loss, acc = get_loss(line, emp)
+    epoch, loss, acc, is_eval = get_loss(line, emp)
     print('epoch:{}, loss:{}, acc:{}'.format(epoch, loss, acc))
     if trim_level and loss > trim_level:
       trim_nr += 1
       continue
     losses.append(loss)
-    accs.append(acc)
+    if is_eval:
+      accs_eval.append(acc)
+    else:
+      accs.append(acc)
 
     if flow:
       if len(losses) > window_size:
@@ -63,11 +71,14 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
     if len(losses) % stage_size != 0:
       continue
     else:
-      marker = '-'
+      marker = 'o'
       ax2.cla()
       ax2.plot(np.arange(len(losses)), losses, marker, color='blue', markerfacecolor='blue')
       if with_acc:
-        ax2.plot(np.arange(len(accs)), accs, marker, color='red', markerfacecolor='red')
+          marker, color = '--', 'red'
+          ax2.plot(np.arange(len(accs)), accs, marker, color=color, markerfacecolor=color)
+          marker, color = '-', 'yellow'
+          ax2.plot(np.arange(len(accs_eval)), accs_eval, marker, color=color, markerfacecolor=color)
       plt.title('[{}] {}/{} -{}'.format(epoch, len(losses), loss, trim_nr))
       fig.canvas.draw()
 

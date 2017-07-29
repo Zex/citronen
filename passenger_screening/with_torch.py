@@ -20,7 +20,7 @@ from torch.nn import BCELoss
 from torch.nn import MSELoss
 from torch.nn import Linear
 from torch.nn import Dropout
-from torch.nn import LeakyReLU
+from torch.nn import ReLU
 from torch.nn import Tanh
 from torch.autograd import Variable
 from torch.optim import SGD
@@ -36,7 +36,6 @@ class PassengerScreening(Module):
     super(PassengerScreening, self).__init__()
     self.total_class = 2
     self.features = Sequential(
-      BatchNorm2d(1),
       Conv2d(1, 64,
              kernel_size=2,
              stride=1,
@@ -44,7 +43,7 @@ class PassengerScreening(Module):
              bias=True),
       BatchNorm2d(64),
       MaxPool2d(kernel_size=2),
-      LeakyReLU(False),
+      ReLU(False),
       Conv2d(64, 128,
              kernel_size=2,
              stride=1,
@@ -52,7 +51,7 @@ class PassengerScreening(Module):
              bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(128),
-      LeakyReLU(False),
+      ReLU(False),
       Conv2d(128, 220,
              kernel_size=2,
              stride=1,
@@ -60,7 +59,7 @@ class PassengerScreening(Module):
              bias=True),
       BatchNorm2d(220),
       MaxPool2d(kernel_size=2),
-      LeakyReLU(False),
+      ReLU(False),
       Conv2d(220, 384,
              kernel_size=2,
              stride=1,
@@ -68,7 +67,7 @@ class PassengerScreening(Module):
              bias=True),
       BatchNorm2d(384),
       MaxPool2d(kernel_size=2),
-      LeakyReLU(False),
+      ReLU(False),
       Conv2d(384, 256,
              kernel_size=2,
              stride=1,
@@ -76,7 +75,7 @@ class PassengerScreening(Module):
              bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(256),
-      LeakyReLU(False),
+      ReLU(False),
       Conv2d(256, 52,
              kernel_size=3,
              stride=1,
@@ -84,7 +83,7 @@ class PassengerScreening(Module):
              bias=True),
       BatchNorm2d(52),
       MaxPool2d(kernel_size=2),
-      LeakyReLU(False),
+      ReLU(False),
       Conv2d(52, 1,
              kernel_size=3,
              stride=1,
@@ -92,13 +91,13 @@ class PassengerScreening(Module):
              bias=True),
       BatchNorm2d(1),
       MaxPool2d(kernel_size=4),
-      LeakyReLU(False),
+      ReLU(False),
       )
     # classification
     self.classifier = Sequential(
       Linear(1*1*3*4, self.total_class),
       Dropout(0.5, False),
-      LeakyReLU(False),
+      ReLU(False),
       )
 
 #    self.axs = init_axs(64, 8)
@@ -116,8 +115,7 @@ class PassengerScreening(Module):
 
 def accuracy(output, target, topk=5):
   ret, pred = output.topk(topk, 1, True, True)
-  pred = pred.t()
-  pred = F.softmax(output)
+  pred = torch.normal(output)
   correct = pred.eq(target.float()) 
   #correct = pred.eq(target.view(1, -1).expand_as(pred))
   #corr_k = correct[:topk].view(-1).float().sum(0)
@@ -176,7 +174,7 @@ def epoch(model, optimizer, nor, loss_fn, global_epoch, args, accs, losses):
   def get_x(data):
       data = data.astype(np.float32)
       data = torch.from_numpy(data).contiguous().view(1, 1, 512, 660)
-      #X = nor(data)
+      X = nor(data)
       X = Variable(data, volatile=False)
       return X
 
@@ -198,7 +196,8 @@ def epoch(model, optimizer, nor, loss_fn, global_epoch, args, accs, losses):
          
       if y.shape[0] == 0:
         continue
-
+      if y != 1  and i % 2 != 0:
+        continue
       loss, acc = step(model, optimizer, loss_fn, get_x(data), get_y(y))
       if not loss or not acc:
         break

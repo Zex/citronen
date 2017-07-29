@@ -25,6 +25,7 @@ def init():
   parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=modes)
   parser.add_argument('--model_id', default='model-{}'.format(np.random.randint(0xffff)), type=str, help='Prefix for model persistance')
   parser.add_argument('--init_epoch', default=0, type=int, help='Initial epoch')
+  parser.add_argument('--init_step', default=0, type=int, help='Initial global step')
   parser.add_argument('--epochs', default=1000, type=int, help='Total epoch to run')
   parser.add_argument('--lr', default=1e-2, type=float, help='Initial learning rate')
   parser.add_argument('--momentum', default=9e-2, type=float, help='Momentum value')
@@ -65,7 +66,6 @@ def reinit_plot():
   return fig_loss, ax, fig_img
 
 def data_generator(data_root, label_path):
-  np.random.seed(1737113)
   labels = load_labels(label_path)
   shuffle_grp = glob.glob(data_root+'/*')
   np.random.shuffle(shuffle_grp)
