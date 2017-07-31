@@ -20,6 +20,7 @@ from torch.nn import CrossEntropyLoss
 from torch.nn import UpsamplingBilinear2d
 from torch.nn import LeakyReLU
 from torch.nn import Tanh
+from torch.nn import ReLU
 import torch.nn.functional as F
 #from torch.nn import CosineSimilarity
 from torch.optim import RMSprop
@@ -38,7 +39,7 @@ class Discriminator(Module):
         bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(128),
-      Tanh(),
+      ReLU(),
       Conv2d(128, 64,
         kernel_size=3,
         stride=1,
@@ -46,7 +47,7 @@ class Discriminator(Module):
         bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(64),
-      Tanh(),
+      ReLU(),
       Conv2d(64, 32,
         kernel_size=3,
         stride=1,
@@ -54,7 +55,7 @@ class Discriminator(Module):
         bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(32),
-      Tanh(),
+      ReLU(),
       Conv2d(32, 1,
         kernel_size=3,
         stride=2,
@@ -62,7 +63,7 @@ class Discriminator(Module):
         bias=True),
       MaxPool2d(kernel_size=3),
       BatchNorm2d(1),
-      Tanh(),
+      ReLU(),
       Conv2d(1, 1,
         kernel_size=3,
         stride=2,
@@ -70,12 +71,11 @@ class Discriminator(Module):
         bias=True),
       MaxPool2d(kernel_size=3),
       BatchNorm2d(1),
-      Tanh(),
+      ReLU(),
     )
 
   def forward(self, x):
     x = self.seq(x)
-    #x = torch.max(x)
     return x
 
 
@@ -90,28 +90,28 @@ class Generator(Module):
         stride=2,
         padding=0,
         bias=True),
-      Tanh(),
+      ReLU(),
       UpsamplingBilinear2d(scale_factor=2),
       Conv2d(128, 64,
         kernel_size=4,
         stride=3,
         padding=0,
         bias=True),
-      Tanh(),
+      ReLU(),
       UpsamplingBilinear2d(scale_factor=2),
       Conv2d(64, 1,
         kernel_size=3,
         stride=2,
         padding=0,
         bias=True),
-      Tanh(),
+      ReLU(),
       UpsamplingBilinear2d(scale_factor=3),
       Conv2d(1, 1,
         kernel_size=3,
         stride=2,
         padding=4,
         bias=True),
-      Tanh(),
+      ReLU(),
     )
 
   def forward(self, x):
@@ -139,6 +139,10 @@ def cosine_similarity(x1, x2, dim=1, eps=1e-08):
   print('clamp',  (w1*w2).clamp(min=eps))
   return (w12 / (w1*w2).clamp(min=eps)).squeeze()
 
+def rand_sample(gen_data, expect, w, h):
+  if len(gen_data) < expect:
+    gen_data.append(Variable(torch.from_numpy((np.random.randn(w, h)*10000).reshape(1, 1, w, h)).float()))
+        
 def start():
   args = init()
   epochs = 10
@@ -166,25 +170,35 @@ def start():
   for e in range(epochs):
     global_epoch = args.init_epoch+e+1
     for i, (data, y) in enumerate(data_generator(args.data_root, args.label_path)):
-      if i > 32: # exp
-        break
       true_y = get_y(y)
       real_x = get_x(data)
 
+      print('[{}] [dis] true_y:{}'.format(e, true_y.data.numpy()))
+      # discriminator
       real_y = dis(real_x)
-      print('[dis] output', real_y.data.numpy().shape)
+      print('[{}] [dis] real_y:{}'.format(e, real_y.data.numpy()))
 
-      if len(gen_data) < i+1:
-        gen_data.append(Variable(torch.from_numpy((np.random.randn(w, h)*10000).reshape(1, 1, w, h)).float()))
+      rand_sample(gen_data, i+1, w, h)
       fake_x = gen(gen_data[i])
-      print('[gen] output', fake_x.data.numpy().shape)
-      gen_data[i] = fake_x.data.numpy()
-
+      #print('[{}] [dis] fake_x:{}'.format(e, fake_x.data.numpy().shape))
+      gen_data[i] = fake_x
       fake_y = dis(fake_x)
-      print('[dis] gen', fake_y.data.numpy().shape)
-      dis_loss, gen_loss, total = optimize(fake_x, real_x, fake_y, real_y, true_y)
+      print('[{}] [dis] fake_y:{}'.format(e, fake_y.data.numpy()))
+      dis_loss = optimize_dis(fake_y, real_y, true_y)
 
-    [np.save('{}/{}'.format(gen_path, i), data) for i, data in enumerate(gen_data)]
+      # generator
+      fake_x = gen(gen_data[i])
+      #print('[{}] [gen] fake_x'.format(e, fake_x.data.numpy().shape))
+      fake_y = dis(fake_x)
+      print('[{}] [gen] fake_y:{}'.format(e, fake_y.data.numpy()))
+      gen_loss = optimize_gen(fake_y, real_y, true_y)
+
+      # cross loss
+      c_loss = cross_loss(fake_y, real_y, true_y)
+      print('[{}] dis_loss:{} gen_loss:{} c_loss:{}'.format(e, dis_loss.data.numpy(), gen_loss.data.numpy(), c_loss.data.numpy()), flush=True)
+
+      [np.save('{}/{}'.format(gen_path, i), var.data.numpy()) for i, var in enumerate(gen_data)]
+
     torch.save({
           'epoch': global_epoch,
           'model': gen,
@@ -194,25 +208,25 @@ def start():
           'model': gen,
           }, '{}-dis-{}-{:.4f}.chkpt'.format(model_path, global_epoch, dis_loss))
 
-def optimize(fake_x, real_x, fake_y, real_y, y):
-#  print(real_x.data.numpy().shape, real_x.data.numpy().shape)
-
-  dis_loss = torch.mean(torch.log(real_x + eps) + torch.log(1. - fake_x + eps))
-  y = y.repeat(1)
-  gen_loss = -F.cross_entropy(real_y.view(1,2), y) - F.cross_entropy(fake_y.view(1,2), y)
-
-  total_loss = -(dis_loss + gen_loss)
-
-  total_loss.backward()
-  print('dis_loss:{} gen_loss:{} total:'.format(dis_loss.data.numpy(), gen_loss.data.numpy(), total_loss.data.numpy()))
-
+def optimize_dis(fake_y, real_y, y):
   opt_dis.zero_grad()
+  dis_loss = -torch.mean(torch.log(real_y + eps) + torch.log(1. - fake_y + eps))
+  dis_loss.backward(retain_variables=True)
   opt_dis.step()
+  return dis_loss
 
+def optimize_gen(fake_y, real_y, y):
   opt_gen.zero_grad()
+  gen_loss = -torch.mean(torch.log(fake_y + eps))
+  gen_loss.backward()
   opt_gen.step()
+  return gen_loss
 
-  return dis_loss, gen_loss, total_loss
+def cross_loss(fake_y, real_y, y):
+  y = y.repeat(1)
+  c_loss = F.cross_entropy(real_y.view(1,2), y) + F.cross_entropy(fake_y.view(1,2), y)
+
+  return c_loss
 
 def plot_gan():
   gen_path = "./gan_output"
