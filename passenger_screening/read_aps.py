@@ -127,6 +127,7 @@ def read_data(src, header):
               int(header.get('num_y_pts')),\
               int(header.get('num_t_pts'))
   with open(src, 'rb') as fd:
+    print(src, x, y, t)
     fd.seek(HEADER_SIZE)
     buf = np.fromfile(fd, dtype=np.uint16, count=x*y*t)
   #buf = buf.astype(np.float32) * header.get('data_scale_factor')
@@ -162,8 +163,8 @@ def show_header(header):
 
 def try_read():
   total = 0
-  #data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_aps')
-  data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_a3daps')
+  data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_aps')
+  #data_root = os.path.join(os.path.dirname(__file__), '../data/passenger_screening/stage1_a3daps')
 
   for src in glob.glob(data_root+'/*'):
     try:

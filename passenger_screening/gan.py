@@ -33,46 +33,38 @@ class Discriminator(Module):
   def __init__(self):
     super(Discriminator, self).__init__()
     self.seq = Sequential(
-      Conv2d(1, 128,
-        kernel_size=3,
-        stride=1,
-        padding=0,
-        bias=True),
-      MaxPool2d(kernel_size=2),
-      BatchNorm2d(128),
-      ReLU(),
-      Conv2d(128, 64,
-        kernel_size=3,
-        stride=1,
-        padding=0,
-        bias=True),
-      MaxPool2d(kernel_size=2),
-      BatchNorm2d(64),
-      ReLU(),
-      Conv2d(64, 32,
-        kernel_size=3,
-        stride=1,
+      Conv2d(1, 32,
+        kernel_size=5,
+        stride=3,
         padding=0,
         bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(32),
       ReLU(),
-      Conv2d(32, 1,
-        kernel_size=3,
+      Conv2d(32, 16,
+        kernel_size=5,
         stride=2,
         padding=0,
         bias=True),
-      MaxPool2d(kernel_size=3),
+      MaxPool2d(kernel_size=2),
+      BatchNorm2d(16),
+      ReLU(),
+      Conv2d(16, 1,
+        kernel_size=4,
+        stride=2,
+        padding=0,
+        bias=False),
+      MaxPool2d(kernel_size=2),
       BatchNorm2d(1),
       ReLU(),
       Conv2d(1, 1,
-        kernel_size=3,
-        stride=2,
+        kernel_size=2,
+        stride=1,
         padding=0,
-        bias=True),
-      MaxPool2d(kernel_size=3),
+        bias=False),
+      MaxPool2d(kernel_size=2),
       BatchNorm2d(1),
-      ReLU(),
+      LeakyReLU(),
     )
     self.linear = Sequential(
         Linear(660, 512),
@@ -82,7 +74,8 @@ class Discriminator(Module):
     )
 
   def forward(self, x):
-    x = self.linear(x)
+    x = self.seq(x)
+    #x = self.linear(x)
     return x
 
 
@@ -92,21 +85,21 @@ class Generator(Module):
     super(Generator, self).__init__()
     self.seq = Sequential(
       UpsamplingBilinear2d(scale_factor=2),
-      Conv2d(1, 128,
+      Conv2d(1, 32,
         kernel_size=4,
         stride=2,
         padding=0,
         bias=True),
       ReLU(),
       UpsamplingBilinear2d(scale_factor=2),
-      Conv2d(128, 64,
+      Conv2d(32, 16,
         kernel_size=4,
         stride=3,
         padding=0,
         bias=True),
       ReLU(),
       UpsamplingBilinear2d(scale_factor=2),
-      Conv2d(64, 1,
+      Conv2d(16, 1,
         kernel_size=3,
         stride=2,
         padding=0,
@@ -129,6 +122,7 @@ class Generator(Module):
 
   def forward(self, x):
     x = self.linear(x)
+    #x = self.seq(x)
     return x
 
 
@@ -168,7 +162,7 @@ def start():
 
   def get_x(data):
       data = data.astype(np.float32)
-      data = torch.from_numpy(data).contiguous()#.view(1, 1, 512, 660)
+      data = torch.from_numpy(data).contiguous().view(1, 1, 512, 660)
       #X = nor(data)
       X = Variable(data, volatile=False)
       return X
@@ -200,7 +194,7 @@ def start():
       fake_x = gen(gen_data[ind])
       #print('[{}] [dis] fake_x:{}'.format(e, fake_x.data.numpy().shape))
       gen_data[ind] = fake_x
-      fake_y = dis(fake_x)
+      fake_y = dis(fake_x.view(1,1,w,h))
       #print('[{}] [dis] fake_y:{}'.format(e, fake_y.data.numpy()))
       dis_loss = optimize_dis(fake_y, real_y, true_y)
 
@@ -208,12 +202,13 @@ def start():
       rand_sample(gen_data, ind, w, h)
       fake_x = gen(gen_data[ind])
       #print('[{}] [gen] fake_x'.format(e, fake_x.data.numpy().shape))
-      fake_y = dis(fake_x)
+      fake_y = dis(fake_x.view(1,1,w,h))
       #print('[{}] [gen] fake_y:{}'.format(e, fake_y.data.numpy()))
       gen_loss = optimize_gen(fake_y, real_y, true_y)
 
       # cross loss
-      c_loss = Variable(torch.Tensor(1))# cross_loss(fake_y, real_y, true_y)
+      c_loss = Variable(torch.Tensor(1))
+      c_loss = cross_loss(fake_y, real_y, true_y)
       print('[{}] dis_loss:{} gen_loss:{} c_loss:{}'.format(e, dis_loss.data.numpy(), gen_loss.data.numpy(), c_loss.data.numpy()), flush=True)
 
       np.save('{}/{}'.format(gen_path, ind), gen(gen_data[ind]).data.numpy())
@@ -229,7 +224,7 @@ def start():
 
 def optimize_dis(fake_y, real_y, y):
   opt_dis.zero_grad()
-  dis_loss = -torch.mean(torch.log(real_y + eps) + torch.log(1. - fake_y + eps))
+  #dis_loss = -torch.mean(torch.log(real_y + eps) + torch.log(1. - fake_y + eps))
   dis_loss = -(torch.mean(real_y) - torch.mean(fake_y))
   #dis_loss = torch.log(-torch.mean(real_y) + torch.mean(fake_y) + eps)
   dis_loss.backward(retain_variables=True)
@@ -246,8 +241,8 @@ def optimize_gen(fake_y, real_y, y):
 
 def cross_loss(fake_y, real_y, y):
   print(fake_y.data.numpy().shape, real_y.data.numpy().shape)
-  #y = y.repeat(512)
-  c_loss = F.cross_entropy(real_y, y) + F.cross_entropy(fake_y, y)
+  #y = y.repeat(1)
+  c_loss = F.cross_entropy(real_y.view(1, 2), y) + F.cross_entropy(fake_y.view(1, 2), y)
   return c_loss
 
 if __name__ == '__main__':
