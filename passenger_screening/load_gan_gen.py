@@ -6,8 +6,8 @@ import time
 import glob
 import seaborn as sn
 
-#output_base = 'gan_output'
-output_base = 'gan_output_linear'
+output_base = 'gan_output'
+#output_base = 'gan_output_linear'
 gs = gridspec.GridSpec(4, 4, wspace=0.05, hspace=0.05)
 sn.plt.ion()
 fig = sn.plt.figure(figsize=(8, 8), edgecolor='black', facecolor='black')
@@ -39,10 +39,15 @@ def update_once():
     if len(axs) < 16:
       axs.append(fig.add_subplot(gs[i%16]))
       axs[-1].set_axis_off() 
-    axs[i].imshow(data, cmap='viridis')
+    axs[i].imshow(data)#, cmap='viridis')
     fig.canvas.draw()
 
-while True:
-  update_once()
-  time.sleep(1)
+running = True
+
+while running:
+  try:
+    update_once()
+    time.sleep(1)
+  except KeyboardInterrupt:
+    running = False
 

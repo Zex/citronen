@@ -80,7 +80,7 @@ class Discriminator(Module):
         ReLU(),
         BatchNorm1d(512),
         Linear(512, 1),
-        Sigmoid(),
+        ReLU(),
     )
 
   def forward(self, x):
@@ -130,8 +130,8 @@ class Generator(Module):
     )
 
   def forward(self, x):
-    x = self.linear(x)
     #x = self.seq(x)
+    x = self.linear(x)
     return x
 
 
@@ -153,12 +153,13 @@ def cosine_similarity(x1, x2, dim=1, eps=1e-08):
 
 def rand_sample(gen_data, expect, w, h):
   if len(gen_data) <= expect:
-    #gen_data.append(Variable(torch.from_numpy(np.random.multinomial(1, [0.1], (660, 512)).T.reshape(w, h))).float())
+    gen_data.append(Variable(torch.from_numpy(np.random.multinomial(1, [0.1], (h, w)).T.reshape(w, h))).float())
     #gen_data.append(Variable(torch.from_numpy((np.ones((w, h))).reshape(1, 1, w, h)).float()))
-    gen_data.append(Variable(torch.randn(w, h)))
+    #gen_data.append(Variable(torch.randn(w, h)))
   else:
     #gen_data[expect] = Variable(torch.from_numpy(np.random.multinomial(1, [0.1], (660, 512)).T.reshape(w, h))).float()
-    gen_data[expect] = Variable(torch.randn(w, h))
+    gen_data.append(Variable(torch.from_numpy(np.random.multinomial(1, [0.1], (h, w)).T.reshape(w, h))).float())
+    #gen_data[expect] = Variable(torch.randn(w, h))
         
 def start():
   args = init()
@@ -172,7 +173,7 @@ def start():
   def get_x(data):
       data = data.astype(np.float32)
       data = torch.from_numpy(data).contiguous().view(512, 660)
-      #X = nor(data)
+      X = nor(data)
       X = Variable(data, volatile=False)
       return X
 
@@ -229,7 +230,6 @@ def optimize_dis(fake_y, real_y, y):
   opt_dis.zero_grad()
   #dis_loss = -torch.mean(torch.log(real_y + eps) + torch.log(1. - fake_y + eps))
   dis_loss = -(torch.mean(real_y) - torch.mean(fake_y))
-  #dis_loss = torch.log(-torch.mean(real_y) + torch.mean(fake_y) + eps)
   dis_loss.backward(retain_variables=True)
   opt_dis.step()
   return dis_loss
