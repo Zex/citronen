@@ -1,0 +1,21 @@
+#!/bin/zsh
+
+grep acc: loss.3|grep -n loss: > mark
+
+
+each_epoch() {
+
+grep "\[$1\]" loss.3 |tail -300|python3 post_loss.py \
+  --stage_size 30  \
+  --window_size 100 \
+  --trim_level 1000 \
+  --emp 10 \
+  --flow 1 
+}
+
+end=3
+begin=1
+[ ! -z $2 ] && end=$2
+[ ! -z $1 ] && begin=$1
+i=$begin;while [ $i -lt $end ] ;do each_epoch $i ; i=$(($i+1)); done
+

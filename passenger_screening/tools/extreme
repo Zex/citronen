@@ -1,0 +1,61 @@
+#!/bin/zsh
+
+function refresh() {
+  grep acc: $src|grep -n loss: > mark
+}
+
+function extreme() {
+  epoch=$1
+  echo "===$epoch==="
+  total=0
+  cur=`grep "loss: 0\." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: 1\." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: 2\." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: ....\....." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: .....\....." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: ......\....." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: .......\....." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: ........\....." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: .........\....." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: ..........\....." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  cur=`grep "loss: ...........\....." $src|grep "\[$epoch\]"|wc -l`
+  echo "$cur";total=$(($total+$cur))
+  echo "total: $total"
+}
+
+function circle() {
+  epoch=$1
+  ht=$2
+  level=$3
+
+  echo "===$epoch==="
+  grep "\[$epoch\]" mark|$ht -$level|grep "loss: ....\....." |wc -l
+  grep "\[$epoch\]" mark|$ht -$level|grep "loss: .....\....." |wc -l
+  grep "\[$epoch\]" mark|$ht -$level|grep "loss: ......\....." |wc -l
+  grep "\[$epoch\]" mark|$ht -$level|grep "loss: .......\....." |wc -l
+  grep "\[$epoch\]" mark|$ht -$level|grep "loss: ........\....." |wc -l
+  grep "\[$epoch\]" mark|$ht -$level|grep "loss: .........\....." |wc -l
+  grep "\[$epoch\]" mark|$ht -$level|grep "loss: ..........\....." |wc -l
+  grep "\[$epoch\]" mark|$ht -$level|grep "loss: ...........\....." |wc -l
+}
+
+src="loss.3"
+refresh
+end=3
+begin=1
+[ ! -z $2 ] && end=$2
+[ ! -z $1 ] && begin=$1
+i=$begin;while [ $i -lt $end ] ;do extreme $i; i=$(($i+1));done
+#i=$begin;while [ $i -lt $end ] ;do circle $i head 10000; i=$(($i+1));done
+#i=$begin;while [ $i -lt $end ] ;do circle $i tail 10000; i=$(($i+1));done
+
