@@ -24,14 +24,11 @@ def get_loss(line, emp=10):
                      re.search('acc: (-){0,1}[0-9]*\.[0-9]+', line),\
                      re.search('\[eval\]', line)
 
-  if epoch:
-    epoch = epoch.group().strip('[]').split('/')[0]
-  if loss:
-    loss = loss.group().split(' ')[1]
-  if acc:
-    acc = acc.group().split(' ')[1]
-  if is_eval:
-    is_eval = is_eval.group().strip('[]') == 'eval' and True or False
+  epoch = epoch.group().strip('[]').split('/')[0] if epoch else 0.
+  loss = loss.group().split(' ')[1] if loss else 0.
+  acc = acc.group().split(' ')[1] if acc else 0.
+  is_eval = is_eval.group().strip('[]') == 'eval' and True or False
+
   return epoch, np.round(float(loss)*emp, 4), acc, is_eval
 
 def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=100, with_acc=False):

@@ -35,6 +35,7 @@ def init():
   parser.add_argument('--label_path', default='.', type=str, help='Label path')
   parser.add_argument('--model_root', default='.', type=str, help='Model path root')
   parser.add_argument('--chkpt', default='.', type=str, help='Check point path')
+  parser.add_argument('--outpath', default='out', type=str, help='Path to output')
   args = parser.parse_args()
   return args
 

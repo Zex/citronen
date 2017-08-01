@@ -8,19 +8,19 @@ from os.path import isdir
 import seaborn as sn
 from torchvision import transforms
 from torch.autograd import Variable
-from torch import nn
+from torch.nn import Dropout
 from torch.nn import Linear
 from torch.nn import Module
 from torch.nn import Sequential
 from torch.nn import Conv2d
 from torch.nn import MaxPool2d
 from torch.nn import BatchNorm2d
+from torch.nn import BatchNorm1d
 from torch.nn import AvgPool2d
 from torch.nn import CrossEntropyLoss
 from torch.nn import UpsamplingBilinear2d
-from torch.nn import LeakyReLU
 from torch.nn import Sigmoid
-from torch.nn import Tanh
+from torch.nn import ReLU6
 from torch.nn import ReLU
 import torch.nn.functional as F
 #from torch.nn import CosineSimilarity
@@ -40,7 +40,7 @@ class Discriminator(Module):
         bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(32),
-      LeakyReLU(),
+      Sigmoid(),
       Conv2d(32, 16,
         kernel_size=3,
         stride=2,
@@ -48,42 +48,44 @@ class Discriminator(Module):
         bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(16),
-      LeakyReLU(),
+      Sigmoid(),
       Conv2d(16, 8,
         kernel_size=3,
         stride=2,
         padding=0,
-        bias=False),
+        bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(8),
-      LeakyReLU(),
+      Sigmoid(),
       Conv2d(8, 4,
         kernel_size=2,
         stride=1,
         padding=0,
-        bias=False),
+        bias=True),
       MaxPool2d(kernel_size=3),
       BatchNorm2d(4),
-      LeakyReLU(),
+      Sigmoid(),
       Conv2d(4, 1,
         kernel_size=2,
         stride=1,
         padding=0,
-        bias=False),
+        bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(1),
-      LeakyReLU(),
+      Sigmoid(),
     )
     self.linear = Sequential(
+        BatchNorm1d(660),
         Linear(660, 512),
         ReLU(),
+        BatchNorm1d(512),
         Linear(512, 1),
-        LeakyReLU(),
+        Sigmoid(),
     )
 
   def forward(self, x):
-    x = self.seq(x)
-    #x = self.linear(x)
+    #x = self.seq(x)
+    x = self.linear(x)
     return x
 
 
@@ -98,34 +100,33 @@ class Generator(Module):
         stride=2,
         padding=0,
         bias=True),
-      ReLU(),
+      Sigmoid(),
       UpsamplingBilinear2d(scale_factor=2),
       Conv2d(32, 16,
         kernel_size=4,
         stride=3,
         padding=0,
         bias=True),
-      ReLU(),
+      Sigmoid(),
       UpsamplingBilinear2d(scale_factor=2),
       Conv2d(16, 1,
         kernel_size=3,
         stride=2,
         padding=0,
         bias=True),
-      ReLU(),
+      Sigmoid(),
       UpsamplingBilinear2d(scale_factor=3),
       Conv2d(1, 1,
         kernel_size=3,
         stride=2,
         padding=4,
         bias=True),
-      ReLU(),
+      Sigmoid(),
     )
     self.linear = Sequential(
         Linear(660, 512),
         ReLU(),
         Linear(512, 660),
-        LeakyReLU(),
     )
 
   def forward(self, x):
@@ -163,14 +164,14 @@ def start():
   args = init()
   epochs = args.epochs
   w, h = 512, 660
-  gen_path = "./gan_output"
+  gen_path = args.outpath
 
   if not isdir(gen_path):
     mkdir(gen_path)
 
   def get_x(data):
       data = data.astype(np.float32)
-      data = torch.from_numpy(data).contiguous().view(1, 1, 512, 660)
+      data = torch.from_numpy(data).contiguous().view(512, 660)
       #X = nor(data)
       X = Variable(data, volatile=False)
       return X
@@ -192,26 +193,20 @@ def start():
       true_y = get_y(y)
       real_x = get_x(data)
 
-      #print('[{}] [dis] true_y:{}'.format(e, true_y.data.numpy()))
       # discriminator
       real_y = dis(real_x)
-      #print('[{}] [dis] real_y:{}'.format(e, real_y.data.numpy()))
 
-      ind = i%16
+      ind = i % 16
       rand_sample(gen_data, ind, w, h)
-      fake_x = gen(gen_data[ind])
-      #print('[{}] [dis] fake_x:{}'.format(e, fake_x.data.numpy().shape))
+      fake_x = gen(gen_data[ind].view(w,h))
       gen_data[ind] = fake_x
-      fake_y = dis(fake_x.view(1,1,w,h))
-      #print('[{}] [dis] fake_y:{}'.format(e, fake_y.data.numpy()))
+      fake_y = dis(get_x(fake_x.data.numpy()))
       dis_loss = optimize_dis(fake_y, real_y, true_y)
 
       # generator
       rand_sample(gen_data, ind, w, h)
-      fake_x = gen(gen_data[ind])
-      #print('[{}] [gen] fake_x'.format(e, fake_x.data.numpy().shape))
-      fake_y = dis(fake_x.view(1,1,w,h))
-      #print('[{}] [gen] fake_y:{}'.format(e, fake_y.data.numpy()))
+      fake_x = gen(gen_data[ind].view(w,h))
+      fake_y = dis(get_x(fake_x.data.numpy()))
       gen_loss = optimize_gen(fake_y, real_y, true_y)
 
       # cross loss
@@ -219,7 +214,7 @@ def start():
       c_loss = cross_loss(fake_y, real_y, true_y)
       print('[{}] dis_loss:{} gen_loss:{} c_loss:{}'.format(e, dis_loss.data.numpy(), gen_loss.data.numpy(), c_loss.data.numpy()), flush=True)
 
-      np.save('{}/{}'.format(gen_path, ind), gen(gen_data[ind]).data.numpy())
+      np.save('{}/{}'.format(gen_path, ind), gen(gen_data[ind].view(w,h)).data.numpy())
 
     torch.save({
           'epoch': global_epoch,
@@ -249,7 +244,7 @@ def optimize_gen(fake_y, real_y, y):
 
 def cross_loss(fake_y, real_y, y):
   #y = y.repeat(1)
-  c_loss = F.cross_entropy(real_y.view(1, 2), y) + F.cross_entropy(fake_y.view(1, 2), y)
+  c_loss = F.cross_entropy(real_y.view(1, 512), y) + F.cross_entropy(fake_y.view(1, 512), y)
   return c_loss
 
 if __name__ == '__main__':

@@ -6,7 +6,8 @@ import time
 import glob
 import seaborn as sn
 
-output_base = 'gan_output'
+#output_base = 'gan_output'
+output_base = 'gan_output_linear'
 gs = gridspec.GridSpec(4, 4, wspace=0.05, hspace=0.05)
 sn.plt.ion()
 fig = sn.plt.figure(figsize=(8, 8), edgecolor='black', facecolor='black')
@@ -15,7 +16,7 @@ axs = []
 
 def plot(x):
   data = np.load(output_base+'/x.npy')
-  data = np.reshape(data, (512, 660, 16))#.astype(np.int32)
+  data = np.reshape(data, (512, 660, 16)).astype(np.int32)
   print(data[:,:,i])
   for l in data[:,:,i]:
     print(l)
@@ -23,7 +24,7 @@ def plot(x):
     if len(axs) < 16:
       axs.append(fig.add_subplot(gs[i%16]))
       axs[-1].set_axis_off() 
-    axs[i].imshow(data[:,:,i], cmap='viridis')
+    axs[i].imshow(data[:,:,i])#, cmap='viridis')
     fig.canvas.draw()
 
 def update_once():
