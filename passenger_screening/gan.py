@@ -34,30 +34,38 @@ class Discriminator(Module):
     super(Discriminator, self).__init__()
     self.seq = Sequential(
       Conv2d(1, 32,
-        kernel_size=5,
-        stride=3,
+        kernel_size=3,
+        stride=1,
         padding=0,
         bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(32),
-      ReLU(),
+      LeakyReLU(),
       Conv2d(32, 16,
-        kernel_size=5,
+        kernel_size=3,
         stride=2,
         padding=0,
         bias=True),
       MaxPool2d(kernel_size=2),
       BatchNorm2d(16),
-      ReLU(),
-      Conv2d(16, 1,
-        kernel_size=4,
+      LeakyReLU(),
+      Conv2d(16, 8,
+        kernel_size=3,
         stride=2,
         padding=0,
         bias=False),
       MaxPool2d(kernel_size=2),
-      BatchNorm2d(1),
-      ReLU(),
-      Conv2d(1, 1,
+      BatchNorm2d(8),
+      LeakyReLU(),
+      Conv2d(8, 4,
+        kernel_size=2,
+        stride=1,
+        padding=0,
+        bias=False),
+      MaxPool2d(kernel_size=3),
+      BatchNorm2d(4),
+      LeakyReLU(),
+      Conv2d(4, 1,
         kernel_size=2,
         stride=1,
         padding=0,
@@ -240,7 +248,6 @@ def optimize_gen(fake_y, real_y, y):
   return gen_loss
 
 def cross_loss(fake_y, real_y, y):
-  print(fake_y.data.numpy().shape, real_y.data.numpy().shape)
   #y = y.repeat(1)
   c_loss = F.cross_entropy(real_y.view(1, 2), y) + F.cross_entropy(fake_y.view(1, 2), y)
   return c_loss
