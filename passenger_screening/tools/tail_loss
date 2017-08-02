@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-src=loss.tf
+src=out/loss.tf
 
 grep acc: $src|grep -n loss: > mark
 grep loss: $src|python3 post_loss.py \
