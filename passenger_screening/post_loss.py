@@ -27,7 +27,8 @@ def get_loss(line, emp=10):
   epoch = epoch.group().strip('[]').split('/')[0] if epoch else 0.
   loss = loss.group().split(' ')[1] if loss else 0.
   acc = acc.group().split(' ')[1] if acc else 0.
-  is_eval = is_eval.group().strip('[]') == 'eval' and True or False
+  if is_eval:
+    is_eval = is_eval.group().strip('[]') == 'eval' and True or False
 
   return epoch, np.round(float(loss)*emp, 4), acc, is_eval
 

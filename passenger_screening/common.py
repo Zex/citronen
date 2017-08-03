@@ -74,10 +74,12 @@ def data_generator(data_root, label_path):
     header = read_header(src)
     data, _ = read_data(src, header)
     iid = basename(src).split('.')[0]
-    data = data.reshape(data.shape[2], 512, 660)
-    for i in range(data.shape[0]):
-      print('{}::{}'.format(src, i+1))
-      y = get_label(labels, iid, i)
-      yield data[i], y
+    #data = data.reshape(data.shape[2], 512, 660)
+    ys = []
+    for i in range(data.shape[2]):
+      x = get_label(labels, iid, i)
+      ys.append(x[0] if x else 0)
+    ys = np.array(ys)
+    yield data.reshape(data.shape[2], data.shape[0]*data.shape[1]), ys
 
 

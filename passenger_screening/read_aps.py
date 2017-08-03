@@ -132,6 +132,7 @@ def read_data(src, header):
     buf = np.fromfile(fd, dtype=np.uint16, count=x*y*t)
   #buf = buf.astype(np.float32) * header.get('data_scale_factor')
   buf = np.reshape(buf, (x, y, t), order='F')
+
   if __name__ == '__main__':
     iid = basename(src).split('.')[0]
     show_frame(buf, iid)

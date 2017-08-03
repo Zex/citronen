@@ -196,8 +196,8 @@ def epoch(model, optimizer, nor, loss_fn, global_epoch, args, accs, losses):
          
       if y.shape[0] == 0:
         continue
-      if y != 1  and i % 2 != 0:
-        continue
+      data[np.where(data < 10000)] = 0
+
       loss, acc = step(model, optimizer, loss_fn, get_x(data), get_y(y))
       if not loss or not acc:
         break

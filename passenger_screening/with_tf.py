@@ -42,77 +42,11 @@ class PassengerScreening:
     self.global_step = tf.Variable(self.init_step, trainable=False)
     #self.w = tf.get_variable('w', [self.rnn_size, self.x_pts, self.y_pts], tf.float32, tf.random_normal_initializer())
     #self.b = tf.get_variable('b', [self.rnn_size, self.x_pts, self.y_pts], tf.float32, tf.random_normal_initializer())
-    self.batch_size = 1
-
-  def svm_model(self):
-    self.X = tf.placeholder(shape=[512, 660], dtype=tf.float32, name="x_input")
-    self.target = tf.placeholder(shape=[1,], dtype=tf.float32, name="y")
-    
-    self.A = tf.Variable(tf.random_normal(shape=[660, 1]))
-    self.b = tf.Variable(tf.random_normal(shape=[1, 1]))
-
-    #self.output = tf.subtract(tf.matmul(self.X, self.A), self.b)
-    #self.output = tf.reduce_mean(tf.nn.softmax(self.output))
-    self.w_conv1 = tf.Variable(tf.truncated_normal([1, 512, 660, 1], stddev=0.1, dtype=tf.float32))
-    self.conv1 = tf.nn.conv2d(self.X, self.w_conv1, [1, 3, 3, 1], padding='SAME', name='conv1')
-    self.bias_conv1 = tf.Variable(tf.truncated_normal([512], stddev=0.1, dtype=tf.float32))
-    self.relu_conv1 = tf.nn.relu6(tf.nn.bias_add(self.conv1, self.bias_conv1))
-    self.pool1 = tf.nn.max_pool(self.relu_conv1, ksize=[1, 3, 3, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool1')
-    self.norm1 = tf.nn.lrn(self.pool1, depth_radius=5, bias=1.0, name='norm1')
-    print(self.norm1)
-    
-    # fc1
-    self.w_fc1 = tf.Variable(tf.truncated_normal([1, 1, 10, 5], stddev=0.1, dtype=tf.float32))
-    self.bias_fc1 = tf.Variable(tf.truncated_normal([5]), dtype=tf.float32)
-    self.fc1 = tf.add(tf.matmul(self.norm1, self.w_fc1), bias_fc1, name='fc1')
-    print(self.fc1)
-
-    self.output = self.fc1
-
-    self.l2_norm = tf.reduce_sum(tf.square(self.A), name='l2norm')
-    self.alpha = tf.constant([0.012]) 
-    self.classifier = tf.maximum(0., 1.-tf.multiply(self.output, self.target))
-    self.loss = tf.add(self.classifier, tf.multiply(self.alpha, self.l2_norm), name='loss') 
-    self.acc = tf.reduce_mean(tf.cast(tf.equal(self.output, self.target), tf.float32), name='acc')
-    self.opt = tf.train.RMSPropOptimizer(lr).minimize(self.loss)
-
-  def svm_epoch(self):
-    _loss, _acc = None, None
-    for i, (data, y) in enumerate(data_generator(self.data_root, self.label_path)):
-      if y.shape[0] == 0:
-        continue
-      y = y.astype(np.float32)
-      # train
-      pred = self.sess.run(self.output, feed_dict={
-         self.X: data,
-         self.target: y,
-      })
-      print('pred', pred, y, flush=True)
-      self.sess.run(self.opt, feed_dict={
-         self.X: data,
-         self.target: y,
-      })
-      # calc loss
-      _loss = self.sess.run(self.loss, feed_dict={
-         self.X: data,
-         self.target: y,
-      })
-      #_loss = self.sess.run(tf.reduce_mean(_loss))
-      # calc acc
-      _acc = self.sess.run(self.acc, feed_dict={
-         self.X: data,
-         self.target: y,
-      })
-      if i % 100 == 0:
-        print("[{}] _A:{} _b:{} _loss:{} _acc:{}, _y:{}, [{}]".format(i,
-              str(self.sess.run(self.A)), str(self.sess.run(self.b)),
-              str(_loss), str(_acc), y, i), flush=True)
-    return _loss, _acc
 
   def build_model(self):
     # conv1
-    self.X = tf.placeholder(shape=[1, 1, 512, 660], dtype=tf.float32, name="x_input")
-    self.target = tf.placeholder(shape=[1], dtype=tf.int32, name="y")
+    self.X = tf.placeholder(shape=[self.batch_size, 1, 512, 660], dtype=tf.float32, name="x_input")
+    self.target = tf.placeholder(shape=[self.batch_size], dtype=tf.float32, name="y")
     self.X = tf.nn.l2_normalize(self.X, 2)#, depth_radius=5, bias=1.0, name='nor_x')
 
     self.w_conv1 = tf.Variable(tf.truncated_normal([1, 1, 660, 512], stddev=0.215, dtype=tf.float32))
@@ -161,7 +95,7 @@ class PassengerScreening:
     self.bias_conv6 = tf.Variable(tf.truncated_normal([1], stddev=0.1, dtype=tf.float32))
     self.relu_conv6 = tf.nn.relu6(tf.nn.bias_add(self.conv6, self.bias_conv6))
     self.norm6 = tf.nn.lrn(self.relu_conv6, depth_radius=5, bias=1.0, name='norm6')
-    self.pool6 = tf.nn.max_pool(self.norm6, ksize=[1, 1, 1, 1], strides=[1, 1, 1, 1], padding='VALID', name='pool6')
+    self.pool6 = tf.nn.max_pool(self.norm6, ksize=[1, 1, 1, 1], strides=[1, 1, 2, 1], padding='VALID', name='pool6')
     print(self.pool6)
 #    self.flat = tf.reshape(self.pool5, [5, 2])
 #    print(self.flat)
@@ -170,21 +104,20 @@ class PassengerScreening:
 #    self.fc1_bias = tf.Variable(tf.truncated_normal([1], stddev=0.1, dtype=tf.float32))
 #    self.output = tf.nn.relu6(tf.add(tf.matmul(self.fc1_w, self.flat), self.fc1_bias))
 #    self.output = tf.nn.dropout(self.output, 0.3, name='output')
-    self.output = tf.reshape(self.pool6, [1, 2], name='output')
+    self.output = tf.reshape(self.pool6, [self.batch_size, 1], name='output')
     print(self.output)
 
     self.pred = tf.argmax(self.output, 0, name='pred')
     print(self.pred)
-
     # calculate loss
+    self.logits=tf.cast(tf.argmax(self.output, -1), tf.float32)
     self.loss = tf.reduce_mean(
-        tf.losses.softmax_cross_entropy(
+        #tf.losses.softmax_cross_entropy(
         #tf.nn.sparse_softmax_cross_entropy_with_logits(
         #tf.nn.weighted_cross_entropy_with_logits(
-                [1, self.target],
-                self.output,
-           #     weight=tf.constant([0.5, 0.5])
-                #pos_weight=tf.constant([0.1, 1.0])
+        tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=tf.squeeze(self.output),
+                labels=self.target,
                 ), name='xentropy')
     print(self.loss)
 
@@ -193,7 +126,7 @@ class PassengerScreening:
     #self.opt = tf.train.GradientDescentOptimizer(lr).minimize(self.loss, global_step=self.global_step)
     self.opt = tf.train.AdamOptimizer(lr).minimize(self.loss, global_step=self.global_step)
     self.acc = tf.reduce_mean(tf.cast(
-            tf.equal(tf.cast(tf.argmax(self.output, 0), tf.int32), self.target), tf.float32), name='acc')
+            tf.equal(tf.cast(tf.argmax(self.output, 1), tf.float32), self.target), tf.float32), name='acc')
     print(self.acc)
 
     tf.summary.scalar('loss', self.loss)
@@ -218,15 +151,19 @@ class PassengerScreening:
     total_acc_eval = []
     total_acc_train = []
     last_loss = None
-    for i, (data, y) in enumerate(data_generator(self.data_root, self.label_path)):
-      if data is None or y.shape[0] == 0:
-         continue
-      data = np.reshape(data, (1, 1, 512, 660))
 
-      if i % 5 == 0: # or i % 3 == 0 or i % 7 == 0: # eval
+    for i, (data, y) in enumerate(data_generator(self.data_root, self.label_path)):
+
+      if data is None or len(y) == 0:
+         continue
+
+      data[np.where(data < 10000)] = 0.
+      data = np.reshape(data, (self.batch_size, 1, 512, 660))
+
+      if i % 5 == 0: # eval
         output, loss, acc, pred = self.sess.run([self.output, self.loss, self.acc, self.pred], feed_dict={
             self.X: data,
-            self.target: y
+            self.target: np.array(y)
         })
         if np.isnan(loss):
           break
@@ -234,13 +171,12 @@ class PassengerScreening:
         print("[{}/{}][eval] loss: {} acc: {} target: {} output: {} pred: {}".format(
           self.global_epoch, self.sess.run(self.global_step),
           loss,
-          len([a for a in total_acc_eval if a])/len(total_acc_eval),
+          acc, #len([a for a in total_acc_eval if a])/len(total_acc_eval),
           y, 
           output,
           pred,
           ), flush=True)
       else: # train
-        if y == 0 and (i % 2 == 0 or i % 3 == 0 or i % 7 == 0): continue
         output, _, loss, acc = \
             self.sess.run([self.output, self.opt, self.loss, self.acc], feed_dict={
                 self.X: data,
@@ -252,7 +188,7 @@ class PassengerScreening:
         print("[{}/{}] loss: {} acc: {} target: {} output: {}".format(
           self.global_epoch, self.sess.run(self.global_step),
           loss,
-          len([a for a in total_acc_train if a])/len(total_acc_train),
+          acc, #len([a for a in total_acc_train if a])/len(total_acc_train),
           y, 
           output), flush=True)
       lass_loss = loss
