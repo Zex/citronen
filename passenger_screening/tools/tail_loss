@@ -4,13 +4,9 @@ src=out/loss.tf
 
 grep acc: $src|grep -n loss: > mark
 grep loss: $src|python3 post_loss.py \
-  --stage_size 10  \
+  --stage_size 1  \
   --window_size 100 \
-  --emp 1 \
+  --emp 1  \
   --acc true
-#grep loss: loss.3 |python3 post_loss.py \
-#  --stage_size 1000 \
-#  --trim_level 1000 \
-#  --emp 10
 
 

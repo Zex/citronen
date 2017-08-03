@@ -190,7 +190,7 @@ def start():
 
   def get_x(data):
       data = data.astype(np.float32)
-      data = torch.from_numpy(data).contiguous()#.view(w, h)
+      data = torch.from_numpy(data)#.contiguous()#.view(w, h)
       data = nor(data)
       X = Variable(data, volatile=False)#, requires_grad=True)
       return X

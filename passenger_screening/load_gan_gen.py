@@ -7,6 +7,7 @@ import glob
 import seaborn as sn
 
 output_base = 'gan_output'
+output_base = 'gan_output_regen'
 gs = gridspec.GridSpec(4, 4, wspace=1e-2, hspace=1e-20)
 sn.plt.ion()
 fig = sn.plt.figure(figsize=(8, 8), edgecolor='black', facecolor='black')
@@ -19,6 +20,7 @@ def plot_batch(data):
     if len(axs) < 16:
       axs.append(fig.add_subplot(gs[i%16]))
       axs[-1].set_axis_off() 
+    #data[:,:,i][np.where(data[:,:,i] < 0.9)] = 0
     print(data[:,:,i])
     #data[:,:,i][np.where(data[:,:,i] < 10000)] = 0
     axs[i].imshow(data[:,:,i], cmap=CMAP)
