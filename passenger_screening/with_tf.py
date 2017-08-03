@@ -46,27 +46,27 @@ class PassengerScreening:
   def build_model(self):
     # conv1
     self.X = tf.placeholder(shape=[self.batch_size, 1, 512, 660], dtype=tf.float32, name="x_input")
-    self.target = tf.placeholder(shape=[self.batch_size], dtype=tf.float32, name="y")
+    self.target = tf.placeholder(shape=[self.batch_size], dtype=tf.int64, name="y")
     self.X = tf.nn.l2_normalize(self.X, 2)#, depth_radius=5, bias=1.0, name='nor_x')
 
     self.w_conv1 = tf.Variable(tf.truncated_normal([1, 1, 660, 512], stddev=0.215, dtype=tf.float32))
     self.conv1 = tf.nn.conv2d(self.X, self.w_conv1, [1, 1, 1, 1], padding='SAME', name='conv1')
     self.bias_conv1 = tf.Variable(tf.truncated_normal([512], stddev=0.215, dtype=tf.float32))
     self.relu_conv1 = tf.nn.relu6(tf.nn.bias_add(self.conv1, self.bias_conv1))
-    self.norm1 = tf.nn.lrn(self.relu_conv1, depth_radius=5, bias=1.0, name='norm1')
-    self.pool1 = tf.nn.max_pool(self.norm1, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool1')
-    print(self.pool1)
+    self.pool1 = tf.nn.max_pool(self.relu_conv1, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool1')
+    self.norm1 = tf.nn.lrn(self.pool1, depth_radius=5, bias=1.0, name='norm1')
+    print(self.norm1)
     # conv2
     self.w_conv2 = tf.Variable(tf.truncated_normal([1, 512, 512, 220], stddev=0.1, dtype=tf.float32))
-    self.conv2 = tf.nn.conv2d(self.pool1, self.w_conv2, [1, 3, 3, 1], padding='SAME', name='conv2')
+    self.conv2 = tf.nn.conv2d(self.norm1, self.w_conv2, [1, 3, 3, 1], padding='SAME', name='conv2')
     self.bias_conv2 = tf.Variable(tf.truncated_normal([220], stddev=0.1, dtype=tf.float32))
     self.relu_conv2 = tf.nn.relu6(tf.nn.bias_add(self.conv2, self.bias_conv2))
-    self.norm2 = tf.nn.lrn(self.relu_conv2, depth_radius=5, bias=1.0, name='norm2')
-    self.pool2 = tf.nn.max_pool(self.norm2, ksize=[1, 3, 3, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool2')
-    print(self.pool2)
+    self.pool2 = tf.nn.max_pool(self.relu_conv2, ksize=[1, 3, 3, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool2')
+    self.norm2 = tf.nn.lrn(self.pool2, depth_radius=5, bias=1.0, name='norm2')
+    print(self.norm2)
     # conv3
     self.w_conv3 = tf.Variable(tf.truncated_normal([1, 171, 220, 64], stddev=0.23, dtype=tf.float32))
-    self.conv3 = tf.nn.conv2d(self.pool2, self.w_conv3, [1, 2, 2, 1], padding='SAME', name='conv3')
+    self.conv3 = tf.nn.conv2d(self.norm2, self.w_conv3, [1, 2, 2, 1], padding='SAME', name='conv3')
     self.bias_conv3 = tf.Variable(tf.truncated_normal([64], stddev=0.23, dtype=tf.float32))
     self.relu_conv3 = tf.nn.relu6(tf.nn.bias_add(self.conv3, self.bias_conv3))
     self.pool3 = tf.nn.max_pool(self.relu_conv3, ksize=[1, 3, 3, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool3')
@@ -74,29 +74,29 @@ class PassengerScreening:
     print(self.norm3)
     # conv4
     self.w_conv4 = tf.Variable(tf.truncated_normal([1, 86, 64, 16], stddev=0.2, dtype=tf.float32))
-    self.conv4 = tf.nn.conv2d(self.pool3, self.w_conv4, [1, 5, 5, 1], padding='SAME', name='conv4')
+    self.conv4 = tf.nn.conv2d(self.norm3, self.w_conv4, [1, 5, 5, 1], padding='SAME', name='conv4')
     self.bias_conv4 = tf.Variable(tf.truncated_normal([16], stddev=0.2, dtype=tf.float32))
     self.relu_conv4 = tf.nn.relu6(tf.nn.bias_add(self.conv4, self.bias_conv4))
-    self.norm4 = tf.nn.lrn(self.relu_conv4, depth_radius=5, bias=1.0, name='norm4')
-    self.pool4 = tf.nn.max_pool(self.norm4, ksize=[1, 4, 4, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool4')
-    print(self.pool4)
+    self.pool4 = tf.nn.max_pool(self.relu_conv4, ksize=[1, 4, 4, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool4')
+    self.norm4 = tf.nn.lrn(self.pool4, depth_radius=5, bias=1.0, name='norm4')
+    print(self.norm4)
     # conv5
     self.w_conv5 = tf.Variable(tf.truncated_normal([1, 18, 16, 2], stddev=0.015, dtype=tf.float32))
-    self.conv5 = tf.nn.conv2d(self.pool4, self.w_conv5, strides=[1, 2, 2, 1], padding='SAME', name='conv5')
+    self.conv5 = tf.nn.conv2d(self.norm4, self.w_conv5, strides=[1, 2, 2, 1], padding='SAME', name='conv5')
     self.bias_conv5 = tf.Variable(tf.truncated_normal([2], stddev=0.015, dtype=tf.float32))
     self.relu_conv5 = tf.nn.relu6(tf.nn.bias_add(self.conv5, self.bias_conv5))
-    self.norm5 = tf.nn.lrn(self.relu_conv5, depth_radius=5, bias=1.0, name='norm5')
-    self.pool5 = tf.nn.max_pool(self.norm5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool5')
-    print(self.pool5)
+    self.pool5 = tf.nn.max_pool(self.relu_conv5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool5')
+    self.norm5 = tf.nn.lrn(self.pool5, depth_radius=5, bias=1.0, name='norm5')
+    print(self.norm5)
     
     # conv6
     self.w_conv6 = tf.Variable(tf.truncated_normal([1, 5, 2, 1], stddev=0.1, dtype=tf.float32))
-    self.conv6 = tf.nn.conv2d(self.pool5, self.w_conv6, strides=[1, 2, 4, 1], padding='SAME', name='conv6')
+    self.conv6 = tf.nn.conv2d(self.norm5, self.w_conv6, strides=[1, 2, 4, 1], padding='SAME', name='conv6')
     self.bias_conv6 = tf.Variable(tf.truncated_normal([1], stddev=0.1, dtype=tf.float32))
     self.relu_conv6 = tf.nn.relu6(tf.nn.bias_add(self.conv6, self.bias_conv6))
-    self.norm6 = tf.nn.lrn(self.relu_conv6, depth_radius=5, bias=1.0, name='norm6')
-    self.pool6 = tf.nn.max_pool(self.norm6, ksize=[1, 1, 1, 1], strides=[1, 1, 2, 1], padding='VALID', name='pool6')
-    print(self.pool6)
+    self.pool6 = tf.nn.max_pool(self.relu_conv6, ksize=[1, 1, 1, 1], strides=[1, 1, 2, 1], padding='VALID', name='pool6')
+    self.norm6 = tf.nn.lrn(self.pool6, depth_radius=5, bias=1.0, name='norm6')
+    print(self.norm6)
 #    self.flat = tf.reshape(self.pool5, [5, 2])
 #    print(self.flat)
 
@@ -112,12 +112,15 @@ class PassengerScreening:
     # calculate loss
     self.logits=tf.cast(tf.argmax(self.output, -1), tf.float32)
     self.loss = tf.reduce_mean(
-        #tf.losses.softmax_cross_entropy(
+        tf.losses.softmax_cross_entropy(
         #tf.nn.sparse_softmax_cross_entropy_with_logits(
         #tf.nn.weighted_cross_entropy_with_logits(
-        tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=tf.squeeze(self.output),
-                labels=self.target,
+        #tf.nn.sigmoid_cross_entropy_with_logits(
+                #logits=tf.squeeze(self.output),
+                #logits=self.output,
+                #labels=self.target,
+                self.target,
+                tf.squeeze(self.output),
                 ), name='xentropy')
     print(self.loss)
 
@@ -126,7 +129,8 @@ class PassengerScreening:
     #self.opt = tf.train.GradientDescentOptimizer(lr).minimize(self.loss, global_step=self.global_step)
     self.opt = tf.train.AdamOptimizer(lr).minimize(self.loss, global_step=self.global_step)
     self.acc = tf.reduce_mean(tf.cast(
-            tf.equal(tf.cast(tf.argmax(self.output, 1), tf.float32), self.target), tf.float32), name='acc')
+            tf.equal(self.output, tf.cast(self.target, tf.float32)), tf.float32), name='acc')
+            #tf.equal(tf.cast(tf.argmax(self.output, 1), tf.float32), self.target), tf.float32), name='acc')
     print(self.acc)
 
     tf.summary.scalar('loss', self.loss)
