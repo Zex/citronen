@@ -277,6 +277,11 @@ def l2_norm(x):
     x_sqrt = np.sqrt(max(np.sum(x**2), 1e-12))
     return x / x_sqrt 
     
+def weight_var(shape):
+    return tf.Variable(tf.truncated_normal(shape, stddev=0.1))
+
+def bias_var(shape):
+    return tf.Variable(tf.constant(0.1, shape=shape))
 
 def conv_dense():
     args = init()
@@ -284,86 +289,68 @@ def conv_dense():
     dim = w*h
 
     # Input
-    X = tf.placeholder(shape=[1, h, w, args.batch_size], dtype=tf.float32, name="x_input")
-    target = tf.placeholder(shape=[args.batch_size,], dtype=tf.float32, name="y")
-    print(X)
-    print(target)
+    X = tf.placeholder(shape=[args.batch_size, w, h, 1], dtype=tf.float32, name="x_input")
+    target = tf.placeholder(shape=[args.batch_size, 2], dtype=tf.float32, name="y")
+    print(X, flush=True)
+    print(target, flush=True)
 
     # Conv1
-    w_conv1 = tf.Variable(tf.truncated_normal([w, h, args.batch_size, 32], stddev=0.1, dtype=tf.float32))
-    conv1 = tf.nn.conv2d(X, w_conv1, [1, 2, 2, 1], padding='SAME', name='conv1')
-    bias_conv1 = tf.Variable(tf.truncated_normal([32], stddev=0.1, dtype=tf.float32))
-    relu_conv1 = tf.nn.relu(tf.nn.bias_add(conv1, bias_conv1))
-    norm1 = tf.nn.lrn(relu_conv1, depth_radius=5, bias=1.0, name='norm1')
-    pool1 = tf.nn.max_pool(norm1, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool1')
-    print(pool1)
+    conv1 = tf.nn.relu(tf.nn.conv2d(X, weight_var([4, 4, 1, 32]), [1, 2, 2, 1], 
+                padding='SAME', name='conv1') + bias_var([32]))
+    norm1 = tf.nn.lrn(conv1, depth_radius=5, bias=1.0, name='norm1')
+    pool1 = tf.nn.max_pool(norm1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool1')
+    print(pool1, flush=True)
 
     # Conv2
-    w_conv2 = tf.Variable(tf.truncated_normal([256, 330, 32, 128], stddev=0.1, dtype=tf.float32))
-    conv2 = tf.nn.conv2d(pool1, w_conv2, [1, 2, 2, 1], padding='SAME', name='conv2')
-    bias_conv2 = tf.Variable(tf.truncated_normal([128], stddev=0.1, dtype=tf.float32))
-    relu_conv2 = tf.nn.relu(tf.nn.bias_add(conv2, bias_conv2))
-    norm2 = tf.nn.lrn(relu_conv2, depth_radius=5, bias=1.0, name='norm2')
-    pool2 = tf.nn.max_pool(norm2, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool2')
-    print(pool2)
+    conv2 = tf.nn.relu(tf.nn.conv2d(pool1, weight_var([4, 4, 32, 64]), [1, 2, 2, 1],
+                padding='SAME', name='conv2') + bias_var([64]))
+    norm2 = tf.nn.lrn(conv2, depth_radius=5, bias=1.0, name='norm2')
+    pool2 = tf.nn.max_pool(norm2, ksize=[1, 4, 4, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool2')
+    print(pool2, flush=True)
 
     # Conv3
-    w_conv3 = tf.Variable(tf.truncated_normal([128, 165, 128, 64], stddev=0.1, dtype=tf.float32))
-    conv3 = tf.nn.conv2d(pool2, w_conv3, [1, 3, 3, 1], padding='SAME', name='conv3')
-    bias_conv3 = tf.Variable(tf.truncated_normal([64], stddev=0.1, dtype=tf.float32))
-    relu_conv3 = tf.nn.relu(tf.nn.bias_add(conv3, bias_conv3))
-    norm3 = tf.nn.lrn(relu_conv3, depth_radius=5, bias=1.0, name='norm3')
-    pool3 = tf.nn.max_pool(norm3, ksize=[1, 3, 3, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool3')
-    print(pool3)
+    conv3 = tf.nn.relu(tf.nn.conv2d(pool2, weight_var([3, 3, 64, 128]), [1, 2, 2, 1],
+                padding='SAME', name='conv3') + bias_var([128]))
+    norm3 = tf.nn.lrn(conv3, depth_radius=5, bias=1.0, name='norm3')
+    pool3 = tf.nn.max_pool(norm3, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool3')
+    print(pool3, flush=True)
 
     # Conv4
-    w_conv4 = tf.Variable(tf.truncated_normal([55, 165, 64, 16], stddev=0.1, dtype=tf.float32))
-    conv4 = tf.nn.conv2d(pool3, w_conv4, [1, 2, 2, 1], padding='SAME', name='conv4')
-    bias_conv4 = tf.Variable(tf.truncated_normal([16], stddev=0.1, dtype=tf.float32))
-    relu_conv4 = tf.nn.relu(tf.nn.bias_add(conv4, bias_conv4))
-    norm4 = tf.nn.lrn(relu_conv4, depth_radius=5, bias=1.0, name='norm4')
-    pool4 = tf.nn.max_pool(norm4, ksize=[1, 3, 3, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool4')
-    print(pool4)
+    conv4 = tf.nn.relu(tf.nn.conv2d(pool3, weight_var([3, 3, 128, 512]), [1, 2, 2, 1],
+                padding='SAME', name='conv4') + bias_var([512]))
+    norm4 = tf.nn.lrn(conv4, depth_radius=5, bias=1.0, name='norm4')
+    pool4 = tf.nn.max_pool(norm4, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool4')
+    print(pool4, flush=True)
+
+    flat = tf.reshape(pool4, [-1, 2*3*512])
 
     # FC1
-#    fc1_w = tf.Variable(tf.truncated_normal([dim, args.batch_size], stddev=0.1, dtype=tf.float32)) 
-#    fc1_bias = tf.Variable(tf.truncated_normal([args.batch_size], stddev=0.1, dtype=tf.float32))
-#    fc1 = tf.nn.relu(tf.add(tf.matmul(X, fc1_w), fc1_bias), name='fc1')
-#    print(fc1)
+    fc1_w = weight_var([int(flat.get_shape()[1]), 1024])
+    fc1_bias = bias_var([1024])
+    fc1 = tf.nn.relu6(tf.add(tf.matmul(flat, fc1_w), fc1_bias), name='fc1')
+    print(fc1)
 
-    flat = tf.reshape(pool4, [64, 154])
+    dense1 = tf.layers.dense(inputs=flat, units=1024, activation=tf.nn.relu6, use_bias=True, name='dense1')
+    print(dense1, flush=True) 
 
-    dense1 = tf.layers.dense(inputs=flat, units=1024, activation=tf.nn.relu, use_bias=True, name='dense1')
-    print(dense1) 
+    dense2 = tf.layers.dense(inputs=dense1, units=2, activation=tf.nn.relu6, use_bias=True, name='dense2')
+    print(dense2, flush=True) 
 
-    dense2 = tf.layers.dense(inputs=flat, units=1, activation=tf.nn.relu, use_bias=True, name='dense2')
-    print(dense2) 
-
-#    nce_w = tf.Variable(tf.truncated_normal([2, args.batch_size], -1.0, 1.0))
-#    nce_b = tf.Variable(tf.zeros([args.batch_size]))
-#    loss = tf.nn.nce_loss(
-#        weights=nce_w,#np.tile(0.5, [2, args.batch_size]).shape,
-#        biases=nce_b,#[0.5]*args.batch_size,
-#        labels=target,
-#        inputs=fc1,
-#        num_sampled=1,
-#        num_classes=2,
-#        num_true=args.batch_size,
-#    )
     loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(
         labels=target,
-        logits=tf.squeeze(dense2),
+        logits=dense2,
+        #pos_weight=.1,
         name='loss'
         ))
-    print(loss)
+    print(loss, flush=True)
 
-    global_step = tf.Variable(args.init_epoch, trainable=False)
+    global_step = tf.Variable(args.init_epoch+1, trainable=False)
     global_epoch = args.init_epoch
 
     lr = tf.train.exponential_decay(
          learning_rate=args.lr,
          global_step=global_step,
-         decay_steps=1000,
+         decay_steps=10000,
          decay_rate=args.decay_rate,
          staircase=True)
     opt = tf.train.AdamOptimizer(lr).minimize(
@@ -375,12 +362,14 @@ def conv_dense():
 
     tf.summary.scalar('loss', loss)
     tf.summary.scalar('acc', acc)
-    tf.summary.image('pool1', tf.reshape(pool1, [330, 256, 32, 1]))
-    tf.summary.image('pool2', tf.reshape(pool2, [165, 128, 128, 1]))
-    tf.summary.image('pool3', tf.reshape(pool3, [55, 43, 64, 1]))
-    tf.summary.image('pool4', tf.reshape(pool4, [28, 22, 16, 1]))
+    tf.summary.image('X', tf.reshape(X, (args.batch_size, int(X.get_shape()[1]), int(X.get_shape()[2]), 1)))
+    tf.summary.image('pool1', tf.reshape(pool1, (args.batch_size*32, int(pool1.get_shape()[1]), int(pool1.get_shape()[2]), 1)))
+    tf.summary.image('pool2', tf.reshape(pool2, (args.batch_size*64, int(pool2.get_shape()[1]), int(pool2.get_shape()[2]), 1)))
+    tf.summary.image('pool3', tf.reshape(pool3, (args.batch_size*128, int(pool3.get_shape()[1]), int(pool3.get_shape()[2]), 1)))
+    tf.summary.image('pool4', tf.reshape(pool4, (args.batch_size*512, int(pool4.get_shape()[1]), int(pool4.get_shape()[2]), 1)))
 
     merged = tf.summary.merge_all()
+    print(merged, flush=True)
 
     saver = tf.train.Saver(tf.global_variables())
 
@@ -395,27 +384,31 @@ def conv_dense():
           if x is None:
             continue
   
-          #x[np.where(x < 10000)] = 0.
-          y = y.astype(np.float32)
-          x = l2_norm(x)
-          x = x.reshape(1, h, w, x.shape[0]).astype(np.float32)
+          filterd = []
+          for d in range(args.batch_size):
+            b = np.array(x[d,:])
+            b[np.where(b < 12000)] = 0.
+            b[np.where(b >= 12000)] = 255.
+            filterd.append(b)
+          filterd = np.array(filterd)
+
+          #x = l2_norm(x)
+          x = x.reshape(args.batch_size, w, h, 1).astype(np.float32)
  
-          _, loss_val, acc_val, summary = sess.run([opt, loss, acc, merged], feed_dict={
-              X: x,
-              target: y
+          _, loss_val, acc_val, output, summary = sess.run([
+              opt, loss, acc, dense2, merged], feed_dict={
+                 X: x,
+                 target: y
               })
           train_writer.add_summary(summary)
 
-          p1, p2, p3, p4, d1, d2 = sess.run([pool1, pool2, pool3, pool4, dense1, dense2])
-          
-  
           print("[{}/{}]loss: {} acc: {} target: {} output: {} pred: {}".format(
               global_epoch,
               sess.run(global_step),
               loss_val,
               acc_val,
               np.mean(y),
-              0.0,
+              output,
               0.0
               ), flush=True)
         print('model saved @ {}'.format(saver.save(sess, args.model_path)), flush=True)
