@@ -61,12 +61,6 @@ def conv_dense():
     #flat = tf.reshape(pool4, [-1, 2*3*512])
     flat = tf.reshape(pool4, [-1, 2*3*8])
 
-    # FC1
-    fc1_w = weight_var([int(flat.get_shape()[1]), 1024])
-    fc1_bias = bias_var([1024])
-    fc1 = tf.nn.sigmoid(tf.add(tf.matmul(flat, fc1_w), fc1_bias), name='fc1')
-    print(fc1)
-
     dense1 = tf.layers.dense(inputs=flat, units=1024, activation=tf.nn.elu, use_bias=True, name='dense1')
     print(dense1, flush=True) 
 
@@ -83,12 +77,22 @@ def conv_dense():
         name='loss'
         ))
     """
-    flat = tf.reshape(X, (args.batch_size, w*h))
-    W = weight_var([args.batch_size, 1])
-    b = bias_var([flat.get_shape()[1]])
-    pred = tf.add(tf.multiply(flat, W), b, name='pred')
+    flat = tf.reshape(X, (-1, w*h))
+    fc1 = tf.add(tf.matmul(flat, 
+                weight_var([int(flat.get_shape()[1]), 1024])), #int(flat.get_shape()[0])])),
+                    bias_var([1024]), name='fc1')
+    print(fc1, flush=True)
+    fc2 = tf.add(tf.matmul(fc1, 
+                weight_var([int(fc1.get_shape()[1]), 256])), #int(fc1.get_shape()[0])])),
+                    bias_var([256]), name='fc2')
+    print(fc2, flush=True)
+    pred = tf.add(tf.matmul(fc2,
+                weight_var([int(fc2.get_shape()[1]), 1])),
+                    bias_var([1]), name='pred')
     print(pred, flush=True)
-    loss = tf.reduce_sum(tf.pow(pred-target, 2))/(2*args.batch_size)
+
+    acc = tf.reduce_mean(tf.cast(tf.equal(pred, target), tf.float32))
+    loss = tf.reduce_sum(tf.pow(tf.reduce_mean(pred)-target, 2))/(2*args.batch_size)
     print(loss, flush=True)
 
     global_step = tf.Variable(args.init_epoch, trainable=False)
