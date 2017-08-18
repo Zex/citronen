@@ -36,7 +36,7 @@ class PassengerScreening(Module):
     super(PassengerScreening, self).__init__()
     self.total_class = 2
     self.features = Sequential(
-      Conv2d(1, 64,
+      Conv2d(16, 64,
              kernel_size=2,
              stride=1,
              padding=0,
@@ -172,8 +172,9 @@ def start():
 
 def epoch(model, optimizer, nor, loss_fn, global_epoch, args, accs, losses):
   def get_x(data):
+      data[np.where(data < 10000)] = 0
       data = data.astype(np.float32)
-      data = torch.from_numpy(data).contiguous().view(1, 1, 512, 660)
+      data = torch.from_numpy(data)#.contiguous().view(1, 1, 512, 660)
       X = nor(data)
       X = Variable(data, volatile=False)
       return X
@@ -194,9 +195,7 @@ def epoch(model, optimizer, nor, loss_fn, global_epoch, args, accs, losses):
         print('pred', np.squeeze(pred.data.numpy()), 'label', y)
         continue
          
-      if y.shape[0] == 0:
-        continue
-      if y != 1  and i % 2 != 0:
+      if len(y) == 0:
         continue
       loss, acc = step(model, optimizer, loss_fn, get_x(data), get_y(y))
       if not loss or not acc:

@@ -27,7 +27,8 @@ def get_loss(line, emp=10):
   epoch = epoch.group().strip('[]').split('/')[0] if epoch else 0.
   loss = loss.group().split(' ')[1] if loss else 0.
   acc = acc.group().split(' ')[1] if acc else 0.
-  is_eval = is_eval.group().strip('[]') == 'eval' and True or False
+  if is_eval:
+    is_eval = is_eval.group().strip('[]') == 'eval' and True or False
 
   return epoch, np.round(float(loss)*emp, 4), acc, is_eval
 
@@ -68,9 +69,9 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
     if len(losses) % stage_size != 0:
       continue
     else:
-      marker = 'o'
+      marker, color = '--', 'blue'
       ax2.cla()
-      ax2.plot(np.arange(len(losses)), losses, marker, color='blue', markerfacecolor='blue')
+      ax2.plot(np.arange(len(losses)), losses, marker, color=color, markerfacecolor=color)
       if with_acc:
           marker, color = '--', 'red'
           ax2.plot(np.arange(len(accs)), accs, marker, color=color, markerfacecolor=color)

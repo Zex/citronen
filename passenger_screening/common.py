@@ -70,14 +70,18 @@ def data_generator(data_root, label_path):
   labels = load_labels(label_path)
   shuffle_grp = glob.glob(data_root+'/*')
   np.random.shuffle(shuffle_grp)
+
   for src in shuffle_grp:#glob.iglob(data_root+'/*'):
     header = read_header(src)
     data, _ = read_data(src, header)
     iid = basename(src).split('.')[0]
-    data = data.reshape(data.shape[2], 512, 660)
-    for i in range(data.shape[0]):
-      print('{}::{}'.format(src, i+1))
+    #data = data.reshape(data.shape[2], 512, 660)
+    ys = []
+    for i in np.random.permutation(data.shape[2]):
       y = get_label(labels, iid, i)
-      yield data[i], y
+      #y = y[0] if y else 0
+      #yield data[:,:,i], np.array([y])
+      ys.append([1] if y else [0])
+    yield data.reshape(data.shape[2], 512*660), np.array(ys)
 
 
