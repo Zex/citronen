@@ -14,15 +14,16 @@ def l2_norm(x):
     return x / x_sqrt 
     
 def weight_var(shape):
-    return tf.Variable(tf.truncated_normal(shape, stddev=0.1))
+    #return tf.Variable(tf.truncated_normal(shape, stddev=0.1))
+    return tf.Variable(tf.random_normal(shape, stddev=0.1))
 
 def bias_var(shape):
-    return tf.Variable(tf.constant(0.1, shape=shape))
+    #return tf.Variable(tf.constant(0.1, shape=shape))
+    return tf.Variable(tf.random_normal(shape=shape))
 
 def conv_dense():
     args = init()
     w, h = 512, 660
-    dim = w*h
 
     # Input
     X = tf.placeholder(shape=[args.batch_size, w, h, 1], dtype=tf.float32, name="x_input")
@@ -79,20 +80,37 @@ def conv_dense():
     """
     flat = tf.reshape(X, (-1, w*h))
     fc1 = tf.add(tf.matmul(flat, 
-                weight_var([int(flat.get_shape()[1]), 1024])), #int(flat.get_shape()[0])])),
+                weight_var([int(flat.get_shape()[1]), 1024])),
                     bias_var([1024]), name='fc1')
     print(fc1, flush=True)
-    fc2 = tf.add(tf.matmul(fc1, 
-                weight_var([int(fc1.get_shape()[1]), 256])), #int(fc1.get_shape()[0])])),
-                    bias_var([256]), name='fc2')
+    fc2 = tf.add(tf.matmul(fc1,
+                weight_var([int(fc1.get_shape()[1]), 128])),
+                    bias_var([128]), name='fc2')
     print(fc2, flush=True)
-    pred = tf.add(tf.matmul(fc2,
-                weight_var([int(fc2.get_shape()[1]), 1])),
-                    bias_var([1]), name='pred')
+
+def logistic_regression():
+
+    args = init()
+    w, h = 512, 660
+    # Input
+    X = tf.placeholder(shape=[args.batch_size, w, h, 1], dtype=tf.float32, name="x_input")
+    target = tf.placeholder(shape=[args.batch_size, 1], dtype=tf.float32, name="y")
+    print(X, flush=True)
+    print(target, flush=True)
+
+    flat = tf.reshape(X, (-1, w*h))
+    output = tf.add(tf.matmul(flat,
+                weight_var([int(flat.get_shape()[1]), 1])),
+                    bias_var([1]), name='output')
+    
+    pred = tf.sigmoid(output, name='pred')
     print(pred, flush=True)
 
     acc = tf.reduce_mean(tf.cast(tf.equal(pred, target), tf.float32))
-    loss = tf.reduce_sum(tf.pow(tf.reduce_mean(pred)-target, 2))/(2*args.batch_size)
+    #loss = tf.reduce_sum(tf.pow(tf.reduce_mean(pred)-target, 2))/(2*args.batch_size)
+    loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=output,
+                labels=target), name='loss')
     print(loss, flush=True)
 
     global_step = tf.Variable(args.init_epoch, trainable=False)
@@ -108,18 +126,22 @@ def conv_dense():
         loss,
         global_step=global_step)
 
+    """
     for v in tf.trainable_variables():
         print(v.name, v.get_shape())
         if len(v.get_shape()) == 4:
           tf.summary.image(v.name, tf.reshape(v, (int(v.get_shape()[3])*int(v.get_shape()[2]), int(v.get_shape()[0]), int(v.get_shape()[1]), 1)))
+        tf.summary.histogram(v.name, v)
+    """
+    grad = tf.gradients(loss, X)
 
     tf.summary.scalar('loss', loss)
     tf.summary.scalar('acc', acc)
     tf.summary.scalar('lr', lr)
-    tf.summary.image('X', tf.reshape(X, (args.batch_size, int(X.get_shape()[2]), int(X.get_shape()[1]), 1)))
-    #tf.summary.image('dense2', tf.reshape(dense2, (args.batch_size, int(dense2.get_shape()[2]), int(dense2.get_shape()[1]), 1)))
-    #tf.summary.image('pool3', tf.reshape(pool3, (args.batch_size*32, int(pool3.get_shape()[2]), int(pool3.get_shape()[1]), 1)))
-    #tf.summary.image('pool4', tf.reshape(pool4, (args.batch_size*8, int(pool4.get_shape()[2]), int(pool4.get_shape()[1]), 1)))
+    tf.summary.histogram('grad', grad)
+    tf.summary.histogram('pred', pred)
+    tf.summary.histogram('target', target)
+    tf.summary.image('X', tf.reshape(X, (args.batch_size, int(X.get_shape()[1]), int(X.get_shape()[2]), 1)))
 
     merged = tf.summary.merge_all()
 
@@ -136,34 +158,36 @@ def conv_dense():
           if x is None:
             continue
   
-          x[np.where(x < 255)] = 0
-          #x[np.where(x >= 255)] = x[np.where(x >= 255)]/10000
-          x = x/1e+3
+#          x[np.where(x < 1000)] = 0
+#          x = x/1e+3
 
 #          x = l2_norm(x)
-          x = x.reshape(args.batch_size, w, h, 1)#.astype(np.float32)
- 
-          _, loss_val, acc_val, pred_val, summary = sess.run([
-              opt, loss, acc, pred, merged], feed_dict={
-                 X: x,
-                 target: y
-              })
-          train_writer.add_summary(summary, sess.run(global_step))
+          x = x.reshape(args.batch_size, w, h, 1)
+          cnt = 10 if y==[1] else 1
+
+          for _ in range(cnt):
+            _, loss_val, acc_val, pred_val, summary = sess.run([
+                opt, loss, acc, pred, merged], feed_dict={
+                   X: x,
+                   target: y.reshape(args.batch_size, 1)
+                })
+            train_writer.add_summary(summary, sess.run(global_step))
 
           print("[{}/{}]loss: {} acc: {} target: {} pred: {} output: {}".format(
               global_epoch,
               sess.run(global_step),
               loss_val,
               acc_val,
-              np.mean(y),
-              np.mean(pred_val),
+              y,
+              pred_val,
               -0.,
               ), flush=True)
-        print('model saved @ {}'.format(saver.save(sess, args.model_path)), flush=True)
+        print('model saved @ {}'.format(saver.save(sess, args.model_root)), flush=True)
         
 
 def start():
-  conv_dense()
+  #conv_dense()
+  logistic_regression()
 
 if __name__ == '__main__':
   start()

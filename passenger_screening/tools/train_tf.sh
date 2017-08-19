@@ -3,10 +3,11 @@
 model="with_tf.py"
 
 python3 $model \
-  --data_root ../data/passenger_screening/stage1_a3daps \
+  --batch_size 1 \
+  --data_root ../data/passenger_screening/stage1_aps \
   --label_path ../data/passenger_screening/stage1_labels.csv \
   --model_root ../models \
-  --model_id pgscr-d3-tf \
+  --model_id pgscr-tf \
   --lr 0.001 \
   --epochs 1000 \
   --init_step 0 

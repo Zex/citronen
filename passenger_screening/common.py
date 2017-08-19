@@ -79,9 +79,9 @@ def data_generator(data_root, label_path):
     ys = []
     for i in np.random.permutation(data.shape[2]):
       y = get_label(labels, iid, i)
-      #y = y[0] if y else 0
-      #yield data[:,:,i], np.array([y])
-      ys.append([1] if y else [0])
-    yield data.reshape(data.shape[2], 512*660), np.array(ys)
+      y = [1] if y else [0]
+      yield data[:,:,i], np.array(y)
+      #ys.append(y)
+    #yield data.reshape(data.shape[2], data.shape[0]*data.shape[1]), np.array(ys)
 
 
