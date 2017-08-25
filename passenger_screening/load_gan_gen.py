@@ -7,38 +7,55 @@ import glob
 import seaborn as sn
 
 output_base = 'gan_output'
-output_base = 'gan_output_regen'
-gs = gridspec.GridSpec(4, 4, wspace=1e-2, hspace=1e-20)
+output_base = 'gan_tf_output'
+
+row, col = 4, 4
+gs = gridspec.GridSpec(4, 4, wspace=1e-2, hspace=1e-30)
 sn.plt.ion()
 fig = sn.plt.figure(figsize=(8, 8), edgecolor='black', facecolor='black')
 axs = []
 CMAP = 'hot'
 
-def plot_batch(data):
-  data = np.reshape(data, (512, 660, 16))
-  for i in range(16):
-    if len(axs) < 16:
-      axs.append(fig.add_subplot(gs[i%16]))
+w, h = 512, 660
+#w, h = 32, 41
+
+def plot_batch(path):
+  data = np.load(path)
+  data = np.reshape(data, (w, h, data.shape[0]))
+  for i in range(data.shape[2]):
+    if len(axs) < data.shape[2]:
+      axs.append(fig.add_subplot(gs[i%(row*col)]))
       axs[-1].set_axis_off() 
-    #data[:,:,i][np.where(data[:,:,i] < 0.9)] = 0
-    print(data[:,:,i])
-    #data[:,:,i][np.where(data[:,:,i] < 10000)] = 0
-    axs[i].imshow(data[:,:,i], cmap=CMAP)
-    fig.canvas.draw()
+    #print(data[i])
+    axs[i].imshow(data[:,:,i])#, cmap=CMAP)
+  #axs[0].set_title(path)
+  fig.canvas.draw()
 
 def update_once():
   for i, path in enumerate(glob.iglob('{}/*'.format(output_base))):
     print(path)
-    if '/0.npy' in path: continue
+    #if not path.endswith('0.npy'): continue
+    #plot_batch(path)
+    plot_one(path, i)
+
+def plot_one(path, i=0):
     data = np.load(path)
-    plot_batch(data)
+    data = np.reshape(data, (w, h, data.shape[0]))
+    total = row*col
+    if len(axs) < total:
+      axs.append(fig.add_subplot(gs[i%total]))
+      axs[-1].set_axis_off() 
+    #print(data[i])
+    axs[i%total].imshow(np.squeeze(data), cmap=CMAP)
+    fig.canvas.draw()
 
 running = True
 
-while running:
-  try:
+try:
+  print('='*20, output_base, '='*20)
+  while running:
     #plot_batch()
     update_once()
-  except KeyboardInterrupt:
-    running = False
+except KeyboardInterrupt:
+  running = False
 

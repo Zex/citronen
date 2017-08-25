@@ -69,11 +69,11 @@ def pipe_loss(flow=False, trim_level=None, stage_size=1000, emp=10, window_size=
     if len(losses) % stage_size != 0:
       continue
     else:
-      marker, color = '--', 'blue'
+      marker, color = '-', 'blue'
       ax2.cla()
       ax2.plot(np.arange(len(losses)), losses, marker, color=color, markerfacecolor=color)
       if with_acc:
-          marker, color = '--', 'red'
+          marker, color = '-', 'red'
           ax2.plot(np.arange(len(accs)), accs, marker, color=color, markerfacecolor=color)
           marker, color = '-', 'yellow'
           ax2.plot(np.arange(len(accs_eval)), accs_eval, marker, color=color, markerfacecolor=color)
