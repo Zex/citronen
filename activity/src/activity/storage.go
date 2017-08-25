@@ -7,12 +7,19 @@ import (
   _ "gopkg.in/cq.v1"
 )
 
+var (
+  cred = "neo4j:j5NEO"
+  host = "localhost"
+  port = 7474
+)
+
 func Insert(partners Partners) error {
-  conn, err := sql.Open("neo4j-cypher", "http://neo4j:j5NEO@localhost:7474")
+  conn, err := sql.Open("neo4j-cypher", fmt.Sprintf("http://%s@%s:%d", cred, host, port))
   if err != nil {
     log.Fatal(err)
     return err
   }
+  defer conn.Close()
 
   tran, err := conn.Begin()
   if err != nil {
@@ -20,7 +27,9 @@ func Insert(partners Partners) error {
     return err
   }
 
-  stmt, err := conn.Prepare("create (:partner {name:{0}, level:{1}, created:{2}})")
+  stmt, err := conn.Prepare(`
+    create (n:partner {name:{0}, level:{1}, created:{2}})
+  `)
 
   if err != nil {
     log.Fatal(err)
@@ -28,7 +37,6 @@ func Insert(partners Partners) error {
   }
 
   for _, partner := range(partners) {
-    fmt.Println(partner)
     stmt.Exec(partner.Name, partner.Level, partner.Created)
   }
 
