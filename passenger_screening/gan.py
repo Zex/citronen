@@ -134,10 +134,9 @@ def start():
         continue
 
       true_y = get_y(y)
-      data[np.where(data < 12000)] = 0.
-      real_x = get_x(data)
-      np.save('{}/{}'.format(gen_path, 0), real_x.data.numpy())
-     
+      data[np.where(data < 255)] = 0
+      #data /= 1e+3
+      np.save('{}/{}'.format(gen_path, 0), data)#real_x.data.numpy())
       ind = i % 16
 
       # discriminator
