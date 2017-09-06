@@ -16,15 +16,15 @@ func create_conn(port int) {
   }
   defer conn.Close()
 
+    go func() {
+      log.Println("Reading")
+      io.Copy(os.Stdout, conn)
+    }()
 
   conn.Write([]byte(fmt.Sprintf("%s\n", time.Now())))
   ticks := time.Tick(1 * time.Second)
   for t := range ticks {
     conn.Write([]byte(fmt.Sprintf("%s\n", t)))
-    go func() {
-      log.Println("Reading")
-      io.Copy(os.Stdout, conn)
-    }()
   }
 }
 

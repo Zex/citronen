@@ -1,3 +1,3 @@
 #!/bin/bash
 
-go run ticker.go
+go run src/kaloud/ticker.go

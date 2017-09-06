@@ -17,7 +17,7 @@ type Config struct {
 
 func ConnDispatch(conn net.Conn, config *Config) {
   log.Printf("%s: Local: %v Remote: %v", config.Name, conn.LocalAddr(), conn.RemoteAddr())
-  io.Copy(os.Stdout, conn)
+  go io.Copy(os.Stdout, conn)
 
   ticks := time.Tick(1 * time.Second)
   for t := range ticks {
