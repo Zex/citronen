@@ -14,7 +14,7 @@ def rand_sample(size):
 
 eps = 1e-8
 w, h = 512, 660
-batch, size = 16, w*h
+batch, size = 1, w*h
 x_dim = w
 gen_sample_nr = 100
 
@@ -60,20 +60,22 @@ tf.summary.scalar('real_loss', real_loss)
 tf.summary.scalar('fake_loss', fake_loss)
 tf.summary.scalar('dis_loss', dis_loss)
 tf.summary.scalar('gen_loss', gen_loss)
-tf.summary.image('real_x', tf.reshape(real_x, [batch, h, w, 1]))
-tf.summary.image('gen_data', tf.reshape(gen_data, [batch, h, w, 1]))
-tf.summary.image('fake_x', tf.reshape(fake_x, [batch, h, w, 1]))
+tf.summary.image('real_x', tf.reshape(real_x, [batch, w, h, 1]))
+tf.summary.image('gen_data', tf.reshape(gen_data, [batch, w, h, 1]))
+tf.summary.image('fake_x', tf.reshape(fake_x, [batch, w, h, 1]))
 merged = tf.summary.merge_all()
 
 for v in tf.trainable_variables():
     print(v)
     if len(v.get_shape()) == 2:
-        tf.summary.image(v.name, v)
+        tf.summary.image(v.name, tf.reshape(v, [1,
+            int(v.get_shape()[0]), int(v.get_shape()[1]), 1]))
     tf.summary.histogram(v.name, v)
 
 def train():
     args = init()
     global_epoch = args.init_epoch
+    global_steps = 0 
     gen_path = args.outpath
 
     if not isdir(gen_path):
@@ -90,21 +92,20 @@ def train():
                     continue
 
                 #data[np.where(data < 255)] = 0.
-                data = data/1e+3
-                data = data.astype(np.float32)
+                #data = data.astype(np.float32)
+                data = data.reshape(batch, size)
 
-                #np.save('{}/{}'.format(gen_path, 0), data)
                 _, _dis_loss, summary = sess.run([opt_dis, dis_loss, merged], feed_dict={
-                    real_x: np.array(data),
+                    real_x: data,
                     gen_data: rand_sample([batch, size])
                 })
-                train_writer.add_summary(summary, i)
+                train_writer.add_summary(summary, global_steps)
 
                 _, _gen_loss, summary = sess.run([opt_gen, gen_loss, merged], feed_dict={
-                    real_x: np.array(data),
+                    real_x: data,
                     gen_data: rand_sample([batch, size])
                 })
-                train_writer.add_summary(summary, i)
+                train_writer.add_summary(summary, global_steps)
 
                 if _dis_loss is None or _gen_loss is None:
                     print('[{}/{}] dis_loss:{} gen_loss:{}'.format(
@@ -120,6 +121,7 @@ def train():
 
                 ind = i%gen_sample_nr
                 i//gen_sample_nr and np.save('{}/{}'.format(gen_path, ind), sample) or None
+                global_steps += 1
 
 
 if __name__ == '__main__':

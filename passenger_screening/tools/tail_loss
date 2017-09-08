@@ -1,12 +1,11 @@
 #!/bin/zsh
 
-src=out/loss.tf
+src=out/tf.loss
 
-grep acc: $src|grep -n loss: > mark
+#grep acc: $src|grep -n loss: > mark
 grep loss: $src|python3 post_loss.py \
   --stage_size 1  \
   --window_size 100 \
-  --emp 1  \
-  --acc true
+  --emp 1  
 
 
