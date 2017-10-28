@@ -1,7 +1,13 @@
+#!/usr/bin/env python3
+# Data helper 
 import pandas as pd
 import os
 import pickle
-import seaborn as sns
+from nltk import wordpunct_tokenize
+from nltk.corpus import stopwords
+import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
+from tensorflow.contrib import learn
+
 
 L1_TABLE_PATH = "../data/springer/l1_table.pickle"
 L2_TABLE_PATH = "../data/springer/l2_table.pickle"
@@ -51,43 +57,36 @@ def load_l2table():
 
 def load_l1table():
     return from_persist(L1_TABLE_PATH)
-
-def plot_group(data_path):
-    reader = pd.read_csv(data_path, engine='python', header=0, 
-        delimiter="###", chunksize=1)
-    for chunk in reader:
-        grp = chunk.groupby("subcate")
-        #text, l1, l2 = chunk["desc"], chunk["cate"], chunk["subcate"]
-        sns.boxplot(pd.DataFrame(grp.groups))
-
-from nltk import wordpunct_tokenize
-from nltk.corpus import stopwords
-import nltk.data
-nltk.data.path.append("/media/sf_patsnap/nltk_data")
     
+def extract_xy(chunk, l1table=None, l2table=None):
+    chunk = chunk.dropna()
+
+    if l1table:
+        chunk = chunk.replace({"cate":l1table})
+    if l2table:
+        chunk = chunk.replace({"subcate":l2table})
+
+    text = chunk["desc"]
+    label1 = chunk["cate"]
+    label2 = chunk["subcate"]
+    return text, label1, label2
+
 def clean_lang(data_path):
-    def extract_xy(chunk):
-        chunk = chunk.dropna()#.replace({"subcate":self.l2table}))
-
-        text = chunk["desc"].values[0]
-        label1 = chunk["cate"].values[0]
-        label2 = chunk["subcate"].values[0]
-
-        return text, label1, label2
-
     reader = pd.read_csv(data_path, engine='python', header=0, 
         delimiter="###", chunksize=1)
+
     for chunk in reader:
         text, l1, l2 = extract_xy(chunk)
+        text, l1, l2 = text.values[0], l1.values[0], l2.values[0]
         ratio = guess_lang(text)
         lang = max(ratio, key=ratio.get)
         output = "../data/springer/lang/{}.csv".format(lang)
+        df = pd.DataFrame({"desc":[text],"cate":[l1],"subcate":[l2]})
+
         if not os.path.isfile(output):
-            with open(output, "w+") as fd:
-                fd.write("desc###cate###subcate\n")
+            df.to_csv(output, header=True, index=False, sep="###")
         else:
-            with open(output, "a") as fd:
-                fd.write("{}###{}###{}\n".format(text, l1, l2))
+            df.to_csv(output, header=False, index=False, sep="###", mode='a')
 
 def guess_lang(text):
     ratio = {}
@@ -101,6 +100,27 @@ def guess_lang(text):
         ratio[lang] = len(common_elements)
    
     return ratio
+
+def tokenize_text(text):
+    tokens = []
+    for doc in text:
+        tokens.append([w for w, t in pos_tag(wordpunct_tokenize(doc)) if t in expected_types])
+    return tokens
+
+def train_vocab(data_path, vocab_path=None):
+    vocab_processor = learn.preprocessing.VocabularyProcessor(max_doc_len)
+    reader = pd.read_csv(data_path, engine="python", 
+            header=0, delimiter="###", chunksize=512)
+    for chunk in reader:
+        text, _, l2 = extract_xy(chunk)
+        tokens = tokenize_text(text)
+        vocab_processor.fit([' '.join(t) for t in tokens])
+
+    if vocab_path:
+        if not os.path.isdir(os.path.dirname(vocab_path)):
+            os.makedirs(os.path.dirname(vocab_path))
+        vocab_processor.save(vocab_path)
+    return vocab_processor
 
 if __name__ == "__main__":
     """
