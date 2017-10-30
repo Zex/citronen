@@ -2,4 +2,5 @@
 
 python3 with_tf.py \
   --data_path ../data/springer/mini2.csv \
-  --model_dir ../models/springer_nltk
+  --model_dir ../models/springer_nltk \
+  --max_doc 100

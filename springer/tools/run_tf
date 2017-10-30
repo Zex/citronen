@@ -1,0 +1,7 @@
+#!/bin/bash
+
+python3 with_tf.py \
+  --data_path ../data/springer/lang/train_english.csv \
+  --model_dir ../models/springer_rnn\
+  --max_doc 500 \
+  --batch_size 64
