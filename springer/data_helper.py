@@ -2,19 +2,23 @@
 # Data helper 
 import pandas as pd
 import os
+import re
 import pickle
 from nltk import wordpunct_tokenize
 from nltk.corpus import stopwords
 import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
+from nltk.tag import pos_tag
+from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
 from tensorflow.contrib import learn
 
 
 L1_TABLE_PATH = "../data/springer/l1_table.pickle"
 L2_TABLE_PATH = "../data/springer/l2_table.pickle"
-data_path = "../data/springer/full.csv"
 
 l1_table = {}
 l2_table = {}
+
+expected_types = ("NNP", "NN", "NNS", "JJ")
 
 def persist(obj, path):
     with open(path, 'w+b') as fd:
@@ -25,7 +29,7 @@ def from_persist(path):
         ret = pickle.load(fd)
     return ret
 
-def encode():
+def encode(data_path):
 
     def assign_l1(cate):
         #cate = cate.replace("\\/", "/").replace("\/", "/")
@@ -104,10 +108,11 @@ def guess_lang(text):
 def tokenize_text(text):
     tokens = []
     for doc in text:
-        tokens.append([w for w, t in pos_tag(wordpunct_tokenize(doc)) if t in expected_types])
+        tokens.extend([w for w, t in pos_tag(wordpunct_tokenize(clean_str(doc))) \
+                if t in expected_types and w.isalpha()])
     return tokens
 
-def train_vocab(data_path, vocab_path=None):
+def train_vocab(data_path, vocab_path=None, max_doc_len=50000):
     vocab_processor = learn.preprocessing.VocabularyProcessor(max_doc_len)
     reader = pd.read_csv(data_path, engine="python", 
             header=0, delimiter="###", chunksize=512)
@@ -115,21 +120,87 @@ def train_vocab(data_path, vocab_path=None):
         text, _, l2 = extract_xy(chunk)
         tokens = tokenize_text(text)
         vocab_processor.fit([' '.join(t) for t in tokens])
+        print("vocab size", len(vocab_processor.vocabulary_))
+        break
 
     if vocab_path:
-        if not os.path.isdir(os.path.dirname(vocab_path)):
-            os.makedirs(os.path.dirname(vocab_path))
+        dirpath = os.path.dirname(vocab_path)
+        if not os.path.isdir(dirpath):
+            os.makedirs(dirpath)
         vocab_processor.save(vocab_path)
     return vocab_processor
 
+class VocabProcessor(object):
+
+    def __init__(self, max_document_length, min_frequency=0):
+        self.max_document_length = max_document_length
+        self.min_frequency = min_frequence
+
+    def fit(self, raw_documents, unused_y=None):
+        for tokens in self._tokenizer(raw_documents):
+            for token in tokens:
+                self.vocabulary_.add(token)
+        if self.min_frequency > 0:
+            self.vocabulary_.trim(self.min_frequency)
+        #self.vocabulary_.freeze()
+        return self
+    
+    def transform(self, raw_documents):
+        for tokens in self._tokenizer(raw_documents):
+            word_ids = np.zeros(self.max_document_length, np.int64)
+            for idx, token in enumerate(tokens):
+                if idx >= self.max_document_length:
+                    break
+                word_ids[idx] = self.vocabulary_.get(token)
+            yield word_ids
+
+def clean_str(string):
+    string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
+    string = re.sub(r"\'s", " \'s", string)
+    string = re.sub(r"\'ve", " \'ve", string)
+    string = re.sub(r"n\'t", " n\'t", string)
+    string = re.sub(r"\'re", " \'re", string)
+    string = re.sub(r"\'d", " \'d", string)
+    string = re.sub(r"\'ll", " \'ll", string)
+    string = re.sub(r",", " , ", string)
+    string = re.sub(r"!", " ! ", string)
+    string = re.sub(r"\(", " \( ", string)
+    string = re.sub(r"\)", " \) ", string)
+    string = re.sub(r"\?", " \? ", string)
+    string = re.sub(r"\s{2,}", " ", string)
+    return string.strip()
+
+def gen_token(data_path, output):
+    reader = pd.read_csv(data_path, engine="python", 
+            header=0, delimiter="###", chunksize=512)
+
+    l2_table = load_l2table()
+    train_x = []
+    labels = []
+
+    for chunk in reader:
+        text, _, l2 = extract_xy(chunk, l2table=l2_table)
+        tokens = tokenize_text(text)
+
+        df = pd.DataFrame({"token":" ".join(tokens),
+                            "target": l2})
+        if not os.path.isfile(output):
+            df.to_csv(output, header=True, index=False, sep="#")
+        else:
+            df.to_csv(output, header=False, index=False, sep="#", mode='a')
+
+
 if __name__ == "__main__":
     """
-    encode()
     print(len(l1_table), len(l2_table))
     l2_table = load_l2table()
     tokens = wordpunct_tokenize(text)
     words = [word.lower() for word in tokens]
     """
     data_path = "../data/springer/full.csv"
+    data_path = "../data/springer/lang/english.csv"
+    gen_token(data_path, "../data/springer/lang/token_english.csv")
+#    simple_encode(data_path)
 #    clean_lang(data_path)
-    plot_group(data_path)
+
+

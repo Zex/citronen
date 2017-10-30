@@ -7,17 +7,11 @@ import argparse
 from datetime import datetime
 import numpy as np
 import pandas as pd
-from subject_encoder import load_l2table, tokenize_text, extract_xy, train_vocab
+from data_helper import load_l2table, tokenize_text, extract_xy, train_vocab
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
 from sklearn.utils import shuffle
-
-import nltk.data
-from nltk import wordpunct_tokenize
-from nltk.tag import pos_tag
-
-nltk.data.path.insert(0, "/media/sf_patsnap/nltk_data")
-expected_types = ("NNP", "NN", "NNS", "JJ")
+from sklearn.feature_extraction.text import HashingVectorizer
 
 
 class SD(object):
@@ -28,15 +22,24 @@ class SD(object):
         self.l2table = load_l2table()
         self.class_map = list(set(self.l2table.values()))
         self.max_doc_len = args.max_doc
+        self.hv = HashingVectorizer(
+                ngram_range=(1,5),
+                stop_words="english",
+                n_features=self.max_doc_len,
+                tokenizer=tokenizer=nltk.word_tokenize,
+                dtype=np.int32,
+                norm='l2',
+                analyzer='word',
+                non_negative=True)
+        """
         self.vocab_path = os.path.join(args.model_dir, "vocab")
         #self.find_bondary()
         if os.path.isfile(self.vocab_path):
-            self.vocab_processor = learn.preprocessing.VocabularyProcessor(max_doc_len)
+            self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc_len)
             self.vocab_processor.restore(self.vocab_path)
         else:
-            self.vocab_processor = train_vocab()
-            self.sd.vocab_processor.save(self.vocab_path)
-
+            self.vocab_processor = train_vocab(self.data_path, self.vocab_path)
+        """
     def find_bondary(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
             delimiter="###", chunksize=self.batch_size)
@@ -46,13 +49,7 @@ class SD(object):
             self.max_doc_len = \
                     np.max([self.max_doc_len, np.max([len(t) for t in tokens])])
         print("max doc len: {}".format(self.max_doc_len))
-    """
-    def train_vocab(self):
-        self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc_len)
-        reader = pd.read_csv(self.data_path, engine='python', header=0, 
-            delimiter="###", chunksize=self.batch_size)
-        [self.process_chunk(*extract_xy(chunk, l2table=self.l2table)) for chunk in reader]
-    """
+
     def gen_data(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
             delimiter="###", chunksize=self.batch_size)
@@ -69,10 +66,11 @@ class SD(object):
 
         #x = list(self.vocab_processor.fit_transform(text))
         tokens = tokenize_text(text)
-        x = list(self.vocab_processor.fit_transform(
-            [' '.join(t) for t in tokens]
-            ))
-
+        #x = list(self.vocab_processor.fit_transform(
+        #    [' '.join(t) for t in tokens]
+        #    ))
+        x = self.hv.transform(text).toarray()#[' '.join(t) for t in tokens]).toarray()
+        print(x)
         y = []
         for l in label:
             one = np.zeros(len(self.class_map))
@@ -92,6 +90,7 @@ class Springer(object):
         self.data_path = args.data_path
         self.epochs = args.epochs
         self.dropout_rate = args.dropout
+        self.clip_norm = args.clip_norm
         self.init_step = args.init_step
         self.lr = args.lr
 
@@ -100,6 +99,7 @@ class Springer(object):
         self.seqlen = self.sd.max_doc_len
         self.embed_dim = 128 
         self.total_filters = 128
+        self.total_layer = 5
         self.filter_sizes = [3, 5]
 
         self.prepare_dir()
@@ -110,10 +110,55 @@ class Springer(object):
         if not os.path.isdir(self.log_path):
             os.makedirs(self.log_path)
 
-        self.vocab_size = len(self.sd.vocab_processor.vocabulary_)
-        print("total vocab: {}".format(self.vocab_size))
+        #self.vocab_size = len(self.sd.vocab_processor.vocabulary_)
+        #print("total vocab: {}".format(self.vocab_size))
 
     def _build_model(self):
+        self.input_x = tf.placeholder(tf.int32, shape=[None, None], name="input_x")
+        self.input_y = tf.placeholder(tf.float32, shape=[None, None], name="input_y")
+        w = tf.get_variable("w_e", [self.sd.max_doc_len, self.embed_dim])
+        self.embed = tf.nn.embedding_lookup(w, self.input_x)
+
+        self.rnn_unit = tf.nn.rnn_cell.DropoutWrapper(
+                tf.nn.rnn_cell.GRUCell(self.embed_dim),
+                output_keep_prob=1-self.dropout_rate)
+        self.cell_stack = tf.nn.rnn_cell.MultiRNNCell([self.rnn_unit] * self.total_layer)
+        
+        outputs, state = tf.nn.dynamic_rnn(
+                cell=self.cell_stack, inputs=self.embed,
+                sequence_length=[self.seqlen], dtype=tf.float32)
+        # calc logits
+        w1 = tf.get_variable("w1", [self.embed_dim, self.total_class])
+        b1 = tf.get_variable("b1", [self.total_class])
+        self.logits = tf.matmul(state[0], w1) + b1 
+
+        self.pred = tf.nn.softmax(self.logits)
+        #self.pred = tf.argmax(self.logits, 1, name="pred")
+        self.acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.input_y, 1),
+                            tf.argmax(self.logits, 1)), "float"), name="acc")
+        self.loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.input_y))
+
+        params, _ = tf.clip_by_global_norm(
+                tf.gradients(self.loss, tf.trainable_variables()),
+                self.clip_norm)
+        self.train_op = tf.train.AdamOptimizer(self.lr).apply_gradients(
+                zip(params, tf.trainable_variables()))
+
+        self.global_step = tf.Variable(self.init_step, trainable=False)
+
+        summary = []
+        #for v in tf.trainable_variables():
+        #    summary.append(tf.summary.histogram(v.name, v))
+        #    summary.append(tf.summary.scalar(v.name, tf.nn.zero_fraction(v)))
+
+        summary.append(tf.summary.scalar("loss", self.loss))
+        summary.append(tf.summary.scalar("acc", self.acc))
+
+        self.summary = tf.summary.merge(summary)
+        self.saver = tf.train.Saver(tf.global_variables())
+
+    def __build_model(self):
 
         # Define model
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
@@ -229,12 +274,13 @@ def init():
     parser.add_argument('--chunk_size', default=32, type=int, help='Load data by size of chunk')
     parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
     parser.add_argument('--epochs', default=10000, type=int, help="Total epochs to train")
-    parser.add_argument('--dropout', default=0.5, type=int, help="Dropout rate")
+    parser.add_argument('--dropout', default=0.3, type=int, help="Dropout rate")
+    parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
     parser.add_argument('--batch_size', default=128, type=float, help="Batch size")
     parser.add_argument('--model_dir', default="../models/springer", type=str, help="Path to model and check point")
     parser.add_argument('--init_step', default=0, type=int, help="Initial training step")
-    parser.add_argument('--max_doc', default=300, type=int, help="Maximum document length")
+    parser.add_argument('--max_doc', default=50000, type=int, help="Maximum document length")
 
     args = parser.parse_args()
     return args
