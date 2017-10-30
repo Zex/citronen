@@ -30,7 +30,6 @@ class SD(object):
                 n_features=self.max_doc_len,
                 tokenizer=nltk.word_tokenize,
                 dtype=np.int32,
-                norm='l2',
                 analyzer='word')
         """
         self.vocab_path = os.path.join(args.model_dir, "vocab")
@@ -71,7 +70,6 @@ class SD(object):
         #    [' '.join(t) for t in tokens]
         #    ))
         x = self.hv.transform(text).toarray()#[' '.join(t) for t in tokens]).toarray()
-        print(x)
         y = []
         for l in label:
             one = np.zeros(len(self.class_map))
@@ -110,28 +108,30 @@ class Springer(object):
         self.log_path = os.path.join(self.model_dir, "log")
         if not os.path.isdir(self.log_path):
             os.makedirs(self.log_path)
-
+        self.vocab_size = 50000
         #self.vocab_size = len(self.sd.vocab_processor.vocabulary_)
         #print("total vocab: {}".format(self.vocab_size))
 
     def _build_model(self):
-        self.input_x = tf.placeholder(tf.int32, shape=[None, None], name="input_x")
-        self.input_y = tf.placeholder(tf.float32, shape=[None, None], name="input_y")
-        w = tf.get_variable("w_e", [self.sd.max_doc_len, self.embed_dim])
-        self.embed = tf.nn.embedding_lookup(w, self.input_x)
+        self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
+        self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
 
-        self.rnn_unit = tf.nn.rnn_cell.DropoutWrapper(
-                tf.nn.rnn_cell.GRUCell(self.embed_dim),
-                output_keep_prob=1-self.dropout_rate)
-        self.cell_stack = tf.nn.rnn_cell.MultiRNNCell([self.rnn_unit] * self.total_layer)
-        
-        outputs, state = tf.nn.dynamic_rnn(
-                cell=self.cell_stack, inputs=self.embed,
-                sequence_length=[self.seqlen], dtype=tf.float32)
+        w = tf.get_variable("w_e", [self.sd.max_doc_len, self.embed_dim])
+        #self.embed = tf.nn.embedding_lookup(w, self.input_x)
+        self.embed = layers.embed_sequence(self.input_x, vocab_size=self.vocab_size, embed_dim=self.embed_dim)
+        #self.rnn_unit = tf.nn.rnn_cell.DropoutWrapper(
+        self.rnn_unit = tf.nn.rnn_cell.GRUCell(self.embed_dim)
+        #        output_keep_prob=1-self.dropout_rate)
+        #self.cell_stack = tf.nn.rnn_cell.MultiRNNCell([self.rnn_unit] * self.total_layer)
+        words = tf.unstack(self.embed, axis=1)
+        _, encoding = tf.nn.static_rnn(
+                cell=self.rnn_unit, inputs=words,
+                dtype=tf.float32)
         # calc logits
-        w1 = tf.get_variable("w1", [self.embed_dim, self.total_class])
-        b1 = tf.get_variable("b1", [self.total_class])
-        self.logits = tf.matmul(state[0], w1) + b1 
+        #w1 = tf.get_variable("w1", [self.embed_dim, self.total_class])
+        #b1 = tf.get_variable("b1", [self.total_class])
+        #self.logits = tf.matmul(state[0], w1) + b1 
+        self.logits = tf.layers.dense(encoding, self.total_class, activation=None)
 
         self.pred = tf.nn.softmax(self.logits)
         #self.pred = tf.argmax(self.logits, 1, name="pred")
@@ -270,15 +270,15 @@ class Springer(object):
                 datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
 
 def init():
+    tf.logging.set_verbosity(tf.logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'validate'])
-    parser.add_argument('--chunk_size', default=32, type=int, help='Load data by size of chunk')
     parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
     parser.add_argument('--epochs', default=10000, type=int, help="Total epochs to train")
     parser.add_argument('--dropout', default=0.3, type=int, help="Dropout rate")
     parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
-    parser.add_argument('--batch_size', default=128, type=float, help="Batch size")
+    parser.add_argument('--batch_size', default=128, type=int, help="Batch size")
     parser.add_argument('--model_dir', default="../models/springer", type=str, help="Path to model and check point")
     parser.add_argument('--init_step', default=0, type=int, help="Initial training step")
     parser.add_argument('--max_doc', default=50000, type=int, help="Maximum document length")
