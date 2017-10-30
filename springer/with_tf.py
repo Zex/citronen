@@ -12,6 +12,8 @@ import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
 from sklearn.utils import shuffle
 from sklearn.feature_extraction.text import HashingVectorizer
+import nltk
+import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
 
 
 class SD(object):
@@ -26,11 +28,10 @@ class SD(object):
                 ngram_range=(1,5),
                 stop_words="english",
                 n_features=self.max_doc_len,
-                tokenizer=tokenizer=nltk.word_tokenize,
+                tokenizer=nltk.word_tokenize,
                 dtype=np.int32,
                 norm='l2',
-                analyzer='word',
-                non_negative=True)
+                analyzer='word')
         """
         self.vocab_path = os.path.join(args.model_dir, "vocab")
         #self.find_bondary()
