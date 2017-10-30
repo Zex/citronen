@@ -175,20 +175,17 @@ def gen_token(data_path, output):
             header=0, delimiter="###", chunksize=512)
 
     l2_table = load_l2table()
-    train_x = []
-    labels = []
+    global_tokens = {}
 
     for chunk in reader:
         text, _, l2 = extract_xy(chunk, l2table=l2_table)
         tokens = tokenize_text(text)
+        [global_tokens.update({t: len(global_tokens)}) for t in tokens]
 
-        df = pd.DataFrame({"token":" ".join(tokens),
-                            "target": l2})
-        if not os.path.isfile(output):
-            df.to_csv(output, header=True, index=False, sep="#")
-        else:
-            df.to_csv(output, header=False, index=False, sep="#", mode='a')
+    with open(output, "w+b") as fd:
+        pickle.dump(fd, global_tokens)
 
+    print("global tokens", len(global_tokens))
 
 if __name__ == "__main__":
     """
@@ -199,7 +196,7 @@ if __name__ == "__main__":
     """
     data_path = "../data/springer/full.csv"
     data_path = "../data/springer/lang/english.csv"
-    gen_token(data_path, "../data/springer/lang/token_english.csv")
+    gen_token(data_path, "../data/springer/lang/token_english.pickle")
 #    simple_encode(data_path)
 #    clean_lang(data_path)
 
