@@ -41,7 +41,6 @@ def encode(data_path):
         chunk["cate"].apply(assign_l1)
     
     persist(l1_table, L1_TABLE_PATH)
-  
 
     mem = {}
     def assign_l2(cate, subcate):
@@ -171,8 +170,9 @@ def clean_str(string):
     return string.strip()
 
 def gen_token(data_path, output):
+    chunksize = 512
     reader = pd.read_csv(data_path, engine="python", 
-            header=0, delimiter="###", chunksize=512)
+            header=0, delimiter="###", chunksize=chunksize)
 
     l2_table = load_l2table()
     global_tokens = {}
@@ -184,7 +184,7 @@ def gen_token(data_path, output):
         text, _, l2 = extract_xy(chunk, l2table=l2_table)
         tokens = tokenize_text(text)
         [global_tokens.update({t: len(global_tokens)}) for t in tokens if t not in global_tokens]
-
+        
         if len(global_tokens) % 100 == 0:
             with open(output, 'w+b') as fd:
                 pickle.dump(global_tokens, fd)
