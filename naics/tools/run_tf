@@ -1,7 +1,7 @@
 #!/bin/bash
-
+export TF_CPP_MIN_LOG_LEVEL=2
 python3 with_tf.py \
   --data_path ../data/naics/dataset.csv \
   --model_dir ../models/naics_rnn \
-  --max_doc 5000 \
+  --max_doc 50 \
   --batch_size 32

@@ -10,10 +10,11 @@ from nltk import wordpunct_tokenize
 from nltk.tag import pos_tag
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
+import numpy as np
 import nltk
 import pandas as pd
 
-NAICS_CODES_PATH = "../data/naics/2017_codes_6digits.csv"
+NAICS_CODES_PATH = "../data/naics/codes_3digits.csv"
 MIN_TRAIN_LINE = 128
 
 expected_types = ("NNP", "NN", "NNS", "JJ")
@@ -75,14 +76,14 @@ def build_dataset_from_line(tokens, target, global_tokens, fd):
         fd.write(str(global_tokens[t]))
         if i < len(tokens)-1:
             fd.write(' ')
-
     fd.write(",{}\n".format(target))
-
 
 def load_class_map():
     chunk = pd.read_csv(NAICS_CODES_PATH, engine='python',
-            header=0, delimiter="#")
-    return chunk.set_index('code').to_dict()
+            header=0, delimiter="#", dtype={"code":np.int})
+    ret = {}
+    chunk.apply(lambda x: ret.update({x["code"]:x["title"]}), axis=1)
+    return ret
 
 if __name__ == '__main__':
     data_path = "../data/naics/full.txt"
