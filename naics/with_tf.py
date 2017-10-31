@@ -7,13 +7,13 @@ import argparse
 from datetime import datetime
 import numpy as np
 import pandas as pd
-from data_helper import load_l2table, tokenize_text, extract_xy, train_vocab, load_global_tokens
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
 from sklearn.utils import shuffle
 from sklearn.feature_extraction.text import HashingVectorizer
 import nltk
 import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
+from data_helper import load_class_map
 
 
 class SD(object):
@@ -21,41 +21,14 @@ class SD(object):
     def __init__(self, args):
         self.data_path = args.data_path
         self.batch_size = args.batch_size
-        self.l2table = load_l2table()
-        self.global_tokens = load_global_tokens()
-        self.class_map = list(set(self.l2table.values()))
+        self.class_map = load_class_map()
         self.max_doc_len = args.max_doc
-        self.hv = HashingVectorizer(
-                ngram_range=(1,5),
-                stop_words="english",
-                n_features=self.max_doc_len,
-                tokenizer=nltk.word_tokenize,
-                dtype=np.int32,
-                analyzer='word')
-        """
-        self.vocab_path = os.path.join(args.model_dir, "vocab")
-        #self.find_bondary()
-        if os.path.isfile(self.vocab_path):
-            self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc_len)
-            self.vocab_processor.restore(self.vocab_path)
-        else:
-            self.vocab_processor = train_vocab(self.data_path, self.vocab_path)
-        """
-    def find_bondary(self):
-        reader = pd.read_csv(self.data_path, engine='python', header=0, 
-            delimiter="###", chunksize=self.batch_size)
-        for chunk in reader:
-            text, _, _ = extract_xy(chunk)
-            tokens = tokenize_text(text)
-            self.max_doc_len = \
-                    np.max([self.max_doc_len, np.max([len(t) for t in tokens])])
-        print("max doc len: {}".format(self.max_doc_len))
 
     def gen_data(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
-            delimiter="###", chunksize=self.batch_size)
+            delimiter=",", chunksize=self.batch_size)
         for chunk in reader:
-            yield self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
+            yield self.process_chunk(chunk)
 
     def process_chunk(self, text, label1, label):
         """
@@ -64,14 +37,6 @@ class SD(object):
         text = text[indices]#.tolist()
         label = label[indices]#.tolist()
         """
-
-        #x = list(self.vocab_processor.fit_transform(text))
-        tokens = tokenize_text(text)
-        #x = list(self.vocab_processor.fit_transform(
-        #    [' '.join(t) for t in tokens]
-        #    ))
-        #x = self.hv.transform(text).toarray()#[' '.join(t) for t in tokens]).toarray()
-        x = text2vec(text, self.l2table, self.global_tokens)
         print(x)
         y = []
         for l in label:
@@ -81,10 +46,10 @@ class SD(object):
         return x, np.array(y)
 
 
-class Springer(object):
+class Naics(object):
 
     def __init__(self, args):
-        super(Springer, self).__init__()
+        super(Naics, self).__init__()
         self.sd = SD(args)
 
         # Train args
@@ -111,7 +76,7 @@ class Springer(object):
         self.log_path = os.path.join(self.model_dir, "log")
         if not os.path.isdir(self.log_path):
             os.makedirs(self.log_path)
-        self.vocab_size = len(self.sd.global_tokens)
+        self.vocab_size = 5000 #len(self.sd.global_tokens)
         #self.vocab_size = len(self.sd.vocab_processor.vocabulary_)
         print("total vocab: {}".format(self.vocab_size))
 
@@ -276,13 +241,13 @@ def init():
     tf.logging.set_verbosity(tf.logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'validate'])
-    parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
+    parser.add_argument('--data_path', default="../data/naics/dataset.csv", type=str, help='Path to input data')
     parser.add_argument('--epochs', default=10000, type=int, help="Total epochs to train")
     parser.add_argument('--dropout', default=0.3, type=int, help="Dropout rate")
     parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
     parser.add_argument('--batch_size', default=128, type=int, help="Batch size")
-    parser.add_argument('--model_dir', default="../models/springer", type=str, help="Path to model and check point")
+    parser.add_argument('--model_dir', default="../models/naics", type=str, help="Path to model and check point")
     parser.add_argument('--init_step', default=0, type=int, help="Initial training step")
     parser.add_argument('--max_doc', default=50000, type=int, help="Maximum document length")
 
@@ -291,8 +256,8 @@ def init():
 
 def start():
     args = init()
-    springer = Springer(args)
-    springer.train()
+    naics = Naics(args)
+    naics.train()
 
 if __name__ == '__main__':
     start()

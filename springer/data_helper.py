@@ -10,8 +10,9 @@ import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
 from nltk.tag import pos_tag
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
 from tensorflow.contrib import learn
+from nltk.stem.porter import PorterStemmer
 
-
+GLOBAL_TOKENS_PATH = "../data/springer/lang/token_english.pickle"
 L1_TABLE_PATH = "../data/springer/l1_table.pickle"
 L2_TABLE_PATH = "../data/springer/l2_table.pickle"
 
@@ -105,10 +106,13 @@ def guess_lang(text):
     return ratio
 
 def tokenize_text(text):
+    poster = PorterStemmer()
     tokens = []
     for doc in text:
-        tokens.extend([w for w, t in pos_tag(wordpunct_tokenize(clean_str(doc))) \
-                if t in expected_types and w.isalpha()])
+        for w, t in pos_tag(wordpunct_tokenize(clean_str(doc))):
+            w = poster.stem(w)
+            if t in expected_types and w.isalpha() and w not in stopwords.words('english'):
+                tokens.append(w)
     return tokens
 
 def train_vocab(data_path, vocab_path=None, max_doc_len=50000):
@@ -191,6 +195,19 @@ def gen_token(data_path, output):
 
     print("global tokens", len(global_tokens))
 
+def load_global_tokens():
+    with open(GLOBAL_TOKENS_PATH, 'rb') as fd:
+        global_tokens = pickle.load(fd)
+    return global_tokens
+
+def text2vec(chunk, l2_table, global_tokens):
+    x = []
+    text, _, l2 = extract_xy(chunk, l2table=l2_table)
+    tokens = tokenize_text(text)
+    [x.append(global_tokens[t]) for t in text if t in global_tokens]
+    return x
+
+
 if __name__ == "__main__":
     """
     print(len(l1_table), len(l2_table))
@@ -200,7 +217,7 @@ if __name__ == "__main__":
     """
     data_path = "../data/springer/full.csv"
     data_path = "../data/springer/lang/english.csv"
-    gen_token(data_path, "../data/springer/lang/token_english.pickle")
+    gen_token(data_path, GLOBAL_TOKENS_PATH)
 #    simple_encode(data_path)
 #    clean_lang(data_path)
 

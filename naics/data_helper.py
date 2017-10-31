@@ -8,8 +8,12 @@ from ast import literal_eval
 import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
 from nltk import wordpunct_tokenize
 from nltk.tag import pos_tag
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
 import nltk
+import pandas as pd
 
+NAICS_CODES_PATH = "../data/naics/2017_codes_6digits.csv"
 MIN_TRAIN_LINE = 128
 
 expected_types = ("NNP", "NN", "NNS", "JJ")
@@ -31,9 +35,12 @@ def clean_str(string):
     return string.strip()
 
 def tokenize_text(doc):
+    poster = PorterStemmer()
     tokens = []
-    tokens.extend([w for w, t in pos_tag(wordpunct_tokenize(clean_str(doc))) \
-                if t in expected_types and w.isalpha()])
+    for w, t in pos_tag(wordpunct_tokenize(clean_str(doc))):
+        w = poster.stem(w)
+        if t in expected_types and w.isalpha() and w not in stopwords.words('english'):
+            tokens.append(w)
     return tokens
 
 def reformat(data_path, token_path, ds_path):
@@ -43,15 +50,18 @@ def reformat(data_path, token_path, ds_path):
 
     global_tokens = {}
     with open(data_path) as fd, \
-        open(token_path, 'w+b') as tk, open(ds_path, 'w+') as ds:
+        open(ds_path, 'w+') as ds:
+        #open(token_path, 'w+b') as tk, 
         ds.write("desc,target\n")
         for line in fd:
             line = literal_eval(line.strip())
             if len(line[0]) < MIN_TRAIN_LINE or line[1] is None:
                 continue
             tokens = tokenize_text(line[0])
-            gen_tokens_from_line(tokens, global_tokens, tk)
-            build_dataset_from_line(tokens, int(line[1]), global_tokens, ds)
+            [global_tokens.update({t: len(global_tokens)}) \
+                for t in tokens if t not in global_tokens]
+            #gen_tokens_from_line(tokens, global_tokens, tk)
+            build_dataset_from_line(tokens, int(re.search('\d+', line[1].strip()).group()), global_tokens, ds)
     print("Total tokens: {}".format(len(global_tokens)))
 
 def gen_tokens_from_line(tokens, global_tokens, fd):
@@ -69,8 +79,14 @@ def build_dataset_from_line(tokens, target, global_tokens, fd):
     fd.write(",{}\n".format(target))
 
 
+def load_class_map():
+    chunk = pd.read_csv(NAICS_CODES_PATH, engine='python',
+            header=0, delimiter="#")
+    return chunk.set_index('code').to_dict()
+
 if __name__ == '__main__':
     data_path = "../data/naics/full.txt"
     token_path = "../data/naics/global_tokens.pickle"
     ds_path = "../data/naics/dataset.csv"
-    reformat(data_path, token_path, ds_path)
+#    reformat(data_path, token_path, ds_path)
+    load_class_map()
