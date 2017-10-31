@@ -11,7 +11,7 @@ from data_helper import load_l2table, tokenize_text, extract_xy, train_vocab, lo
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
 from sklearn.utils import shuffle
-from sklearn.feature_extraction.text import HashingVectorizer
+#from sklearn.feature_extraction.text import HashingVectorizer
 import nltk
 import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
 
@@ -25,6 +25,7 @@ class SD(object):
         self.global_tokens = load_global_tokens()
         self.class_map = list(set(self.l2table.values()))
         self.max_doc_len = args.max_doc
+        """
         self.hv = HashingVectorizer(
                 ngram_range=(1,5),
                 stop_words="english",
@@ -32,6 +33,7 @@ class SD(object):
                 tokenizer=nltk.word_tokenize,
                 dtype=np.int32,
                 analyzer='word')
+        """
         """
         self.vocab_path = os.path.join(args.model_dir, "vocab")
         #self.find_bondary()
@@ -66,7 +68,7 @@ class SD(object):
         """
 
         #x = list(self.vocab_processor.fit_transform(text))
-        tokens = tokenize_text(text)
+        #tokens = tokenize_text(text)
         #x = list(self.vocab_processor.fit_transform(
         #    [' '.join(t) for t in tokens]
         #    ))
