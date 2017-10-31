@@ -116,7 +116,7 @@ class Springer(object):
         #self.vocab_size = len(self.sd.vocab_processor.vocabulary_)
         print("total vocab: {}".format(self.vocab_size))
 
-    def _build_model(self):
+    def __build_model(self):
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
 
@@ -163,7 +163,7 @@ class Springer(object):
         self.summary = tf.summary.merge(summary)
         self.saver = tf.train.Saver(tf.global_variables())
 
-    def __build_model(self):
+    def _build_model(self):
 
         # Define model
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
@@ -207,20 +207,18 @@ class Springer(object):
         w = tf.get_variable("w", shape=[filter_comb, self.total_class],
                             initializer=tf.contrib.layers.xavier_initializer())
         b = tf.Variable(tf.constant(0.1, shape=[self.total_class]), name="b")
-        #loss += tf.nn.l2_loss(w) + tf.nn.l2_loss(b)
+        loss += tf.nn.l2_loss(w) + tf.nn.l2_loss(b)
         self.logits = tf.nn.xw_plus_b(self.hidden_dropout, w, b, name="logits")
-        #self.logits = layers.fully_connected(self.hidden_dropout, self.total_class)
         self.pred = tf.argmax(self.logits, 1, name="pred")
 
-        #self.loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y, name="loss")
-        self.loss = tf.losses.sparse_softmax_cross_entropy(self.input_y, self.logits)
-        #self.loss = tf.reduce_mean(losses) + 0.384*loss
+        losses = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y, name="loss")
+        #self.loss = tf.losses.sparse_softmax_cross_entropy(self.input_y, self.logits)
+        self.loss = tf.reduce_mean(losses) + 0.0*loss
 
         corr = tf.equal(self.pred, tf.argmax(self.input_y, 1))
         self.acc = tf.reduce_mean(tf.cast(corr, "float"), name="acc")
 
         self.global_step = tf.Variable(self.init_step, name="global_step", trainable=False)
-        """
         opt = tf.train.AdamOptimizer(self.lr)
         params = opt.compute_gradients(self.loss)
         self.train_op = opt.apply_gradients(
@@ -233,6 +231,7 @@ class Springer(object):
                 #framework.get_global_step(),
                 optimizer="Adam",
                 learning_rate=self.lr)
+        """
         """
         self.train_op = tf.train.AdamOptimizer(self.lr).minimize(
                 self.loss,

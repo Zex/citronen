@@ -9,7 +9,7 @@ from nltk.corpus import stopwords
 import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
 from nltk.tag import pos_tag
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
-from tensorflow.contrib import learn
+#from tensorflow.contrib import learn
 from nltk.stem.porter import PorterStemmer
 
 GLOBAL_TOKENS_PATH = "../data/springer/lang/token_english.pickle"
@@ -190,25 +190,31 @@ def gen_token(data_path, output):
         [global_tokens.update({t: len(global_tokens)}) for t in tokens if t not in global_tokens]
         
         if len(global_tokens) % 100 == 0:
+            print("Total tokens: {}".format(len(global_tokens)))
             with open(output, 'wb') as fd:
                 pickle.dump(global_tokens, fd)
 
-    print("global tokens", len(global_tokens))
+    print("Total tokens: {}".format(len(global_tokens)))
+    with open(output, 'wb') as fd:
+        pickle.dump(global_tokens, fd)
 
 def load_global_tokens():
     with open(GLOBAL_TOKENS_PATH, 'rb') as fd:
         global_tokens = pickle.load(fd)
     return global_tokens
 
-def text2vec(text, global_tokens, max_doc_len=None):
-    x = []
-    tokens = tokenize_text(text)
-    if max_doc_len:
-        [x.append(global_tokens[t]) for t in tokens if t in global_tokens and len(x) < max_doc_len]
-        x.extend([0]*(max_doc_len-len(x)))
-    else:
-        [x.append(global_tokens[t]) for t in tokens if t in global_tokens]
-    return x
+def text2vec(docs, global_tokens, max_doc_len=None):
+    ret = []
+    for text in docs:
+        x = []
+        tokens = tokenize_text(text)
+        if max_doc_len:
+            [x.append(global_tokens[t]) for t in tokens if t in global_tokens and len(x) < max_doc_len]
+            x.extend([0]*(max_doc_len-len(x)))
+        else:
+            [x.append(global_tokens[t]) for t in tokens if t in global_tokens]
+        ret.append(x)
+    return ret
 
 
 if __name__ == "__main__":

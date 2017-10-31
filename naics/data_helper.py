@@ -63,7 +63,7 @@ def reformat(data_path, token_path, ds_path):
             #[global_tokens.update({t: len(global_tokens)}) \
             #    for t in tokens if t not in global_tokens]
             #build_dataset_from_line(tokens, int(re.search('\d+', line[1].strip()).group()), global_tokens, ds)
-    print("Total tokens: {}".format(len(global_tokens)))
+    gen_tokens_from_line([], global_tokens, token_path)
 
 def gen_tokens_from_line(tokens, global_tokens, token_path):
     [global_tokens.update({t: len(global_tokens)}) \
