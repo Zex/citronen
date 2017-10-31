@@ -21,29 +21,23 @@ class SD(object):
     def __init__(self, args):
         self.data_path = args.data_path
         self.batch_size = args.batch_size
-        self.class_map = load_class_map()
+        self.class_map = list(load_class_map().keys())
         self.max_doc_len = args.max_doc
 
     def gen_data(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
-            delimiter=",", chunksize=self.batch_size)
+                delimiter=",", chunksize=self.batch_size, dtype={"target":int})
         for chunk in reader:
-            yield self.process_chunk(chunk)
+            yield self.process_chunk(chunk["desc"], None, chunk["target"])
 
     def process_chunk(self, text, label1, label):
-        """
-        np.random.seed(17)
-        indices = np.random.permutation(np.arange(len(label)))
-        text = text[indices]#.tolist()
-        label = label[indices]#.tolist()
-        """
-        print(x)
+        x = text.apply(lambda x: [int(i) for i in x.split()])
         y = []
-        for l in label:
+        for l in label.values:
             one = np.zeros(len(self.class_map))
-            one[self.class_map.index(l)] = 1.
+            one[self.class_map.index(int(str(l)[:3]))] = 1.
             y.append(one)
-        return x, np.array(y)
+        return x, y
 
 
 class Naics(object):
@@ -76,11 +70,11 @@ class Naics(object):
         self.log_path = os.path.join(self.model_dir, "log")
         if not os.path.isdir(self.log_path):
             os.makedirs(self.log_path)
-        self.vocab_size = 5000 #len(self.sd.global_tokens)
+        self.vocab_size = 2000 #len(self.sd.global_tokens)
         #self.vocab_size = len(self.sd.vocab_processor.vocabulary_)
         print("total vocab: {}".format(self.vocab_size))
 
-    def _build_model(self):
+    def __build_model(self):
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
 
@@ -127,7 +121,7 @@ class Naics(object):
         self.summary = tf.summary.merge(summary)
         self.saver = tf.train.Saver(tf.global_variables())
 
-    def __build_model(self):
+    def _build_model(self):
 
         # Define model
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")

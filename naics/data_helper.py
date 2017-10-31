@@ -50,26 +50,28 @@ def reformat(data_path, token_path, ds_path):
             os.makedirs(os.path.dirname(p))
 
     global_tokens = {}
-    with open(data_path) as fd, \
-        open(ds_path, 'w+') as ds:
-        #open(token_path, 'w+b') as tk, 
-        ds.write("desc,target\n")
+    with open(data_path) as fd:
+        #open(ds_path, 'w+') as ds:
+        #ds.write("desc,target\n")
         for line in fd:
             line = literal_eval(line.strip())
             if len(line[0]) < MIN_TRAIN_LINE or line[1] is None:
                 continue
             tokens = tokenize_text(line[0])
-            [global_tokens.update({t: len(global_tokens)}) \
-                for t in tokens if t not in global_tokens]
-            #gen_tokens_from_line(tokens, global_tokens, tk)
-            build_dataset_from_line(tokens, int(re.search('\d+', line[1].strip()).group()), global_tokens, ds)
+            gen_tokens_from_line(tokens, global_tokens, token_path)
+
+            #[global_tokens.update({t: len(global_tokens)}) \
+            #    for t in tokens if t not in global_tokens]
+            #build_dataset_from_line(tokens, int(re.search('\d+', line[1].strip()).group()), global_tokens, ds)
     print("Total tokens: {}".format(len(global_tokens)))
 
-def gen_tokens_from_line(tokens, global_tokens, fd):
+def gen_tokens_from_line(tokens, global_tokens, token_path):
     [global_tokens.update({t: len(global_tokens)}) \
             for t in tokens if t not in global_tokens]
-    if len(global_tokens) % 128:
-        pickle.dump(global_tokens, fd)
+    if len(global_tokens) % 100 == 0:
+        print("Total tokens: {}".format(len(global_tokens)))
+        with open(token_path, 'wb') as fd:
+            pickle.dump(global_tokens, fd)
 
 def build_dataset_from_line(tokens, target, global_tokens, fd):
     for i, t in enumerate(tokens):
@@ -89,5 +91,5 @@ if __name__ == '__main__':
     data_path = "../data/naics/full.txt"
     token_path = "../data/naics/global_tokens.pickle"
     ds_path = "../data/naics/dataset.csv"
-#    reformat(data_path, token_path, ds_path)
-    load_class_map()
+    reformat(data_path, token_path, token_path)
+#    load_class_map()

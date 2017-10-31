@@ -7,7 +7,7 @@ import argparse
 from datetime import datetime
 import numpy as np
 import pandas as pd
-from data_helper import load_l2table, tokenize_text, extract_xy, train_vocab, load_global_tokens
+from data_helper import load_l2table, tokenize_text, extract_xy, train_vocab, load_global_tokens, text2vec
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
 from sklearn.utils import shuffle
@@ -71,8 +71,7 @@ class SD(object):
         #    [' '.join(t) for t in tokens]
         #    ))
         #x = self.hv.transform(text).toarray()#[' '.join(t) for t in tokens]).toarray()
-        x = text2vec(text, self.l2table, self.global_tokens)
-        print(x)
+        x = text2vec(text, self.global_tokens, self.max_doc_len)
         y = []
         for l in label:
             one = np.zeros(len(self.class_map))

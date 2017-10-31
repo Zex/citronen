@@ -200,11 +200,14 @@ def load_global_tokens():
         global_tokens = pickle.load(fd)
     return global_tokens
 
-def text2vec(chunk, l2_table, global_tokens):
+def text2vec(text, global_tokens, max_doc_len=None):
     x = []
-    text, _, l2 = extract_xy(chunk, l2table=l2_table)
     tokens = tokenize_text(text)
-    [x.append(global_tokens[t]) for t in text if t in global_tokens]
+    if max_doc_len:
+        [x.append(global_tokens[t]) for t in tokens if t in global_tokens and len(x) < max_doc_len]
+        x.extend([0]*(max_doc_len-len(x)))
+    else:
+        [x.append(global_tokens[t]) for t in tokens if t in global_tokens]
     return x
 
 
