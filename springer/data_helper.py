@@ -177,13 +177,17 @@ def gen_token(data_path, output):
     l2_table = load_l2table()
     global_tokens = {}
 
+    if not os.path.dirname(output):
+        os.makedirs(os.path.dirname(output))
+
     for chunk in reader:
         text, _, l2 = extract_xy(chunk, l2table=l2_table)
         tokens = tokenize_text(text)
         [global_tokens.update({t: len(global_tokens)}) for t in tokens if t not in global_tokens]
 
-    with open(output, "w+b") as fd:
-        pickle.dump(fd, global_tokens)
+        if len(global_tokens) % 100 == 0:
+            with open(output, 'w+b') as fd:
+                pickle.dump(global_tokens, fd)
 
     print("global tokens", len(global_tokens))
 
