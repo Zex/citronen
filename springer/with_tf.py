@@ -54,7 +54,6 @@ class SD(object):
             tokens = tokenize_text(text)
             self.max_doc = \
                     np.max([self.max_doc, np.max([len(t) for t in tokens])])
-        print("max doc len: {}".format(self.max_doc))
 
     def batch_data(self):
         total_batch = int((len(self.x)-1)/self.batch_size)+1
@@ -66,29 +65,19 @@ class SD(object):
 
     def load_data(self):
         chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
+        chunk = shuffle(chunk)
         return self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
 
     def gen_data(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
             delimiter="###", chunksize=self.batch_size)
         for chunk in reader:
+            chunk = shuffle(chunk)
             yield self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
 
     def process_chunk(self, text, label1, label):
-        """
-        np.random.seed(17)
-        indices = np.random.permutation(np.arange(len(label)))
-        text = text[indices]#.tolist()
-        label = label[indices]#.tolist()
-        """
-
         x = np.array(list(self.vocab_processor.fit_transform(text)))
-        #tokens = tokenize_text(text)
-        #x = list(self.vocab_processor.fit_transform(
-        #    [' '.join(t) for t in tokens]
-        #    ))
         #x = self.hv.transform(text).toarray()#[' '.join(t) for t in tokens]).toarray()
-        #x = text2vec(text, self.global_tokens, self.max_doc)
         y = []
         for l in label:
             one = np.zeros(len(self.class_map))
@@ -132,6 +121,7 @@ class Springer(object):
         print("total vocab: {}".format(self.vocab_size))
 
     def __build_model(self):
+        # Define model
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
 
@@ -147,9 +137,6 @@ class Springer(object):
                 cell=self.rnn_unit, inputs=words,
                 dtype=tf.float32)
         # calc logits
-        #w1 = tf.get_variable("w1", [self.embed_dim, self.total_class])
-        #b1 = tf.get_variable("b1", [self.total_class])
-        #self.logits = tf.matmul(state[0], w1) + b1 
         self.logits = tf.layers.dense(encoding, self.total_class, activation=None)
 
         self.pred = tf.nn.softmax(self.logits)
@@ -168,10 +155,6 @@ class Springer(object):
         self.global_step = tf.Variable(self.init_step, trainable=False)
 
         summary = []
-        #for v in tf.trainable_variables():
-        #    summary.append(tf.summary.histogram(v.name, v))
-        #    summary.append(tf.summary.scalar(v.name, tf.nn.zero_fraction(v)))
-
         summary.append(tf.summary.scalar("loss", self.loss))
         summary.append(tf.summary.scalar("acc", self.acc))
 
@@ -179,7 +162,6 @@ class Springer(object):
         self.saver = tf.train.Saver(tf.global_variables())
 
     def _build_model(self):
-
         # Define model
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
