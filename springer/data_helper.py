@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # Data helper 
-import pandas as pd
 import os
 import re
 import pickle
+import pandas as pd
 from nltk import wordpunct_tokenize
 from nltk.corpus import stopwords
+# Use the correct path if not the default ones
 import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
 from nltk.tag import pos_tag
+from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
 from tensorflow.contrib import learn
-from nltk.stem.porter import PorterStemmer
 
 GLOBAL_TOKENS_PATH = "../data/springer/lang/token_english.pickle"
 L1_TABLE_PATH = "../data/springer/l1_table.pickle"
@@ -75,7 +76,7 @@ def extract_xy(chunk, l1table=None, l2table=None):
     label2 = chunk["subcate"]
     return text, label1, label2
 
-def clean_lang(data_path):
+def clean_lang(data_path, output_dir):
     reader = pd.read_csv(data_path, engine='python', header=0, 
         delimiter="###", chunksize=1)
 
@@ -84,7 +85,7 @@ def clean_lang(data_path):
         text, l1, l2 = text.values[0], l1.values[0], l2.values[0]
         ratio = guess_lang(text)
         lang = max(ratio, key=ratio.get)
-        output = "../data/springer/lang/{}.csv".format(lang)
+        output = "{}/{}.csv".format(output_dir, lang)
         df = pd.DataFrame({"desc":[text],"cate":[l1],"subcate":[l2]})
 
         if not os.path.isfile(output):
@@ -132,30 +133,6 @@ def train_vocab(data_path, vocab_path=None, max_doc_len=50000):
         vocab_processor.save(vocab_path)
     return vocab_processor
 
-class VocabProcessor(object):
-
-    def __init__(self, max_document_length, min_frequency=0):
-        self.max_document_length = max_document_length
-        self.min_frequency = min_frequence
-
-    def fit(self, raw_documents, unused_y=None):
-        for tokens in self._tokenizer(raw_documents):
-            for token in tokens:
-                self.vocabulary_.add(token)
-        if self.min_frequency > 0:
-            self.vocabulary_.trim(self.min_frequency)
-        #self.vocabulary_.freeze()
-        return self
-    
-    def transform(self, raw_documents):
-        for tokens in self._tokenizer(raw_documents):
-            word_ids = np.zeros(self.max_document_length, np.int64)
-            for idx, token in enumerate(tokens):
-                if idx >= self.max_document_length:
-                    break
-                word_ids[idx] = self.vocabulary_.get(token)
-            yield word_ids
-
 def clean_str(string):
     string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
     string = re.sub(r"\'s", " \'s", string)
@@ -177,7 +154,7 @@ def gen_token(data_path, output):
     reader = pd.read_csv(data_path, engine="python", 
             header=0, delimiter="###", chunksize=chunksize)
 
-    l2_table = load_l2table()
+    l2_table = from_persist(L2_TABLE_PATH)
     global_tokens = {}
 
     if not os.path.dirname(output):
@@ -215,18 +192,63 @@ def text2vec(docs, global_tokens, max_doc_len=None):
         ret.append(x)
     return ret
 
+"""
+class TinyVocab(object):
+
+    def __init__(self, max_document_length, min_frequency=0):
+        self.max_document_length = max_document_length
+        self.min_frequency = min_frequence
+
+    def fit(self, raw_documents, unused_y=None):
+        for tokens in self._tokenizer(raw_documents):
+            for token in tokens:
+                self.vocabulary_.add(token)
+        if self.min_frequency > 0:
+            self.vocabulary_.trim(self.min_frequency)
+        #self.vocabulary_.freeze()
+        return self
+    
+    def transform(self, raw_documents):
+        for tokens in self._tokenizer(raw_documents):
+            word_ids = np.zeros(self.max_document_length, np.int64)
+            for idx, token in enumerate(tokens):
+                if idx >= self.max_document_length:
+                    break
+                word_ids[idx] = self.vocabulary_.get(token)
+            yield word_ids
+"""
+
+def init():
+    parser = ArgumentParser()
+    parser.add_argument('--data_path', default="../data/springer/full.csv",
+            type=str, help='Path to input data')
+    parser.add_argument('--output_dir', default="../data/springer/lang",
+            type=str, help='Path to output directory')
+    parser.add_argument('--table', default=False,
+            action="store_true", help='Generate L1/L2 table from data')
+    parser.add_argument('--clean_lang', default=False,
+            action="store_true", help="Filter data by language")
+    parser.add_argument('--gen_token', default=False,
+            action="store_true", help="Filter data by language")
+    parser.add_argument('--load_table', default=False,
+            action="store_true", help='Load L1/L2 table from path')
+
+    args = parser.parse_args()
+    return args
+
+def start():
+    args = init()
+    if args.table:
+        encode()
+    if args.clean_lang:
+        clean_lang(args.data_path, args.output_dir)
+    if args.gen_token:
+        gen_token(args.data_path, GLOBAL_TOKENS_PATH)
+    if args.load_table:
+        table = from_persist(args.data_path)
+        print(len(table))
 
 if __name__ == "__main__":
-    """
-    print(len(l1_table), len(l2_table))
-    l2_table = load_l2table()
-    tokens = wordpunct_tokenize(text)
-    words = [word.lower() for word in tokens]
-    """
-    data_path = "../data/springer/full.csv"
-    data_path = "../data/springer/lang/english.csv"
-    gen_token(data_path, GLOBAL_TOKENS_PATH)
-#    simple_encode(data_path)
-#    clean_lang(data_path)
-
+    from argparse import ArgumentParser
+    start()
 
