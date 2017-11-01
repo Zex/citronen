@@ -205,8 +205,10 @@ class Springer(object):
         self.logits = tf.nn.xw_plus_b(self.hidden_dropout, w, b, name="logits")
         self.pred = tf.argmax(self.logits, 1, name="pred")
 
-        losses = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y, name="loss")
-        self.loss = tf.reduce_mean(losses) + 0.0*loss
+        self.loss = tf.reduce_mean(
+                tf.nn.softmax_cross_entropy_with_logits(
+                    logits=self.logits, labels=self.input_y, name="loss")
+                )
 
         corr = tf.equal(self.pred, tf.argmax(self.input_y, 1))
         self.acc = tf.reduce_mean(tf.cast(corr, "float"), name="acc_{}".format(0))
