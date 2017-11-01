@@ -2,6 +2,6 @@
 export TF_CPP_MIN_LOG_LEVEL=2
 python3 with_tf.py \
   --data_path ../data/springer/lang/mini_english.csv \
-  --model_dir ../models/springer_rnn \
-  --max_doc 20 \
+  --model_dir ../models/springer_cnn \
+  --max_doc 50 \
   --batch_size 128

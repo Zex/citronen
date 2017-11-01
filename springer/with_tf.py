@@ -21,37 +21,52 @@ class SD(object):
     def __init__(self, args):
         self.data_path = args.data_path
         self.batch_size = args.batch_size
+        self.epochs = args.epochs
         self.l2table = load_l2table()
         self.global_tokens = load_global_tokens()
         self.class_map = list(set(self.l2table.values()))
-        self.max_doc_len = args.max_doc
+        self.max_doc = args.max_doc
         """
         self.hv = HashingVectorizer(
                 ngram_range=(1,5),
                 stop_words="english",
-                n_features=self.max_doc_len,
+                n_features=self.max_doc,
                 tokenizer=nltk.word_tokenize,
                 dtype=np.int32,
                 analyzer='word')
         """
-        """
         self.vocab_path = os.path.join(args.model_dir, "vocab")
         #self.find_bondary()
-        if os.path.isfile(self.vocab_path):
-            self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc_len)
-            self.vocab_processor.restore(self.vocab_path)
-        else:
-            self.vocab_processor = train_vocab(self.data_path, self.vocab_path)
-        """
+        #if os.path.isfile(self.vocab_path):
+        if True:
+            self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc)
+            self.x, self.y = self.load_data()
+#            self.vocab_processor.restore(self.vocab_path)
+#        else:
+#            self.vocab_processor = train_vocab(self.data_path, self.vocab_path)
+        print("Max document length: {}".format(self.max_doc))
+
     def find_bondary(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
             delimiter="###", chunksize=self.batch_size)
         for chunk in reader:
             text, _, _ = extract_xy(chunk)
             tokens = tokenize_text(text)
-            self.max_doc_len = \
-                    np.max([self.max_doc_len, np.max([len(t) for t in tokens])])
-        print("max doc len: {}".format(self.max_doc_len))
+            self.max_doc = \
+                    np.max([self.max_doc, np.max([len(t) for t in tokens])])
+        print("max doc len: {}".format(self.max_doc))
+
+    def batch_data(self):
+        total_batch = int((len(self.x)-1)/self.batch_size)+1
+        print("Total batch: {}".format(total_batch))
+        for i in range(total_batch):
+            current = i * self.batch_size
+            yield self.x[current:current+self.batch_size+1], \
+                        self.y[current:current+self.batch_size+1]
+
+    def load_data(self):
+        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
+        return self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
 
     def gen_data(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
@@ -67,13 +82,13 @@ class SD(object):
         label = label[indices]#.tolist()
         """
 
-        #x = list(self.vocab_processor.fit_transform(text))
+        x = np.array(list(self.vocab_processor.fit_transform(text)))
         #tokens = tokenize_text(text)
         #x = list(self.vocab_processor.fit_transform(
         #    [' '.join(t) for t in tokens]
         #    ))
         #x = self.hv.transform(text).toarray()#[' '.join(t) for t in tokens]).toarray()
-        x = text2vec(text, self.global_tokens, self.max_doc_len)
+        #x = text2vec(text, self.global_tokens, self.max_doc)
         y = []
         for l in label:
             one = np.zeros(len(self.class_map))
@@ -99,7 +114,7 @@ class Springer(object):
 
         # Model args
         self.total_class = len(self.sd.class_map)
-        self.seqlen = self.sd.max_doc_len
+        self.seqlen = self.sd.max_doc
         self.embed_dim = 128 
         self.total_filters = 128
         self.total_layer = 5
@@ -112,15 +127,15 @@ class Springer(object):
         self.log_path = os.path.join(self.model_dir, "log")
         if not os.path.isdir(self.log_path):
             os.makedirs(self.log_path)
-        self.vocab_size = len(self.sd.global_tokens)
-        #self.vocab_size = len(self.sd.vocab_processor.vocabulary_)
+        #self.vocab_size = len(self.sd.global_tokens)
+        self.vocab_size = len(self.sd.vocab_processor.vocabulary_)
         print("total vocab: {}".format(self.vocab_size))
 
     def __build_model(self):
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
 
-        w = tf.get_variable("w_e", [self.sd.max_doc_len, self.embed_dim])
+        w = tf.get_variable("w_e", [self.seqlen, self.embed_dim])
         #self.embed = tf.nn.embedding_lookup(w, self.input_x)
         self.embed = layers.embed_sequence(self.input_x, vocab_size=self.vocab_size, embed_dim=self.embed_dim)
         #self.rnn_unit = tf.nn.rnn_cell.DropoutWrapper(
@@ -169,33 +184,30 @@ class Springer(object):
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
 
-        loss = tf.constant(0.0)
-
-        self.w = tf.Variable(tf.random_uniform([self.vocab_size+1, self.embed_dim], -1.0, 1.0), name="w_em")
-        self.embed_chars = tf.nn.embedding_lookup(self.w, self.input_x)
+        self.w_em = tf.Variable(
+                tf.random_uniform(
+                    [self.vocab_size, self.embed_dim], -1.0, 1.0), 
+                name="w_em_{}".format(0))
+        self.embed_chars = tf.nn.embedding_lookup(self.w_em, self.input_x)
         self.embed = tf.expand_dims(self.embed_chars, -1)
-        #self.embed = tf.contrib.layers.embed_sequence(
-        #    self.input_x,
-        #    vocab_size=self.vocab_size,
-        #    embed_dim=self.embed_dim)
 
         self.pools = []
 
         for i, filter_sz in enumerate(self.filter_sizes):
             filter_shape = [filter_sz, self.embed_dim, 1, self.total_filters]
-            w = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="w")
-            b = tf.Variable(tf.constant(0.1, shape=[self.total_filters]), name="b")
+            w = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="w_{}".format(i))
+            b = tf.Variable(tf.constant(0.1, shape=[self.total_filters]), name="b_{}".format(i))
             conv = tf.nn.conv2d(self.embed,
                                 w,
                                 strides=[1, 1, 1, 1],
                                 padding="VALID",
-                                name="conv")
-            hidden = tf.nn.relu(tf.nn.bias_add(conv, b), name="hidden")
+                                name="conv_{}".format(i))
+            hidden = tf.nn.relu(tf.nn.bias_add(conv, b), name="hidden_{}".format(i))
             pool = tf.nn.max_pool(hidden,
                                 ksize=[1, self.seqlen-filter_sz+1, 1, 1],
                                 strides=[1, 1, 1, 1],
                                 padding="VALID",
-                                name="pool")
+                                name="pool_{}".format(i))
             self.pools.append(pool)
         
         filter_comb = self.total_filters * len(self.filter_sizes)
@@ -207,16 +219,15 @@ class Springer(object):
         w = tf.get_variable("w", shape=[filter_comb, self.total_class],
                             initializer=tf.contrib.layers.xavier_initializer())
         b = tf.Variable(tf.constant(0.1, shape=[self.total_class]), name="b")
-        loss += tf.nn.l2_loss(w) + tf.nn.l2_loss(b)
+        loss = tf.nn.l2_loss(w) + tf.nn.l2_loss(b)
         self.logits = tf.nn.xw_plus_b(self.hidden_dropout, w, b, name="logits")
         self.pred = tf.argmax(self.logits, 1, name="pred")
 
         losses = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y, name="loss")
-        #self.loss = tf.losses.sparse_softmax_cross_entropy(self.input_y, self.logits)
         self.loss = tf.reduce_mean(losses) + 0.0*loss
 
         corr = tf.equal(self.pred, tf.argmax(self.input_y, 1))
-        self.acc = tf.reduce_mean(tf.cast(corr, "float"), name="acc")
+        self.acc = tf.reduce_mean(tf.cast(corr, "float"), name="acc_{}".format(0))
 
         self.global_step = tf.Variable(self.init_step, name="global_step", trainable=False)
         opt = tf.train.AdamOptimizer(self.lr)
@@ -260,7 +271,8 @@ class Springer(object):
                         global_step=tf.train.global_step(sess, self.global_step))
 
     def foreach_epoch(self, sess):
-        for i, (x, y) in enumerate(self.sd.gen_data()):
+        # for x, y in self.sd.gen_data():
+        for x, y in self.sd.batch_data():
             _, step, summ, loss, acc, pred = sess.run(
                     [self.train_op, self.global_step, self.summary, \
                             self.loss, self.acc, self.pred],

@@ -1,1 +1,1 @@
-tensorboard --logdir=`pwd`/../models/springer_rnn/log
+tensorboard --logdir=`pwd`/../models/springer_cnn/log

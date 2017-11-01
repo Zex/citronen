@@ -9,7 +9,7 @@ from nltk.corpus import stopwords
 import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
 from nltk.tag import pos_tag
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
-#from tensorflow.contrib import learn
+from tensorflow.contrib import learn
 from nltk.stem.porter import PorterStemmer
 
 GLOBAL_TOKENS_PATH = "../data/springer/lang/token_english.pickle"
@@ -124,7 +124,6 @@ def train_vocab(data_path, vocab_path=None, max_doc_len=50000):
         tokens = tokenize_text(text)
         vocab_processor.fit([' '.join(t) for t in tokens])
         print("vocab size", len(vocab_processor.vocabulary_))
-        break
 
     if vocab_path:
         dirpath = os.path.dirname(vocab_path)
