@@ -104,10 +104,11 @@ class Springer(object):
         self.filter_sizes = [3, 5]
 
         self.prepare_dir()
-        self._build_model()
 
     def prepare_dir(self):
-        self.log_path = os.path.join(self.model_dir, "log")
+        self.log_path = os.path.join(
+                self.model_dir, 
+                "log_{}th".format(datetime.today().timetuple().tm_yday))
         if not os.path.isdir(self.log_path):
             os.makedirs(self.log_path)
         #self.vocab_size = len(self.sd.global_tokens)
@@ -159,8 +160,7 @@ class Springer(object):
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
 
-        self.w_em = tf.Variable(
-                tf.random_uniform(
+        self.w_em = tf.Variable(tf.random_uniform(
                     [self.vocab_size, self.embed_dim], -1.0, 1.0), 
                 name="w_em_{}".format(0))
         self.embed_chars = tf.nn.embedding_lookup(self.w_em, self.input_x)
@@ -194,24 +194,26 @@ class Springer(object):
         w = tf.get_variable("w", shape=[filter_comb, self.total_class],
                             initializer=tf.contrib.layers.xavier_initializer())
         b = tf.Variable(tf.constant(0.1, shape=[self.total_class]), name="b")
-        loss = tf.nn.l2_loss(w) + tf.nn.l2_loss(b)
+        #loss = tf.nn.l2_loss(w) + tf.nn.l2_loss(b)
         self.logits = tf.nn.xw_plus_b(self.hidden_dropout, w, b, name="logits")
         self.pred = tf.argmax(self.logits, 1, name="pred")
 
         self.loss = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(
-                    logits=self.logits, labels=self.input_y, name="loss")
+                    logits=self.logits, labels=self.input_y),
+                name="loss"
                 )
 
-        corr = tf.equal(self.pred, tf.argmax(self.input_y, 1))
-        self.acc = tf.reduce_mean(tf.cast(corr, "float"), name="acc_{}".format(0))
+        corr = tf.equal(self.pred, tf.argmax(self.input_y, 1), name="corr")
+        self.acc = tf.reduce_mean(tf.cast(corr, "float"), name="acc")
 
         self.global_step = tf.Variable(self.init_step, name="global_step", trainable=False)
         opt = tf.train.AdamOptimizer(self.lr)
         params = opt.compute_gradients(self.loss)
         self.train_op = opt.apply_gradients(
                 params,
-                global_step=self.global_step)
+                global_step=self.global_step,
+                name="train_op")
         """
         self.train_op = layers.optimize_loss(
                 self.loss,
@@ -235,7 +237,7 @@ class Springer(object):
         summary.append(tf.summary.scalar("loss", self.loss))
         summary.append(tf.summary.scalar("acc", self.acc))
 
-        self.summary = tf.summary.merge(summary)
+        self.summary = tf.summary.merge(summary, name="merge_summary")
 
     def _restore_model(self, sess):
         if not self.graph_path:
@@ -249,15 +251,31 @@ class Springer(object):
                 tf.get_collection(tf.GraphKeys.SAVEABLE_OBJECTS)
         print("Found {} variables".format(len(global_vars)))
 
+        self.input_x = graph.get_tensor_by_name("input_x:0")
+        self.input_y = graph.get_tensor_by_name("input_y:0")
+        self.global_step = graph.get_tensor_by_name("global_step:0")
+        self.loss = tf.reduce_mean(graph.get_tensor_by_name("loss:0"))
+        self.acc = graph.get_tensor_by_name("acc_1:0")
+        self.pred = graph.get_tensor_by_name("pred:0")
+
+        self.train_op = graph.get_tensor_by_name("Adam/update").op
+        self.summary = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES))
+
+
     def run(self):
         with tf.Session() as sess:
             if self.restore:
                 metas = sorted(glob.glob("{}-*meta".format(self.model_dir)), key=os.path.getmtime)
                 self.graph_path = metas[-1] if metas else None
                 self._restore_model(sess) 
+            else:
+                self._build_model()
 
             if self.mode == Springer.Modes[2]:
                 self.foreach_epoch(sess)
+            elif self.mode == Springer.Modes[1]:
+                self.epochs = 1
+                self.foreach_train(sess)
             else:
                 self.foreach_train(sess)
 
@@ -277,7 +295,7 @@ class Springer(object):
                     self.input_x: x,
                     self.input_y: y,
             }
-            if self.mode == Springer.Modes[2]:
+            if self.mode == Springer.Modes[2]: # predict
                 pred = sess.run([self.pred], feed_dict=feed_dict)
                 [print("[{}/{}] iid: {} l1: {} l2: {}".format(
                     self.mode, datetime.now(),
@@ -287,14 +305,22 @@ class Springer(object):
                         l2table=self.sd.l2table,
                         class_map=self.sd.class_map
                         )), flush=True) for p in np.squeeze(pred)]
-            else:
+            elif self.mode == Springer.Modes[1]: # evaluate
+                summ, loss, acc, pred = sess.run(
+                    [self.summary, self.loss, self.acc, self.pred],
+                    feed_dict=feed_dict)
+                self.summary_writer.add_summary(summ, step)
+                print("[{}/{}] loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
+                    self.mode, datetime.now(), loss, acc, pred, np.argmax(y, 1)), flush=True)
+            else: # train
                 _, step, summ, loss, acc, pred = sess.run(
                     [self.train_op, self.global_step, self.summary, \
                             self.loss, self.acc, self.pred],
                     feed_dict=feed_dict)
                 self.summary_writer.add_summary(summ, step)
-                print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
-                    self.mode, datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
+                if step % 100 == 0:
+                    print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
+                        self.mode, datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
 
 
 def init():
