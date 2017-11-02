@@ -318,7 +318,7 @@ class Springer(object):
                             self.loss, self.acc, self.pred],
                     feed_dict=feed_dict)
                 self.summary_writer.add_summary(summ, step)
-                if step % 100 == 0:
+                if step % 1000 == 0:
                     print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
                         self.mode, datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
 
