@@ -26,7 +26,7 @@ class SD(object):
         self.class_map = list(set(self.l2table.values()))
         self.max_doc = args.max_doc
         self.vocab_path = os.path.join(args.model_dir, "vocab")
-#       self.hv = get_hashing_vec(self.max_doc, "english")        
+#       self.hv = get_hashing_vec(self.max_doc, "english")
 #       self.find_bondary()
 #       if os.path.isfile(self.vocab_path):
         if True:
@@ -38,7 +38,7 @@ class SD(object):
         print("Max document length: {}".format(self.max_doc))
 
     def find_bondary(self):
-        reader = pd.read_csv(self.data_path, engine='python', header=0, 
+        reader = pd.read_csv(self.data_path, engine='python', header=0,
             delimiter="###", chunksize=self.batch_size)
         for chunk in reader:
             text, _, _ = extract_xy(chunk)
@@ -60,7 +60,7 @@ class SD(object):
         return self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
 
     def gen_data(self):
-        reader = pd.read_csv(self.data_path, engine='python', header=0, 
+        reader = pd.read_csv(self.data_path, engine='python', header=0,
             delimiter="###", chunksize=self.batch_size)
         for chunk in reader:
             chunk = shuffle(chunk)
@@ -98,7 +98,7 @@ class Springer(object):
         # Model args
         self.total_class = len(self.sd.class_map)
         self.seqlen = self.sd.max_doc
-        self.embed_dim = 128 
+        self.embed_dim = 128
         self.total_filters = 128
         self.total_layer = 5
         self.filter_sizes = [3, 5]
@@ -107,7 +107,7 @@ class Springer(object):
 
     def prepare_dir(self):
         self.log_path = os.path.join(
-                self.model_dir, 
+                self.model_dir,
                 "log_{}th".format(datetime.today().timetuple().tm_yday))
         if not os.path.isdir(self.log_path):
             os.makedirs(self.log_path)
@@ -161,7 +161,7 @@ class Springer(object):
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
 
         self.w_em = tf.Variable(tf.random_uniform(
-                    [self.vocab_size, self.embed_dim], -1.0, 1.0), 
+                    [self.vocab_size, self.embed_dim], -1.0, 1.0),
                 name="w_em_{}".format(0))
         self.embed_chars = tf.nn.embedding_lookup(self.w_em, self.input_x)
         self.embed = tf.expand_dims(self.embed_chars, -1)
@@ -184,7 +184,7 @@ class Springer(object):
                                 padding="VALID",
                                 name="pool_{}".format(i))
             self.pools.append(pool)
-        
+
         filter_comb = self.total_filters * len(self.filter_sizes)
         self.hidden_pool = tf.concat(self.pools, 3)
         self.hidden_flat = tf.reshape(self.hidden_pool, [-1, filter_comb])
@@ -267,7 +267,7 @@ class Springer(object):
             if self.restore:
                 metas = sorted(glob.glob("{}-*meta".format(self.model_dir)), key=os.path.getmtime)
                 self.graph_path = metas[-1] if metas else None
-                self._restore_model(sess) 
+                self._restore_model(sess)
             else:
                 self._build_model()
 
@@ -301,7 +301,7 @@ class Springer(object):
                     self.mode, datetime.now(),
                     *level_decode(
                         p,
-                        l1table=self.sd.l1table, 
+                        l1table=self.sd.l1table,
                         l2table=self.sd.l2table,
                         class_map=self.sd.class_map
                         )), flush=True) for p in np.squeeze(pred)]
