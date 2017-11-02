@@ -31,8 +31,9 @@ def from_persist(path):
         ret = pickle.load(fd)
     return ret
 
-def encode(data_path):
-
+def level_encode(data_path):
+    """Encode L1/L2
+    """
     def assign_l1(cate):
         #cate = cate.replace("\\/", "/").replace("\/", "/")
         if cate not in l1_table:
@@ -56,6 +57,19 @@ def encode(data_path):
     for chunk in reader:
         chunk.apply(lambda x: assign_l2(x["cate"], x["subcate"]), axis=1)
     persist(l2_table, L2_TABLE_PATH)
+
+def level_decode(index, l1table=None, l2table=None, class_map=None):
+    """Reversed index L1/L2 from class map
+    """
+    iid, l1name, l2name = None, None, None
+    if l2table:
+        if not class_map:
+            class_map = list(set(l2table.values()))
+        iid = class_map[index]
+        l2name = dict(map(reversed, l2table.items())).get(iid)
+        if l1table:
+            l1name = dict(map(reversed, l1table.items())).get(iid//0x1000*0x1000)
+    return iid, l1name, l2name
 
 def load_l2table():
     return from_persist(L2_TABLE_PATH)
@@ -179,6 +193,15 @@ def load_global_tokens():
         global_tokens = pickle.load(fd)
     return global_tokens
 
+def get_hashing_vec(max_doc=5000, stop_words="english"):
+    return HashingVectorizer(
+                ngram_range=(1,5),
+                stop_words=stop_words,
+                n_features=self.max_doc,
+                tokenizer=nltk.word_tokenize,
+                dtype=np.int32,
+                analyzer='word')
+
 def text2vec(docs, global_tokens, max_doc_len=None):
     ret = []
     for text in docs:
@@ -239,7 +262,7 @@ def init():
 def start():
     args = init()
     if args.table:
-        encode()
+        level_encode()
     if args.clean_lang:
         clean_lang(args.data_path, args.output_dir)
     if args.gen_token:

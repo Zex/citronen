@@ -1,43 +1,34 @@
 #!/usr/bin/env python3
 # Text classification with TF
 # Author: Zex Li <top_zlynch@yahoo.com>
-import os
-import re
+import os, sys, re, glob
 import argparse
 from datetime import datetime
 import numpy as np
 import pandas as pd
-from data_helper import load_l2table, tokenize_text, extract_xy, train_vocab, load_global_tokens, text2vec
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
 from sklearn.utils import shuffle
-#from sklearn.feature_extraction.text import HashingVectorizer
-import nltk
-import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
+from data_helper import load_l2table, load_l1table, tokenize_text, extract_xy
+from data_helper import train_vocab, load_global_tokens, level_decode
 
 
 class SD(object):
-
+    """Help prepare data for training, validation and prediction"""
     def __init__(self, args):
+        super(SD, self).__init__()
         self.data_path = args.data_path
         self.batch_size = args.batch_size
         self.epochs = args.epochs
+        self.l1table = load_l1table()
         self.l2table = load_l2table()
         self.global_tokens = load_global_tokens()
         self.class_map = list(set(self.l2table.values()))
         self.max_doc = args.max_doc
-        """
-        self.hv = HashingVectorizer(
-                ngram_range=(1,5),
-                stop_words="english",
-                n_features=self.max_doc,
-                tokenizer=nltk.word_tokenize,
-                dtype=np.int32,
-                analyzer='word')
-        """
         self.vocab_path = os.path.join(args.model_dir, "vocab")
-        #self.find_bondary()
-        #if os.path.isfile(self.vocab_path):
+#       self.hv = get_hashing_vec(self.max_doc, "english")        
+#       self.find_bondary()
+#       if os.path.isfile(self.vocab_path):
         if True:
             self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc)
             self.x, self.y = self.load_data()
@@ -85,13 +76,15 @@ class SD(object):
             y.append(one)
         return x, np.array(y)
 
-
 class Springer(object):
+    """Define the model
+    """
+
+    Modes = ('train', 'validate', 'predict')
 
     def __init__(self, args):
         super(Springer, self).__init__()
         self.sd = SD(args)
-
         # Train args
         self.model_dir = args.model_dir
         self.data_path = args.data_path
@@ -99,8 +92,9 @@ class Springer(object):
         self.dropout_rate = args.dropout
         self.clip_norm = args.clip_norm
         self.init_step = args.init_step
+        self.restore = args.restore
+        self.mode = args.mode
         self.lr = args.lr
-
         # Model args
         self.total_class = len(self.sd.class_map)
         self.seqlen = self.sd.max_doc
@@ -159,7 +153,6 @@ class Springer(object):
         summary.append(tf.summary.scalar("acc", self.acc))
 
         self.summary = tf.summary.merge(summary)
-        self.saver = tf.train.Saver(tf.global_variables())
 
     def _build_model(self):
         # Define model
@@ -243,35 +236,72 @@ class Springer(object):
         summary.append(tf.summary.scalar("acc", self.acc))
 
         self.summary = tf.summary.merge(summary)
-        self.saver = tf.train.Saver(tf.global_variables())
 
-    def train(self):
+    def _restore_model(self, sess):
+        if not self.graph_path:
+            print("Pretrained model not found")
+            sys.exit(1)
+        sess.run(tf.global_variables_initializer())
+        self.saver = tf.train.import_meta_graph(self.graph_path)
+        self.saver.restore(sess, tf.train.latest_checkpoint(os.path.dirname(self.model_dir)))
+        graph = tf.get_default_graph()
+        global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES) + \
+                tf.get_collection(tf.GraphKeys.SAVEABLE_OBJECTS)
+        print("Found {} variables".format(len(global_vars)))
+
+    def run(self):
         with tf.Session() as sess:
-            self.summary_writer = tf.summary.FileWriter(self.log_path, sess.graph)
-            sess.run(tf.global_variables_initializer())
-            for epoch in range(self.epochs):
+            if self.restore:
+                metas = sorted(glob.glob("{}-*meta".format(self.model_dir)), key=os.path.getmtime)
+                self.graph_path = metas[-1] if metas else None
+                self._restore_model(sess) 
+
+            if self.mode == Springer.Modes[2]:
                 self.foreach_epoch(sess)
-                self.saver.save(sess, self.model_dir,
+            else:
+                self.foreach_train(sess)
+
+    def foreach_train(self, sess):
+        self.summary_writer = tf.summary.FileWriter(self.log_path, sess.graph)
+        self.saver = tf.train.Saver(tf.global_variables())
+        sess.run(tf.global_variables_initializer())
+        for epoch in range(self.epochs):
+            self.foreach_epoch(sess)
+            self.saver.save(sess, self.model_dir,
                         global_step=tf.train.global_step(sess, self.global_step))
 
     def foreach_epoch(self, sess):
         # for x, y in self.sd.gen_data():
         for x, y in self.sd.batch_data():
-            _, step, summ, loss, acc, pred = sess.run(
+            feed_dict = {
+                    self.input_x: x,
+                    self.input_y: y,
+            }
+            if self.mode == Springer.Modes[2]:
+                pred = sess.run([self.pred], feed_dict=feed_dict)
+                [print("[{}/{}] iid: {} l1: {} l2: {}".format(
+                    self.mode, datetime.now(),
+                    *level_decode(
+                        p,
+                        l1table=self.sd.l1table, 
+                        l2table=self.sd.l2table,
+                        class_map=self.sd.class_map
+                        )), flush=True) for p in np.squeeze(pred)]
+            else:
+                _, step, summ, loss, acc, pred = sess.run(
                     [self.train_op, self.global_step, self.summary, \
                             self.loss, self.acc, self.pred],
-                    feed_dict={
-                        self.input_x: x,
-                        self.input_y: y,
-                    })
-            self.summary_writer.add_summary(summ, step)
-            print("{}: step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
-                datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
+                    feed_dict=feed_dict)
+                self.summary_writer.add_summary(summ, step)
+                print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
+                    self.mode, datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
+
 
 def init():
     tf.logging.set_verbosity(tf.logging.INFO)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', default='train', type=str, help='Mode to run in', choices=['train', 'test', 'validate'])
+    parser.add_argument('--mode', default=Springer.Modes[0], type=str, help='Mode to run in', choices=Springer.Modes)
+    parser.add_argument('--restore', default=False, action="store_true", help="Restore previous trained model")
     parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
     parser.add_argument('--epochs', default=10000, type=int, help="Total epochs to train")
     parser.add_argument('--dropout', default=0.3, type=int, help="Dropout rate")
@@ -280,7 +310,7 @@ def init():
     parser.add_argument('--batch_size', default=128, type=int, help="Batch size")
     parser.add_argument('--model_dir', default="../models/springer", type=str, help="Path to model and check point")
     parser.add_argument('--init_step', default=0, type=int, help="Initial training step")
-    parser.add_argument('--max_doc', default=50000, type=int, help="Maximum document length")
+    parser.add_argument('--max_doc', default=5000, type=int, help="Maximum document length")
 
     args = parser.parse_args()
     return args
@@ -288,7 +318,7 @@ def init():
 def start():
     args = init()
     springer = Springer(args)
-    springer.train()
+    springer.run()
 
 if __name__ == '__main__':
     start()
