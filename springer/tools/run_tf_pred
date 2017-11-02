@@ -3,7 +3,7 @@ export TF_CPP_MIN_LOG_LEVEL=2
 python3 with_tf.py \
   --mode predict \
   --data_path ../data/springer/lang/mini_english_ae.csv \
-  --model_dir ../models/springer_cnn \
+  --model_dir ../models/springer/cnn \
   --restore \
   --max_doc 50 \
   --batch_size 128

@@ -253,13 +253,14 @@ class Springer(object):
 
         self.input_x = graph.get_tensor_by_name("input_x:0")
         self.input_y = graph.get_tensor_by_name("input_y:0")
-        self.global_step = graph.get_tensor_by_name("global_step:0")
-        self.loss = tf.reduce_mean(graph.get_tensor_by_name("loss:0"))
-        self.acc = graph.get_tensor_by_name("acc_1:0")
         self.pred = graph.get_tensor_by_name("pred:0")
 
-        self.train_op = graph.get_tensor_by_name("Adam/update").op
-        self.summary = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES))
+        if self.mode != Springer.Modes[2]:
+            self.global_step = graph.get_tensor_by_name("global_step:0")
+            self.loss = tf.reduce_mean(graph.get_tensor_by_name("loss_1:0"))
+            self.acc = graph.get_tensor_by_name("acc_1:0")
+            self.train_op = graph.get_tensor_by_name("train_op:0").op
+            self.summary = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
 
     def run(self):
