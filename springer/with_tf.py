@@ -10,7 +10,7 @@ import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
 from sklearn.utils import shuffle
 from data_helper import load_l2table, load_l1table, tokenize_text, extract_xy
-from data_helper import train_vocab, load_global_tokens, level_decode
+from data_helper import train_vocab, level_decode
 
 
 class SD(object):
@@ -22,7 +22,7 @@ class SD(object):
         self.epochs = args.epochs
         self.l1table = load_l1table()
         self.l2table = load_l2table()
-        self.global_tokens = load_global_tokens()
+#        self.global_tokens = load_global_tokens()
         self.class_map = list(set(self.l2table.values()))
         self.max_doc = args.max_doc
         self.vocab_path = os.path.join(args.model_dir, "vocab")
@@ -332,7 +332,7 @@ def init():
     parser.add_argument('--restore', default=False, action="store_true", help="Restore previous trained model")
     parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
     parser.add_argument('--epochs', default=10000, type=int, help="Total epochs to train")
-    parser.add_argument('--dropout', default=0.3, type=int, help="Dropout rate")
+    parser.add_argument('--dropout', default=0.5, type=float, help="Dropout rate")
     parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
     parser.add_argument('--batch_size', default=128, type=int, help="Batch size")
