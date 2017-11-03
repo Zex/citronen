@@ -44,6 +44,14 @@ def tokenize_text(doc):
             tokens.append(w)
     return tokens
 
+
+def gen_line(fd):
+    for line in fd:
+        line = literal_eval(line.strip())
+        if len(line[0]) < MIN_TRAIN_LINE or line[1] is None:
+            continue
+        yield line
+
 def reformat(data_path, token_path, ds_path):
     for p in (data_path, token_path, ds_path):
         if not os.path.dirname(p):
@@ -51,18 +59,10 @@ def reformat(data_path, token_path, ds_path):
 
     global_tokens = {}
     with open(data_path) as fd:
-        #open(ds_path, 'w+') as ds:
-        #ds.write("desc,target\n")
-        for line in fd:
-            line = literal_eval(line.strip())
-            if len(line[0]) < MIN_TRAIN_LINE or line[1] is None:
-                continue
+        for line in gen_line(fd):
             tokens = tokenize_text(line[0])
             gen_tokens_from_line(tokens, global_tokens, token_path)
 
-            #[global_tokens.update({t: len(global_tokens)}) \
-            #    for t in tokens if t not in global_tokens]
-            #build_dataset_from_line(tokens, int(re.search('\d+', line[1].strip()).group()), global_tokens, ds)
     gen_tokens_from_line([], global_tokens, token_path)
 
 def gen_tokens_from_line(tokens, global_tokens, token_path):
@@ -73,12 +73,14 @@ def gen_tokens_from_line(tokens, global_tokens, token_path):
         with open(token_path, 'wb') as fd:
             pickle.dump(global_tokens, fd)
 
-def build_dataset_from_line(tokens, target, global_tokens, fd):
-    for i, t in enumerate(tokens):
-        fd.write(str(global_tokens[t]))
-        if i < len(tokens)-1:
-            fd.write(' ')
-    fd.write(",{}\n".format(target))
+def build_dataset_from_line(line):
+    df = pd.DataFrame({"desc":[line[0]],"code":[line[1]]})
+    sep = '#'
+
+    if not os.path.isfile(output):
+        df.to_csv(output, header=True, index=False, sep=sep)
+    else:
+        df.to_csv(output, header=False, index=False, sep=sep, mode='a')
 
 def load_class_map():
     chunk = pd.read_csv(NAICS_CODES_PATH, engine='python',
@@ -90,6 +92,6 @@ def load_class_map():
 if __name__ == '__main__':
     data_path = "../data/naics/full.txt"
     token_path = "../data/naics/global_tokens.pickle"
-    ds_path = "../data/naics/dataset.csv"
-    reformat(data_path, token_path, token_path)
+    ds_path = "../data/naics/full.csv"
+    reformat(data_path, token_path, ds_path)
 #    load_class_map()
