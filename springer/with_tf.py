@@ -31,6 +31,7 @@ class SD(object):
 #       if os.path.isfile(self.vocab_path):
         if True:
             self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc)
+            self.vocab_processor.save(self.vocab_path)
             self.x, self.y = self.load_data()
 #            self.vocab_processor.restore(self.vocab_path)
 #        else:
