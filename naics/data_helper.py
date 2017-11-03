@@ -62,6 +62,7 @@ def reformat(data_path, token_path, ds_path):
         for line in gen_line(fd):
             tokens = tokenize_text(line[0])
             gen_tokens_from_line(tokens, global_tokens, token_path)
+            build_dataset_from_line(line)
 
     gen_tokens_from_line([], global_tokens, token_path)
 
