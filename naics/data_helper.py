@@ -84,6 +84,20 @@ def build_dataset_from_line(line, output):
     else:
         df.to_csv(output, header=False, index=False, sep=sep, mode='a')
 
+
+def load_d3table(data_path=None):
+    if not data_path:
+        data_path = NAICS_CODES_PATH
+    return pd.read_csv(NAICS_CODES_PATH, engine='python',
+            header=0, delimiter="#", dtype={"code":np.int})
+
+def level_decode(index, d3table=None, class_map=None):
+    iid = class_map[index]
+    return d3table[d3table["code"] == iid].values
+
+def extract_xy(chunk):
+    return chunk["desc"], chunk["code"]
+
 def load_class_map():
     chunk = pd.read_csv(NAICS_CODES_PATH, engine='python',
             header=0, delimiter="#", dtype={"code":np.int})
