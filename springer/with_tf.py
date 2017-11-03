@@ -287,7 +287,8 @@ class Springer(object):
         for epoch in range(self.epochs):
             self.foreach_epoch(sess)
             self.saver.save(sess, self.model_dir,
-                        global_step=tf.train.global_step(sess, self.global_step))
+                        global_step=tf.train.global_step(sess, self.global_step),
+                        max_to_keep=2)
 
     def foreach_epoch(self, sess):
         # for x, y in self.sd.gen_data():
