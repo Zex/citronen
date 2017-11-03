@@ -62,7 +62,7 @@ def reformat(data_path, token_path, ds_path):
         for line in gen_line(fd):
             tokens = tokenize_text(line[0])
             gen_tokens_from_line(tokens, global_tokens, token_path)
-            build_dataset_from_line(line)
+            build_dataset_from_line(line, ds_path)
 
     gen_tokens_from_line([], global_tokens, token_path)
 
@@ -74,8 +74,9 @@ def gen_tokens_from_line(tokens, global_tokens, token_path):
         with open(token_path, 'wb') as fd:
             pickle.dump(global_tokens, fd)
 
-def build_dataset_from_line(line):
-    df = pd.DataFrame({"desc":[line[0]],"code":[line[1]]})
+def build_dataset_from_line(line, output):
+    clean_text = line[0].replace("NAICS", "").replace(str(line[1]), "")
+    df = pd.DataFrame({"desc":[clean_text],"code":[line[1]]})
     sep = '#'
 
     if not os.path.isfile(output):
