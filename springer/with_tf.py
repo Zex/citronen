@@ -15,7 +15,7 @@ from data_helper import train_vocab, level_decode
 
 class SD(object):
     """Help prepare data for training, validation and prediction"""
-    def __init__(self, args):
+    def __init__(self, args, need_shuffle=True):
         super(SD, self).__init__()
         self.data_path = args.data_path
         self.batch_size = args.batch_size
@@ -31,8 +31,10 @@ class SD(object):
 #       if os.path.isfile(self.vocab_path):
         if True:
             self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc)
+            if not os.path.isfile(os.dirname(self.vocab_path)):
+                os.makedirs(os.dirname(self.vocab_path))
             self.vocab_processor.save(self.vocab_path)
-            self.x, self.y = self.load_data()
+            self.x, self.y = self.load_data(need_shuffle)
 #            self.vocab_processor.restore(self.vocab_path)
 #        else:
 #            self.vocab_processor = train_vocab(self.data_path, self.vocab_path)
@@ -55,16 +57,18 @@ class SD(object):
             yield self.x[current:current+self.batch_size+1], \
                         self.y[current:current+self.batch_size+1]
 
-    def load_data(self):
+    def load_data(self, need_shuffle=True):
         chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
-        chunk = shuffle(chunk)
+        if need_shuffle:
+            chunk = shuffle(chunk)
         return self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
 
-    def gen_data(self):
+    def gen_data(self, need_shuffle=True):
         reader = pd.read_csv(self.data_path, engine='python', header=0,
             delimiter="###", chunksize=self.batch_size)
         for chunk in reader:
-            chunk = shuffle(chunk)
+            if need_shuffle:
+                chunk = shuffle(chunk)
             yield self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
 
     def process_chunk(self, text, label1, label):
@@ -85,17 +89,23 @@ class Springer(object):
 
     def __init__(self, args):
         super(Springer, self).__init__()
-        self.sd = SD(args)
         # Train args
-        self.model_dir = args.model_dir
-        self.data_path = args.data_path
         self.epochs = args.epochs
+        self.summ_intv = args.summ_intv
         self.dropout_rate = args.dropout
         self.clip_norm = args.clip_norm
         self.init_step = args.init_step
         self.restore = args.restore
         self.mode = args.mode
         self.lr = args.lr
+        self.model_dir = args.model_dir
+        self.data_path = args.data_path
+
+        if not self.mode == Springer.Modes[2]: # predict
+            self.sd = SD(args)
+        else:
+            self.sd = SD(args, False)
+
         # Model args
         self.total_class = len(self.sd.class_map)
         self.seqlen = self.sd.max_doc
@@ -319,10 +329,10 @@ class Springer(object):
                     [self.train_op, self.global_step, self.summary, \
                             self.loss, self.acc, self.pred],
                     feed_dict=feed_dict)
-                self.summary_writer.add_summary(summ, step)
-                if step % 1000 == 0:
+                if step % self.summ_intv == 0:
                     print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
                         self.mode, datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
+                    self.summary_writer.add_summary(summ, step)
 
 
 def init():
@@ -336,12 +346,12 @@ def init():
     parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
     parser.add_argument('--batch_size', default=128, type=int, help="Batch size")
+    parser.add_argument('--summ_intv', default=500, type=int, help="Summary each several steps")
     parser.add_argument('--model_dir', default="../models/springer", type=str, help="Path to model and check point")
     parser.add_argument('--init_step', default=0, type=int, help="Initial training step")
     parser.add_argument('--max_doc', default=5000, type=int, help="Maximum document length")
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def start():
     args = init()

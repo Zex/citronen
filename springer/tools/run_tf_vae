@@ -1,0 +1,8 @@
+#!/bin/bash
+export TF_CPP_MIN_LOG_LEVEL=2
+python3 vae/with_tf.py \
+  --data_path ../data/springer/lang/english_tiny.csv \
+  --model_dir ../models/springer_vae \
+  --max_doc 200 \
+  --batch_size 125 \
+  --epochs 10000000
