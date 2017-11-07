@@ -31,8 +31,8 @@ class SD(object):
 #       if os.path.isfile(self.vocab_path):
         if True:
             self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc)
-            if not os.path.isfile(os.dirname(self.vocab_path)):
-                os.makedirs(os.dirname(self.vocab_path))
+            if not os.path.isdir(os.path.dirname(self.vocab_path)):
+                os.makedirs(os.path.dirname(self.vocab_path))
             self.vocab_processor.save(self.vocab_path)
             self.x, self.y = self.load_data(need_shuffle)
 #            self.vocab_processor.restore(self.vocab_path)
@@ -72,14 +72,18 @@ class SD(object):
             yield self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
 
     def process_chunk(self, text, label1, label):
-        x = np.array(list(self.vocab_processor.fit_transform(text)))
         #x = self.hv.transform(text).toarray()#[' '.join(t) for t in tokens]).toarray()
         y = []
-        for l in label:
+        def init_label(lbl):
             one = np.zeros(len(self.class_map))
-            one[self.class_map.index(l)] = 1.
+            one[self.class_map.index(lbl)] = 1.
             y.append(one)
-        return x, np.array(y)
+
+        x = list(self.vocab_processor.fit_transform(text))
+        [init_label(lbl) for lbl in label]
+        #np.vectorize(init_label)(label)
+        y = np.array(y)
+        return x, y
 
 class Springer(object):
     """Define the model
@@ -297,8 +301,6 @@ class Springer(object):
         sess.run(tf.global_variables_initializer())
         for epoch in range(self.epochs):
             self.foreach_epoch(sess)
-            self.saver.save(sess, self.model_dir,
-                        global_step=tf.train.global_step(sess, self.global_step))
 
     def foreach_epoch(self, sess):
         # for x, y in self.sd.gen_data():
@@ -333,6 +335,8 @@ class Springer(object):
                     print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
                         self.mode, datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
                     self.summary_writer.add_summary(summ, step)
+                    self.saver.save(sess, self.model_dir,
+                        global_step=tf.train.global_step(sess, self.global_step))
 
 
 def init():
