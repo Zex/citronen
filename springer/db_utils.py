@@ -1,4 +1,4 @@
-#!/bin/use/env python3
+#!/bin/usr/env python3
 #Author: Zex Li <top_zlynch@yahoo.com>
 import re
 import logging
