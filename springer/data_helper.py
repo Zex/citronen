@@ -130,15 +130,11 @@ def tokenize_text(text):
                 tokens.append(w)
     return tokens
 
-def train_vocab(data_path, vocab_path=None, max_doc_len=50000):
+def train_vocab(data_path, vocab_path=None, max_doc_len=512):
+    chunk = pd.read_csv(data_path, engine='python', header=0, delimiter="###")
     vocab_processor = learn.preprocessing.VocabularyProcessor(max_doc_len)
-    reader = pd.read_csv(data_path, engine="python", 
-            header=0, delimiter="###", chunksize=512)
-    for chunk in reader:
-        text, _, l2 = extract_xy(chunk)
-        tokens = tokenize_text(text)
-        vocab_processor.fit([' '.join(t) for t in tokens])
-        print("vocab size", len(vocab_processor.vocabulary_))
+    x = list(vocab_processor.fit_transform(chunk["desc"]))
+    print("vocab size", len(vocab_processor.vocabulary_))
 
     if vocab_path:
         dirpath = os.path.dirname(vocab_path)
@@ -146,6 +142,9 @@ def train_vocab(data_path, vocab_path=None, max_doc_len=50000):
             os.makedirs(dirpath)
         vocab_processor.save(vocab_path)
     return vocab_processor
+
+def load_vocab(vocab_path):
+    return learn.preprocessing.VocabularyProcessor.restore(vocab_path)
 
 def clean_str(string):
     string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
@@ -247,6 +246,8 @@ def init():
             type=str, help='Path to input data')
     parser.add_argument('--output_dir', default="../data/springer/lang",
             type=str, help='Path to output directory')
+    parser.add_argument('--vocab_path', default=None,
+            type=str, help='Vocab path')
     parser.add_argument('--table', default=False,
             action="store_true", help='Generate L1/L2 table from data')
     parser.add_argument('--clean_lang', default=False,
@@ -255,6 +256,8 @@ def init():
             action="store_true", help="Filter data by language")
     parser.add_argument('--load_table', default=False,
             action="store_true", help='Load L1/L2 table from path')
+    parser.add_argument('--train_vocab', default=False,
+            action="store_true", help='Train vocab processor')
 
     args = parser.parse_args()
     return args
@@ -270,6 +273,9 @@ def start():
     if args.load_table:
         table = from_persist(args.data_path)
         print(len(table))
+    if args.train_vocab:
+        train_vocab(args.data_path, args.vocab_path)
+        #vocab = load_vocab(args.vocab_path)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
