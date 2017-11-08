@@ -24,6 +24,7 @@ class SD(object):
         self.l2table = load_l2table()
 #        self.global_tokens = load_global_tokens()
         self.class_map = list(set(self.l2table.values()))
+        self.total_class = len(self.class_map)
         self.max_doc = args.max_doc
         self.vocab_path = args.vocab_path if args.vocab_path else os.path.join(args.model_dir,
                 "vocab_{}th".format(datetime.today().timetuple().tm_yday))
@@ -33,7 +34,7 @@ class SD(object):
             self.vocab_processor = load_vocab(self.vocab_path)
         else:
             self.vocab_processor = train_vocab(self.data_path, self.vocab_path, self.max_doc)
-        self.x, self.y = self.load_data()
+        self.x, self.y = self.load_data(need_shuffle)
         print("Max document length: {}".format(self.max_doc))
 
     def find_bondary(self):
@@ -78,7 +79,8 @@ class SD(object):
         x = list(self.vocab_processor.fit_transform(text))
         [init_label(lbl) for lbl in label]
         #np.vectorize(init_label)(label)
-        return x, np.array(y)
+        #y = tf.one_hot(label, depth=self.total_class)
+        return x, y
 
 class Springer(object):
     """Define the model
@@ -91,7 +93,7 @@ class Springer(object):
         # Train args
         self.epochs = args.epochs
         self.summ_intv = args.summ_intv
-        self.dropout_rate = args.dropout
+        self.dropout = args.dropout
         self.clip_norm = args.clip_norm
         self.init_step = args.init_step
         self.restore = args.restore
@@ -105,7 +107,7 @@ class Springer(object):
         else:
             self.sd = SD(args, False)
         # Model args
-        self.total_class = len(self.sd.class_map)
+        self.total_class = self.sd.total_class
         self.seqlen = self.sd.max_doc
         self.embed_dim = 128
         self.total_filters = 128
@@ -134,7 +136,7 @@ class Springer(object):
         self.embed = layers.embed_sequence(self.input_x, vocab_size=self.vocab_size, embed_dim=self.embed_dim)
         #self.rnn_unit = tf.nn.rnn_cell.DropoutWrapper(
         self.rnn_unit = tf.nn.rnn_cell.GRUCell(self.embed_dim)
-        #        output_keep_prob=1-self.dropout_rate)
+        #        output_keep_prob=1-self.dropout_keep)
         #self.cell_stack = tf.nn.rnn_cell.MultiRNNCell([self.rnn_unit] * self.total_layer)
         words = tf.unstack(self.embed, axis=1)
         _, encoding = tf.nn.static_rnn(
@@ -168,6 +170,7 @@ class Springer(object):
         # Define model
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
+        self.dropout_keep = tf.placeholder(tf.float32, name="dropout_keep")
 
         self.w_em = tf.Variable(tf.random_uniform(
                     [self.vocab_size, self.embed_dim], -1.0, 1.0),
@@ -198,7 +201,7 @@ class Springer(object):
         self.hidden_pool = tf.concat(self.pools, 3)
         self.hidden_flat = tf.reshape(self.hidden_pool, [-1, filter_comb])
 
-        self.hidden_dropout = tf.nn.dropout(self.hidden_flat, self.dropout_rate)
+        self.hidden_dropout = tf.nn.dropout(self.hidden_flat, self.dropout_keep)
 
         w = tf.get_variable("w", shape=[filter_comb, self.total_class],
                             initializer=tf.contrib.layers.xavier_initializer())
@@ -262,6 +265,7 @@ class Springer(object):
 
         self.input_x = graph.get_tensor_by_name("input_x:0")
         self.input_y = graph.get_tensor_by_name("input_y:0")
+        self.dropout_keep = graph.get_tensor_by_name("dropout_keep:0")
         self.pred = graph.get_tensor_by_name("pred:0")
 
         if self.mode != Springer.Modes[2]:
@@ -304,6 +308,7 @@ class Springer(object):
             feed_dict = {
                     self.input_x: x,
                     self.input_y: y,
+                    self.dropout_keep: self.dropout,
             }
             if self.mode == Springer.Modes[2]: # predict
                 pred = sess.run([self.pred], feed_dict=feed_dict)
@@ -343,7 +348,7 @@ def init():
     parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
     parser.add_argument('--vocab_path', default=None, type=str, help='Path to input data')
     parser.add_argument('--epochs', default=100000, type=int, help="Total epochs to train")
-    parser.add_argument('--dropout', default=0.5, type=float, help="Dropout rate")
+    parser.add_argument('--dropout', default=0.5, type=float, help="Dropout keep prob")
     parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
     parser.add_argument('--batch_size', default=128, type=int, help="Batch size")
