@@ -10,7 +10,7 @@ import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
 from sklearn.utils import shuffle
 from data_helper import load_l2table, load_l1table, tokenize_text, extract_xy
-from data_helper import train_vocab, level_decode
+from data_helper import train_vocab, level_decode, load_vocab
 
 
 class SD(object):
@@ -33,7 +33,7 @@ class SD(object):
             self.vocab_processor = load_vocab(self.vocab_path)
         else:
             self.vocab_processor = train_vocab(self.data_path, self.vocab_path, self.max_doc)
-            self.x, self.y = self.load_data()
+        self.x, self.y = self.load_data()
         print("Max document length: {}".format(self.max_doc))
 
     def find_bondary(self):
