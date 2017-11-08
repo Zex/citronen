@@ -1,10 +1,11 @@
 #!/bin/bash
 export TF_CPP_MIN_LOG_LEVEL=2
 python3 with_tf.py \
-  --mode predict \
-  --data_path ../data/springer/lang/mini_english_ae.csv \
-  --model_dir ../models/springer/cnn \
+  --mode validate \
+  --data_path ../data/springer/lang/english_mini.csv \
+  --model_dir ../models/springer/ \
   --vocab_path ../data/springer/lang/vocab.pickle \
   --restore \
-  --max_doc 50 \
+  --max_doc 100 \
   --batch_size 128
+
