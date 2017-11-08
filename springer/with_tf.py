@@ -25,19 +25,15 @@ class SD(object):
 #        self.global_tokens = load_global_tokens()
         self.class_map = list(set(self.l2table.values()))
         self.max_doc = args.max_doc
-        self.vocab_path = os.path.join(args.model_dir, "vocab")
+        self.vocab_path = args.vocab_path if args.vocab_path else os.path.join(args.model_dir,
+                "vocab_{}th".format(datetime.today().timetuple().tm_yday))
 #       self.hv = get_hashing_vec(self.max_doc, "english")
 #       self.find_bondary()
-#       if os.path.isfile(self.vocab_path):
-        if True:
-            self.vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc)
-            if not os.path.isdir(os.path.dirname(self.vocab_path)):
-                os.makedirs(os.path.dirname(self.vocab_path))
-            self.vocab_processor.save(self.vocab_path)
-            self.x, self.y = self.load_data(need_shuffle)
-#            self.vocab_processor.restore(self.vocab_path)
-#        else:
-#            self.vocab_processor = train_vocab(self.data_path, self.vocab_path)
+        if os.path.isfile(self.vocab_path):
+            self.vocab_processor = load_vocab(self.vocab_path)
+        else:
+            self.vocab_processor = train_vocab(self.data_path, self.vocab_path, self.max_doc)
+            self.x, self.y = self.load_data()
         print("Max document length: {}".format(self.max_doc))
 
     def find_bondary(self):
@@ -82,8 +78,7 @@ class SD(object):
         x = list(self.vocab_processor.fit_transform(text))
         [init_label(lbl) for lbl in label]
         #np.vectorize(init_label)(label)
-        y = np.array(y)
-        return x, y
+        return x, np.array(y)
 
 class Springer(object):
     """Define the model
@@ -109,7 +104,6 @@ class Springer(object):
             self.sd = SD(args)
         else:
             self.sd = SD(args, False)
-
         # Model args
         self.total_class = len(self.sd.class_map)
         self.seqlen = self.sd.max_doc
@@ -258,7 +252,7 @@ class Springer(object):
         if not self.graph_path:
             print("Pretrained model not found")
             sys.exit(1)
-        sess.run(tf.global_variables_initializer())
+#        sess.run(tf.global_variables_initializer())
         self.saver = tf.train.import_meta_graph(self.graph_path)
         self.saver.restore(sess, tf.train.latest_checkpoint(os.path.dirname(self.model_dir)))
         graph = tf.get_default_graph()
@@ -272,16 +266,18 @@ class Springer(object):
 
         if self.mode != Springer.Modes[2]:
             self.global_step = graph.get_tensor_by_name("global_step:0")
-            self.loss = tf.reduce_mean(graph.get_tensor_by_name("loss_1:0"))
-            self.acc = graph.get_tensor_by_name("acc_1:0")
+            #self.loss = graph.get_tensor_by_name("loss_1:0")
+            #self.acc = graph.get_tensor_by_name("acc_1:0")
+            self.acc = tf.reduce_mean(tf.cast(
+                tf.equal(self.pred, tf.argmax(self.input_y, 1)),
+                "float"), name="acc_eval")
             self.train_op = graph.get_tensor_by_name("train_op:0").op
-            self.summary = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES))
-
+            self.summary = tf.summary.merge_all() #tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
     def run(self):
         with tf.Session() as sess:
             if self.restore:
-                metas = sorted(glob.glob("{}-*meta".format(self.model_dir)), key=os.path.getmtime)
+                metas = sorted(glob.glob("{}/*meta".format(self.model_dir)), key=os.path.getmtime)
                 self.graph_path = metas[-1] if metas else None
                 self._restore_model(sess)
             else:
@@ -320,12 +316,12 @@ class Springer(object):
                         class_map=self.sd.class_map
                         )), flush=True) for p in np.squeeze(pred)]
             elif self.mode == Springer.Modes[1]: # evaluate
-                summ, loss, acc, pred = sess.run(
-                    [self.summary, self.loss, self.acc, self.pred],
+                step, pred, acc, summ = sess.run(
+                    [self.global_step, self.pred, self.acc, self.summary],
                     feed_dict=feed_dict)
                 self.summary_writer.add_summary(summ, step)
-                print("[{}/{}] loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
-                    self.mode, datetime.now(), loss, acc, pred, np.argmax(y, 1)), flush=True)
+                print("[{}/{}] acc:{:.4f} pred:{} lbl:{}".format(
+                    self.mode, datetime.now(), acc, pred, np.argmax(y, 1)), flush=True)
             else: # train
                 _, step, summ, loss, acc, pred = sess.run(
                     [self.train_op, self.global_step, self.summary, \
@@ -345,7 +341,8 @@ def init():
     parser.add_argument('--mode', default=Springer.Modes[0], type=str, help='Mode to run in', choices=Springer.Modes)
     parser.add_argument('--restore', default=False, action="store_true", help="Restore previous trained model")
     parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
-    parser.add_argument('--epochs', default=10000, type=int, help="Total epochs to train")
+    parser.add_argument('--vocab_path', default=None, type=str, help='Path to input data')
+    parser.add_argument('--epochs', default=100000, type=int, help="Total epochs to train")
     parser.add_argument('--dropout', default=0.5, type=float, help="Dropout rate")
     parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
