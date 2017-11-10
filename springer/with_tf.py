@@ -76,7 +76,7 @@ class SD(object):
             one[self.class_map.index(lbl)] = 1.
             y.append(one)
 
-        x = list(self.vocab_processor.fit_transform(text))
+        x = list(self.vocab_processor.transform(text))
         [init_label(lbl) for lbl in label]
         #np.vectorize(init_label)(label)
         #y = tf.one_hot(label, depth=self.total_class)
@@ -93,6 +93,7 @@ class Springer(object):
         # Train args
         self.epochs = args.epochs
         self.summ_intv = args.summ_intv
+        self.verbose = args.verbose
         self.dropout = args.dropout
         self.clip_norm = args.clip_norm
         self.init_step = args.init_step
@@ -101,6 +102,7 @@ class Springer(object):
         self.lr = args.lr
         self.model_dir = args.model_dir
         self.data_path = args.data_path
+        self.pred_output = args.pred_output_path
 
         if not self.mode == Springer.Modes[2]: # predict
             self.sd = SD(args)
@@ -264,19 +266,19 @@ class Springer(object):
         print("Found {} variables".format(len(global_vars)))
 
         self.input_x = graph.get_tensor_by_name("input_x:0")
-        self.input_y = graph.get_tensor_by_name("input_y:0")
+#        self.input_y = graph.get_tensor_by_name("input_y:0")
         self.dropout_keep = graph.get_tensor_by_name("dropout_keep:0")
         self.pred = graph.get_tensor_by_name("pred:0")
 
-        if self.mode != Springer.Modes[2]:
-            self.global_step = graph.get_tensor_by_name("global_step:0")
-            #self.loss = graph.get_tensor_by_name("loss_1:0")
-            #self.acc = graph.get_tensor_by_name("acc_1:0")
-            self.acc = tf.reduce_mean(tf.cast(
-                tf.equal(self.pred, tf.argmax(self.input_y, 1)),
-                "float"), name="acc_eval")
-            self.train_op = graph.get_tensor_by_name("train_op:0").op
-            self.summary = tf.summary.merge_all() #tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES))
+#        if self.mode != Springer.Modes[2]:
+#            self.global_step = graph.get_tensor_by_name("global_step:0")
+#            self.loss = graph.get_tensor_by_name("loss_1:0")
+#            self.acc = graph.get_tensor_by_name("acc_1:0")
+#            self.acc = tf.reduce_mean(tf.cast(
+#                tf.equal(self.pred, tf.argmax(self.input_y, 1)),
+#                "float"), name="acc_eval")
+#            self.train_op = graph.get_tensor_by_name("train_op:0").op
+#            self.summary = tf.summary.merge_all() #tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
     def run(self):
         with tf.Session() as sess:
@@ -288,10 +290,12 @@ class Springer(object):
                 self._build_model()
 
             if self.mode == Springer.Modes[2]:
+                if os.path.isfile(self.pred_output):
+                    os.remove(self.pred_output)
                 self.foreach_epoch(sess)
             elif self.mode == Springer.Modes[1]:
-                self.epochs = 1
-                self.foreach_train(sess)
+                #self.epochs = 1
+                self.foreach_epoch(sess)
             else:
                 self.foreach_train(sess)
 
@@ -307,34 +311,50 @@ class Springer(object):
         for x, y in self.sd.batch_data():
             feed_dict = {
                     self.input_x: x,
-                    self.input_y: y,
                     self.dropout_keep: self.dropout,
             }
             if self.mode == Springer.Modes[2]: # predict
                 pred = sess.run([self.pred], feed_dict=feed_dict)
-                [print("[{}/{}] iid: {} l1: {} l2: {}".format(
-                    self.mode, datetime.now(),
-                    *level_decode(
+                header = ['iid', 'l1', 'l2']
+                df = pd.DataFrame(columns=header)
+                pred = np.squeeze(pred)
+                for p in pred:
+                    iid, l1, l2 = level_decode(
                         p,
                         l1table=self.sd.l1table,
                         l2table=self.sd.l2table,
-                        class_map=self.sd.class_map
-                        )), flush=True) for p in np.squeeze(pred)]
+                        class_map=self.sd.class_map)
+                    df = df.append(pd.Series((iid, l1, l2), index=header), ignore_index=True)
+                if os.path.isfile(self.pred_output):
+                    df.to_csv(self.pred_output, header=True, index=False, sep='#', mode='a')
+                else:
+                    df.to_csv(self.pred_output, header=False, index=False, sep='#')
             elif self.mode == Springer.Modes[1]: # evaluate
-                step, pred, acc, summ = sess.run(
-                    [self.global_step, self.pred, self.acc, self.summary],
-                    feed_dict=feed_dict)
-                self.summary_writer.add_summary(summ, step)
-                print("[{}/{}] acc:{:.4f} pred:{} lbl:{}".format(
-                    self.mode, datetime.now(), acc, pred, np.argmax(y, 1)), flush=True)
+                pred = sess.run([self.pred], feed_dict=feed_dict)
+#                self.summary_writer.add_summary(summ, step)
+                y, pred = np.argmax(y, 1), np.squeeze(pred)
+                acc = np.float(np.sum(pred == y))/np.float(len(y))
+                if self.verbose:
+                    print("[{}/{}] total:{} acc:{:.4g} pred:{} lbl:{}".format(
+                        self.mode, datetime.now(), len(y), acc, pred, y), flush=True)
+                else:
+                    print("[{}/{}] total:{} acc:{:.4g}".format(
+                        self.mode, datetime.now(), len(y), acc), flush=True)
             else: # train
+                feed_dict.update({
+                    self.input_y: y,
+                })
                 _, step, summ, loss, acc, pred = sess.run(
                     [self.train_op, self.global_step, self.summary, \
                             self.loss, self.acc, self.pred],
                     feed_dict=feed_dict)
                 if step % self.summ_intv == 0:
-                    print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
-                        self.mode, datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
+                    if self.verbose:
+                        print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f} pred:{} lbl:{}".format(
+                            self.mode, datetime.now(), step, loss, acc, pred, np.argmax(y, 1)), flush=True)
+                    else:
+                        print("[{}/{}] step:{} loss:{:.4f} acc:{:.4f}".format(
+                            self.mode, datetime.now(), step, loss, acc), flush=True)
                     self.summary_writer.add_summary(summ, step)
                     self.saver.save(sess, self.model_dir,
                         global_step=tf.train.global_step(sess, self.global_step))
@@ -347,12 +367,14 @@ def init():
     parser.add_argument('--restore', default=False, action="store_true", help="Restore previous trained model")
     parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
     parser.add_argument('--vocab_path', default=None, type=str, help='Path to input data')
+    parser.add_argument('--pred_output_path', default="../data/springer/predict.csv", type=str, help='Path to prediction data ouput')
     parser.add_argument('--epochs', default=100000, type=int, help="Total epochs to train")
     parser.add_argument('--dropout', default=0.5, type=float, help="Dropout keep prob")
     parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
     parser.add_argument('--batch_size', default=128, type=int, help="Batch size")
     parser.add_argument('--summ_intv', default=500, type=int, help="Summary each several steps")
+    parser.add_argument('--verbose', default=False, action='store_true', help="Print verbose")
     parser.add_argument('--model_dir', default="../models/springer", type=str, help="Path to model and check point")
     parser.add_argument('--init_step', default=0, type=int, help="Initial training step")
     parser.add_argument('--max_doc', default=5000, type=int, help="Maximum document length")
