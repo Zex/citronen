@@ -2,9 +2,11 @@
 export TF_CPP_MIN_LOG_LEVEL=2
 python3 with_tf.py \
   --mode predict \
-  --data_path ../data/springer/lang/mini_english_ae.csv \
-  --model_dir ../models/springer/cnn \
+  --data_path ../data/springer/lang/english_mini.csv \
+  --model_dir ../models/springer/50_1024_07_vocab/ \
   --vocab_path ../data/springer/lang/vocab.pickle \
+  --pred_output_path ./predict.csv \
   --restore \
   --max_doc 50 \
-  --batch_size 128
+  --batch_size 1024 \
+  --dropout 1.0
