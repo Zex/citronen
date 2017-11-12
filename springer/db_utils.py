@@ -29,10 +29,10 @@ def reuse_info(text):
     if not text:
         return text
     
-    if re.match(r"(\d|\w)*@(\d|\w)*\.(\w)*", text): # found Email
+    if re.match("[^@]+@[^@]+\.[^@]+", text):
         # do someting
         return ''
-    if re.match(r"(\+)*(\d)+", text):
+    if re.match(r"(\+){0,1}\ *(\d)+", text):
         # do someting
         return ''
 
@@ -52,10 +52,17 @@ if __name__ == '__main__':
     cases = [
         "24kffs@mdkd.com",
         "",
+        "kf-fk.fs.dd@mdkd.net.cc.dd",
         "dd",
         "234",
         "2424",
         "98",
+        "\"kffk.fs.dd\"@mdkd.net.cc.dd",
+        "+ 334 1414",
         "hhh",
+        "____@____.a",
+        "889@[21.22.11.66]",
+        "+++ 3 114",
+        '"j\"s\""@cba.com',
         ]
     print(np.vectorize(reuse_info)(cases))
