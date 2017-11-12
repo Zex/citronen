@@ -21,10 +21,25 @@ def unify(text):
         return "{}{}".format(text[:text.index('-')+1], str(int(float(text.split('-')[1]))))
     if re.match(r"(\d+)/(\d+)-(\d+)", text): # discontinuous range
         return "{}-{}".format(text.split('/')[0], text.split('-')[1])
-    lgr.warn("[UNHANDLED] {}".format(text))
     return text # unhandled
 
-cases = [
+def reuse_info(text):
+    text = text.strip()
+
+    if not text:
+        return text
+    
+    if re.match(r"(\d|\w)*@(\d|\w)*\.(\w)*", text): # found Email
+        # do someting
+        return ''
+    if re.match(r"(\+)*(\d)+", text):
+        # do someting
+        return ''
+
+    return text
+
+if __name__ == '__main__':
+    cases = [
     "334-",
     "6651-52",
     "441-441.00e+3",
@@ -32,5 +47,15 @@ cases = [
     "32/37-99",
     "333"
     ]
-
-print(np.vectorize(unify)(cases))
+    print(np.vectorize(unify)(cases))
+    
+    cases = [
+        "24kffs@mdkd.com",
+        "",
+        "dd",
+        "234",
+        "2424",
+        "98",
+        "hhh",
+        ]
+    print(np.vectorize(reuse_info)(cases))
