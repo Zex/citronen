@@ -13,7 +13,7 @@ def unify(text):
     if re.match(r"(\d+)-(\d*)$", text): # perfect
         p1, p2 = text.split('-')
         if p1 and p2 and int(p2) < int(p1):
-            text = "{}-{}{}".format(p1, p1[:len(p2)], p2)
+            text = "{}-{}{}".format(p1, p1[:len(p2)+1], p2)
         return text
     if re.match(r"(\d+)$", text): # fine
         return text
