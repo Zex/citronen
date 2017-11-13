@@ -168,48 +168,53 @@ class Springer(object):
 
         self.summary = tf.summary.merge(summary)
 
+
+    def get_logits(self, name):
+        w_em = tf.Variable(tf.random_uniform(
+                    [self.vocab_size, self.embed_dim], -1.0, 1.0),
+                    name="w_em_{}_{}".format(name, 0))
+        embed = tf.expand_dims(
+            tf.nn.embedding_lookup(w_em, self.input_x),
+            -1)
+
+        pools = []
+        for i, filter_sz in enumerate(self.filter_sizes):
+            filter_shape = [filter_sz, self.embed_dim, 1, self.total_filters]
+            w = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="w_{}_{}".format(name, i))
+            b = tf.Variable(tf.constant(0.1, shape=[self.total_filters]), name="b_{}_{}".format(name, i))
+            conv = tf.nn.conv2d(embed,
+                                w,
+                                strides=[1, 1, 1, 1],
+                                padding="VALID",
+                                name="conv_{}_{}".format(name, i))
+            hidden = tf.nn.relu(tf.nn.bias_add(conv, b), name="hidden_{}_{}".format(name, i))
+            pool = tf.nn.max_pool(hidden,
+                                ksize=[1, self.seqlen-filter_sz+1, 1, 1],
+                                strides=[1, 1, 1, 1],
+                                padding="VALID",
+                                name="pool_{}_{}".format(name, i))
+            pools.append(pool)
+
+        filter_comb = self.total_filters * len(self.filter_sizes)
+        hidden_flat = tf.reshape(
+                tf.concat(pools, 3),
+                [-1, filter_comb])
+
+        hidden_dropout = tf.nn.dropout(hidden_flat, self.dropout_keep)
+
+        w = tf.get_variable("w", shape=[filter_comb, self.total_class],
+                            initializer=tf.contrib.layers.xavier_initializer())
+        b = tf.Variable(tf.constant(0.1, shape=[self.total_class]), name="b")
+        return tf.nn.xw_plus_b(hidden_dropout, w, b, name="logits_{}".format(name))
+
     def _build_model(self):
         # Define model
         self.input_x = tf.placeholder(tf.int32, [None, self.seqlen], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
         self.dropout_keep = tf.placeholder(tf.float32, name="dropout_keep")
 
-        self.w_em = tf.Variable(tf.random_uniform(
-                    [self.vocab_size, self.embed_dim], -1.0, 1.0),
-                name="w_em_{}".format(0))
-        self.embed_chars = tf.nn.embedding_lookup(self.w_em, self.input_x)
-        self.embed = tf.expand_dims(self.embed_chars, -1)
+        self.logits = self.get_logits('springer')
 
-        self.pools = []
-
-        for i, filter_sz in enumerate(self.filter_sizes):
-            filter_shape = [filter_sz, self.embed_dim, 1, self.total_filters]
-            w = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="w_{}".format(i))
-            b = tf.Variable(tf.constant(0.1, shape=[self.total_filters]), name="b_{}".format(i))
-            conv = tf.nn.conv2d(self.embed,
-                                w,
-                                strides=[1, 1, 1, 1],
-                                padding="VALID",
-                                name="conv_{}".format(i))
-            hidden = tf.nn.relu(tf.nn.bias_add(conv, b), name="hidden_{}".format(i))
-            pool = tf.nn.max_pool(hidden,
-                                ksize=[1, self.seqlen-filter_sz+1, 1, 1],
-                                strides=[1, 1, 1, 1],
-                                padding="VALID",
-                                name="pool_{}".format(i))
-            self.pools.append(pool)
-
-        filter_comb = self.total_filters * len(self.filter_sizes)
-        self.hidden_pool = tf.concat(self.pools, 3)
-        self.hidden_flat = tf.reshape(self.hidden_pool, [-1, filter_comb])
-
-        self.hidden_dropout = tf.nn.dropout(self.hidden_flat, self.dropout_keep)
-
-        w = tf.get_variable("w", shape=[filter_comb, self.total_class],
-                            initializer=tf.contrib.layers.xavier_initializer())
-        b = tf.Variable(tf.constant(0.1, shape=[self.total_class]), name="b")
-        #loss = tf.nn.l2_loss(w) + tf.nn.l2_loss(b)
-        self.logits = tf.nn.xw_plus_b(self.hidden_dropout, w, b, name="logits")
         self.pred = tf.argmax(self.logits, 1, name="pred")
 
         self.loss = tf.reduce_mean(
@@ -245,8 +250,8 @@ class Springer(object):
         # Define summary
         summary = []
         for k, v in params:
-            summary.append(tf.summary.histogram(v.name, k))
-            summary.append(tf.summary.scalar(v.name, tf.nn.zero_fraction(k)))
+            summary.append(tf.summary.histogram(v.name.replace(':', '_'), k))
+            summary.append(tf.summary.scalar(v.name.replace(':', '_'), tf.nn.zero_fraction(k)))
 
         summary.append(tf.summary.scalar("loss", self.loss))
         summary.append(tf.summary.scalar("acc", self.acc))
