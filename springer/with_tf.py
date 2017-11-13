@@ -214,7 +214,6 @@ class Springer(object):
         self.dropout_keep = tf.placeholder(tf.float32, name="dropout_keep")
 
         self.logits = self.get_logits('springer')
-
         self.pred = tf.argmax(self.logits, 1, name="pred")
 
         self.loss = tf.reduce_mean(
@@ -223,8 +222,9 @@ class Springer(object):
                 name="loss"
                 )
 
-        corr = tf.equal(self.pred, tf.argmax(self.input_y, 1), name="corr")
-        self.acc = tf.reduce_mean(tf.cast(corr, "float"), name="acc")
+        self.acc = tf.reduce_mean(tf.cast(corr,
+            tf.equal(self.pred, tf.argmax(self.input_y, 1), name="corr"),
+            "float"), name="acc")
 
         self.global_step = tf.Variable(self.init_step, name="global_step", trainable=False)
         opt = tf.train.AdamOptimizer(self.lr)
@@ -262,7 +262,6 @@ class Springer(object):
         if not self.graph_path:
             print("Pretrained model not found")
             sys.exit(1)
-#        sess.run(tf.global_variables_initializer())
         self.saver = tf.train.import_meta_graph(self.graph_path)
         self.saver.restore(sess, tf.train.latest_checkpoint(os.path.dirname(self.model_dir)))
         graph = tf.get_default_graph()
@@ -271,19 +270,8 @@ class Springer(object):
         print("Found {} variables".format(len(global_vars)))
 
         self.input_x = graph.get_tensor_by_name("input_x:0")
-#        self.input_y = graph.get_tensor_by_name("input_y:0")
         self.dropout_keep = graph.get_tensor_by_name("dropout_keep:0")
         self.pred = graph.get_tensor_by_name("pred:0")
-
-#        if self.mode != Springer.Modes[2]:
-#            self.global_step = graph.get_tensor_by_name("global_step:0")
-#            self.loss = graph.get_tensor_by_name("loss_1:0")
-#            self.acc = graph.get_tensor_by_name("acc_1:0")
-#            self.acc = tf.reduce_mean(tf.cast(
-#                tf.equal(self.pred, tf.argmax(self.input_y, 1)),
-#                "float"), name="acc_eval")
-#            self.train_op = graph.get_tensor_by_name("train_op:0").op
-#            self.summary = tf.summary.merge_all() #tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
     def run(self):
         with tf.Session() as sess:
@@ -299,7 +287,6 @@ class Springer(object):
                     os.remove(self.pred_output)
                 self.foreach_epoch(sess)
             elif self.mode == Springer.Modes[1]:
-                #self.epochs = 1
                 self.foreach_epoch(sess)
             else:
                 self.foreach_train(sess)
