@@ -54,8 +54,8 @@ class DriveInsurance(object):
     def batch_data(self, chunk):
         """id, X, y"""
         chunk = chunk.dropna()
-        y = np.zero
-        return chunkiloc[:,0], chunk.iloc[:,2:], chunk.iloc[:,1]
+        y = np.zeros
+        return chunk.iloc[:,0], chunk.iloc[:,2:], chunk.iloc[:,1]
 
     def _build_model(self):
         self.input_x = tf.placeholder(tf.float32, [None, self.n_feature], name="input_x")
@@ -93,13 +93,13 @@ class DriveInsurance(object):
             self.foreach_epoch(sess)
 
     def foreach_epoch(self, sess):
-        if self.mode ==  DriveInsurance.Mode[0]:
+        if self.mode ==  DriveInsurance.Modes[0]:
             for iid, x, y in self.gen_data():
                 feed_dict = {
                     self.input_x: x,
                     self.input_y: y
                     }
-                _, loss, acc, pred, step = tf.run(
+                _, loss, acc, pred, step = sess.run(
                     [self.train_op, self.loss, self.acc, self.pred, self.global_step],
                     feed_dict=feed_dict)
                 if step % self.summ_intv == 0:
