@@ -1,0 +1,8 @@
+#!/bin/bash
+export TF_CPP_MIN_LOG_LEVEL=2
+python3 with_tf.py \
+  --data_path ../data/springer/lang/mini_english_ae.csv \
+  --model_dir ../models/springer_cnn \
+  --restore  \
+  --max_doc 50 \
+  --batch_size 128
