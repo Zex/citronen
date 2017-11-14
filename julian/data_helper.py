@@ -32,8 +32,7 @@ def from_persist(path):
     return ret
 
 def level_encode(data_path):
-    """Encode L1/L2
-    """
+    """Encode L1/L2"""
     def assign_l1(cate):
         #cate = cate.replace("\\/", "/").replace("\/", "/")
         if cate not in l1_table:
@@ -132,8 +131,11 @@ def tokenize_text(text):
 
 def train_vocab(data_path, vocab_path=None, max_doc_len=512):
     chunk = pd.read_csv(data_path, engine='python', header=0, delimiter="###")
+    return train_vocab_from_data(chunk["desc"], vocab_path, max_doc_len)
+
+def train_vocab_from_data(chunk, vocab_path=None, max_doc_len=512):
     vocab_processor = learn.preprocessing.VocabularyProcessor(max_doc_len)
-    x = list(vocab_processor.fit_transform(chunk["desc"]))
+    x = list(vocab_processor.fit_transform(chunk))
     print("vocab size", len(vocab_processor.vocabulary_))
 
     if vocab_path:
@@ -213,32 +215,6 @@ def text2vec(docs, global_tokens, max_doc_len=None):
             [x.append(global_tokens[t]) for t in tokens if t in global_tokens]
         ret.append(x)
     return ret
-
-"""
-class TinyVocab(object):
-
-    def __init__(self, max_document_length, min_frequency=0):
-        self.max_document_length = max_document_length
-        self.min_frequency = min_frequence
-
-    def fit(self, raw_documents, unused_y=None):
-        for tokens in self._tokenizer(raw_documents):
-            for token in tokens:
-                self.vocabulary_.add(token)
-        if self.min_frequency > 0:
-            self.vocabulary_.trim(self.min_frequency)
-        #self.vocabulary_.freeze()
-        return self
-    
-    def transform(self, raw_documents):
-        for tokens in self._tokenizer(raw_documents):
-            word_ids = np.zeros(self.max_document_length, np.int64)
-            for idx, token in enumerate(tokens):
-                if idx >= self.max_document_length:
-                    break
-                word_ids[idx] = self.vocabulary_.get(token)
-            yield word_ids
-"""
 
 def init():
     parser = ArgumentParser()

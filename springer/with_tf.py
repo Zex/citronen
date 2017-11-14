@@ -75,11 +75,12 @@ class SD(object):
             one = np.zeros(len(self.class_map))
             one[self.class_map.index(lbl)] = 1.
             y.append(one)
+            #tf.one_hot(self.class_map.index(lbl), self.total_class))
 
         x = list(self.vocab_processor.transform(text))
-        [init_label(lbl) for lbl in label]
+        list(map(init_label, label))
+        #[init_label(lbl) for lbl in label]
         #np.vectorize(init_label)(label)
-        #y = tf.one_hot(label, depth=self.total_class)
         return x, y
 
 class Springer(object):

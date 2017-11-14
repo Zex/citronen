@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
-from data_provider import DataProvider
+from data_provider import SpringerProvider
 
 
 class Julian(object):
@@ -19,6 +19,7 @@ class Julian(object):
 
     def __init__(self, args):
         super(Julian, self).__init__()
+        self.name = args.name
         # Train args
         self.epochs = args.epochs
         self.summ_intv = args.summ_intv
@@ -34,15 +35,14 @@ class Julian(object):
         self.pred_output = args.pred_output_path
 
         if not self.mode == Julian.Modes[2]: # predict
-            self.provider = DataProvider(args)
+            self.provider = SpringerProvider(args)
         else:
-            self.provider = DataProvider(args, False)
+            self.provider = SpringerProvider(args, False)
         # Model args
         self.total_class = self.provider.total_class
         self.seqlen = self.provider.max_doc
         self.embed_dim = 128
         self.total_filters = 128
-        self.total_layer = 5
         self.filter_sizes = [3, 5]
 
         self.prepare_dir()
@@ -57,7 +57,8 @@ class Julian(object):
         self.vocab_size = len(self.provider.vocab_processor.vocabulary_)
         print("total vocab: {}".format(self.vocab_size))
 
-    def get_logits(self, name):
+    def get_logits(self):
+        name = self.name
         w_em = tf.Variable(tf.random_uniform(
                     [self.vocab_size, self.embed_dim], -1.0, 1.0),
                     name="w_em_{}_{}".format(name, 0))
@@ -101,7 +102,7 @@ class Julian(object):
         self.input_y = tf.placeholder(tf.float32, [None, self.total_class], name="input_y")
         self.dropout_keep = tf.placeholder(tf.float32, name="dropout_keep")
 
-        self.logits = self.get_logits('julian')
+        self.logits = self.get_logits()
         self.pred = tf.argmax(self.logits, 1, name="pred")
 
         self.loss = tf.reduce_mean(
@@ -220,6 +221,7 @@ def init():
     parser.add_argument('--restore', default=False, action="store_true", help="Restore previous trained model")
     parser.add_argument('--data_path', default="../data/julian/mini.csv", type=str, help='Path to input data')
     parser.add_argument('--vocab_path', default=None, type=str, help='Path to input data')
+    parser.add_argument('--name', default='julian', type=str, help='Model name')
     parser.add_argument('--pred_output_path', default="../data/julian/predict.csv", type=str, help='Path to prediction data ouput')
     parser.add_argument('--epochs', default=100000, type=int, help="Total epochs to train")
     parser.add_argument('--dropout', default=0.5, type=float, help="Dropout keep prob")
