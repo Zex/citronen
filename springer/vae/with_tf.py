@@ -158,8 +158,10 @@ class VAE(object):
                     feed_dict={self.enc.z: np.random.randn(
                         self.batch_size, self.enc.z_dim)}
                     )
+                sample_text = self.vocab_processor.reverse(sample.astype(np.int32))
                 print("[{}] loss:{} z:{}".format(
                     step, loss, sample), flush=True)
+                print(list(sample_text))
 
     def __call__(self):
         self.foreach_train()
