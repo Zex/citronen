@@ -68,12 +68,12 @@ class SD(object):#data.Dataset):
         super(SD, self).__init__(examples, fields, **kwargs)
 
     def gen_data(self):
-        data = pd.read_csv(self.data_path, header=0, delimiter="###", engine='python')
+        data = pd.read_csv(self.data_path, header=0, delimiter="#", engine='python')
         return data
         #self.process_chunk(data)
         # Load by chunk
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
-            delimiter="###", chunksize=self.batch_size)
+            delimiter="#", chunksize=self.batch_size)
         for chunk in reader:
             yield self.process_chunk(chunk)
 
@@ -98,7 +98,7 @@ class SD(object):#data.Dataset):
 
     def load_data(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0, 
-            delimiter="###", chunksize=self.batch_size)
+            delimiter="#", chunksize=self.batch_size)
         for chunk in reader:
             self.process_chunk(chunk)
 

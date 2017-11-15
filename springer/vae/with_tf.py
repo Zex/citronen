@@ -121,7 +121,7 @@ class VAE(object):
         self.summary = tf.summary.merge_all()
 
     def load_data(self):
-        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
+        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="#")
         chunk = shuffle(chunk)
         return np.array(list(
             self.vocab_processor.fit_transform(
@@ -161,7 +161,12 @@ class VAE(object):
                 sample_text = self.vocab_processor.reverse(sample.astype(np.int32))
                 print("[{}] loss:{} z:{}".format(
                     step, loss, sample), flush=True)
-                print(list(sample_text))
+                with open("sample_code", 'a') as fd:
+                    fd.write(("\n"+"="*10+"{}"+"="*10).format(step))
+                    [fd.write(str(text)) for text in sample]
+                with open("sample_text", 'a') as fd:
+                    fd.write(("\n"+"="*10+"{}"+"="*10).format(step))
+                    [fd.write(text) for text in list(sample_text)]
 
     def __call__(self):
         self.foreach_train()
