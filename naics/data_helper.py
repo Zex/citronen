@@ -3,6 +3,7 @@
 # Author: Zex Li <top_zlynch@yahoo.com>
 import os
 import re
+import string
 import pickle
 from ast import literal_eval
 import nltk.data;nltk.data.path.append("/media/sf_patsnap/nltk_data")
@@ -61,10 +62,10 @@ def reformat(data_path, token_path, ds_path):
     with open(data_path) as fd:
         for line in gen_line(fd):
             tokens = tokenize_text(line[0])
-            gen_tokens_from_line(tokens, global_tokens, token_path)
+#            gen_tokens_from_line(tokens, global_tokens, token_path)
             build_dataset_from_line(line, ds_path)
 
-    gen_tokens_from_line([], global_tokens, token_path)
+#    gen_tokens_from_line([], global_tokens, token_path)
 
 def gen_tokens_from_line(tokens, global_tokens, token_path):
     [global_tokens.update({t: len(global_tokens)}) \
@@ -75,7 +76,9 @@ def gen_tokens_from_line(tokens, global_tokens, token_path):
             pickle.dump(global_tokens, fd)
 
 def build_dataset_from_line(line, output):
-    clean_text = line[0].replace("NAICS", "").replace(str(line[1]), "")
+    clean_text = re.sub(r'(NAICS|#|http.*:/(/\w+)*'+'|'+str(line[1])+')', '', line[0])
+    clean_text = ''.join(filter(lambda x: x not in string.punctuation, clean_text))
+    clean_text = clean_text[:131000]
     df = pd.DataFrame({"desc":[clean_text],"code":[line[1]]})
     sep = '#'
 
@@ -83,7 +86,6 @@ def build_dataset_from_line(line, output):
         df.to_csv(output, header=True, index=False, sep=sep)
     else:
         df.to_csv(output, header=False, index=False, sep=sep, mode='a')
-
 
 def load_d3table(data_path=None):
     if not data_path:
