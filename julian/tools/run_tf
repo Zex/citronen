@@ -5,6 +5,5 @@ python3 with_tf.py \
   --model_dir ../models/springer_cnn_eng \
   --max_doc 50 \
   --batch_size 512 \
-  --dropout 0.7
-
-#lang/mini_english_cl.csv \
+  --dropout 0.7 \
+  --name springer
