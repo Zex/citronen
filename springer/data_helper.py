@@ -39,7 +39,7 @@ def level_encode(data_path):
         if cate not in l1_table:
             l1_table.update({cate:0x1000 if not l1_table else max(l1_table.values()) + 0x1000})
 
-    reader = pd.read_csv(data_path, engine='python', header=0, chunksize=100, delimiter="###")
+    reader = pd.read_csv(data_path, engine='python', header=0, chunksize=100, delimiter="#")
     for chunk in reader:
         chunk["cate"].apply(assign_l1)
     
@@ -53,7 +53,7 @@ def level_encode(data_path):
             l2_table.update({subcate:l1_table[cate]+1 if cate not in mem else mem[cate]+1})
             mem.update({cate:l2_table[subcate]})
 
-    reader = pd.read_csv(data_path, engine='python', header=0, chunksize=100, delimiter="###")
+    reader = pd.read_csv(data_path, engine='python', header=0, chunksize=100, delimiter="#")
     for chunk in reader:
         chunk.apply(lambda x: assign_l2(x["cate"], x["subcate"]), axis=1)
     persist(l2_table, L2_TABLE_PATH)
@@ -92,7 +92,7 @@ def extract_xy(chunk, l1table=None, l2table=None):
 
 def clean_lang(data_path, output_dir):
     reader = pd.read_csv(data_path, engine='python', header=0, 
-        delimiter="###", chunksize=1)
+        delimiter="#", chunksize=1)
 
     for chunk in reader:
         text, l1, l2 = extract_xy(chunk)
@@ -103,9 +103,9 @@ def clean_lang(data_path, output_dir):
         df = pd.DataFrame({"desc":[text],"cate":[l1],"subcate":[l2]})
 
         if not os.path.isfile(output):
-            df.to_csv(output, header=True, index=False, sep="###")
+            df.to_csv(output, header=True, index=False, sep="#")
         else:
-            df.to_csv(output, header=False, index=False, sep="###", mode='a')
+            df.to_csv(output, header=False, index=False, sep="#", mode='a')
 
 def guess_lang(text):
     ratio = {}
@@ -131,7 +131,7 @@ def tokenize_text(text):
     return tokens
 
 def train_vocab(data_path, vocab_path=None, max_doc_len=512):
-    chunk = pd.read_csv(data_path, engine='python', header=0, delimiter="###")
+    chunk = pd.read_csv(data_path, engine='python', header=0, delimiter="#")
     vocab_processor = learn.preprocessing.VocabularyProcessor(max_doc_len)
     x = list(vocab_processor.fit_transform(chunk["desc"]))
     print("vocab size", len(vocab_processor.vocabulary_))
@@ -165,7 +165,7 @@ def clean_str(string):
 def gen_token(data_path, output):
     chunksize = 512
     reader = pd.read_csv(data_path, engine="python", 
-            header=0, delimiter="###", chunksize=chunksize)
+            header=0, delimiter="#", chunksize=chunksize)
 
     l2_table = from_persist(L2_TABLE_PATH)
     global_tokens = {}

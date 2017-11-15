@@ -39,7 +39,7 @@ class SD(object):
 
     def find_bondary(self):
         reader = pd.read_csv(self.data_path, engine='python', header=0,
-            delimiter="###", chunksize=self.batch_size)
+            delimiter="#", chunksize=self.batch_size)
         for chunk in reader:
             text, _, _ = extract_xy(chunk)
             tokens = tokenize_text(text)
@@ -55,14 +55,14 @@ class SD(object):
                         self.y[current:current+self.batch_size+1]
 
     def load_data(self, need_shuffle=True):
-        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
+        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="#")
         if need_shuffle:
             chunk = shuffle(chunk)
         return self.process_chunk(*extract_xy(chunk, l2table=self.l2table))
 
     def gen_data(self, need_shuffle=True):
         reader = pd.read_csv(self.data_path, engine='python', header=0,
-            delimiter="###", chunksize=self.batch_size)
+            delimiter="#", chunksize=self.batch_size)
         for chunk in reader:
             if need_shuffle:
                 chunk = shuffle(chunk)

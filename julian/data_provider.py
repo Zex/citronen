@@ -72,14 +72,14 @@ class SpringerProvider(DataProvider):
         self.load_all()
 
     def load_data(self, need_shuffle=True):
-        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
+        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="#")
         if need_shuffle:
             chunk = shuffle(chunk)
         return self.__process_chunk(*self.__extract_xy(chunk))
 
     def gen_data(self, need_shuffle=True):
         reader = pd.read_csv(self.data_path, engine='python', header=0,
-            delimiter="###", chunksize=self.batch_size)
+            delimiter="#", chunksize=self.batch_size)
         for chunk in reader:
             if need_shuffle:
                 chunk = shuffle(chunk)
@@ -158,7 +158,7 @@ class SpringerProvider(DataProvider):
                 self.l1_table.update({cate:0x1000 if not self.l1_table \
                         else max(self.l1_table.values()) + 0x1000})
     
-        reader = pd.read_csv(self.data_path, engine='python', header=0, chunksize=100, delimiter="###")
+        reader = pd.read_csv(self.data_path, engine='python', header=0, chunksize=100, delimiter="#")
         [chunk["cate"].apply(assign_l1) for chunk in reader]
         persist(self.l1_table, self.l1_table_path)
     
@@ -169,13 +169,13 @@ class SpringerProvider(DataProvider):
                 self.l2_table.update({subcate:self.l1_table[cate]+1 if cate not in mem else mem[cate]+1})
                 mem.update({cate:self.l2_table[subcate]})
     
-        reader = pd.read_csv(self.data_path, engine='python', header=0, chunksize=100, delimiter="###")
+        reader = pd.read_csv(self.data_path, engine='python', header=0, chunksize=100, delimiter="#")
         [chunk.apply(lambda x: assign_l2(x["cate"], x["subcate"]), axis=1) \
             for chunk in reader]
         persist(self.l2_table, self.l2_table_path)
 
     def train_vocab(self):
-        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
+        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="#")
         return self.train_vocab_from_data(chunk["desc"])
 
 class NaicsProvider(DataProvider):
