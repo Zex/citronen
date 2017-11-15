@@ -7,4 +7,4 @@ if [ -z $input_file ] ;then echo "No input file given"; exit 0; fi
 if [ -z $output_prefix ] ;then echo "No output prefix given"; exit 0; fi
 
 split -l 10000 "$input_file" "output_prefix"
-for f in mini_english_[a-z][a-z]; do echo $f; echo "desc###cate###subcate" > /tmp/buf; cat >> /tmp/buf < $f; cat /tmp/buf > $f; mv $f $f.csv;done
+for f in mini_english_[a-z][a-z]; do echo $f; echo "desc#cate#subcate" > /tmp/buf; cat >> /tmp/buf < $f; cat /tmp/buf > $f; mv $f $f.csv;done
