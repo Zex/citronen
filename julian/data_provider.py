@@ -233,6 +233,7 @@ class NaicsProvider(DataProvider):
 
     def __extract_xy(self, chunk):
         chunk = chunk.dropna()
+        chunk["code"] = chunk["code"].apply(lambda x: np.int64(x[:3]))
         return chunk["desc"], chunk["code"]
 
     def level_decode(self, index):
@@ -244,5 +245,5 @@ class NaicsProvider(DataProvider):
         pass
 
     def train_vocab(self):
-        reader = pd.read_csv(self.data_path, engine='python', header=0, delimiter="#")
+        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="#")
         return self.train_vocab_from_data(chunk["desc"])
