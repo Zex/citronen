@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
-from data_provider import SpringerProvider
+from data_provider import SpringerProvider, NaicsProvider
 
 
 class Julian(object):
@@ -34,10 +34,13 @@ class Julian(object):
         self.data_path = args.data_path
         self.pred_output = args.pred_output_path
 
+        provider = SpringerProvider if self.name.startswith('springer')\
+                else NaicsProvider
+
         if not self.mode == Julian.Modes[2]: # predict
-            self.provider = SpringerProvider(args)
+            self.provider = provider(args)
         else:
-            self.provider = SpringerProvider(args, False)
+            self.provider = provider(args, False)
         # Model args
         self.total_class = self.provider.total_class
         self.seqlen = self.provider.max_doc

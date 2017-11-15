@@ -19,17 +19,19 @@ class DataProvider(object):
         self.batch_size = args.batch_size
         self.epochs = args.epochs
         self.max_doc = args.max_doc
+        self.need_shuffle = need_shuffle
         self.vocab_path = args.vocab_path if args.vocab_path \
                 else os.path.join(args.model_dir,
                 "vocab_{}th".format(datetime.today().timetuple().tm_yday))
 
 
     def load_all(self):
+        """load vocaburary and data"""
         if os.path.isfile(self.vocab_path):
             self.vocab_processor = self.load_vocab()
         else:
             self.vocab_processor = self.train_vocab()
-        self.x, self.y = self.load_data(need_shuffle)
+        self.x, self.y = self.load_data(self.need_shuffle)
         print("Max document length: {}".format(self.max_doc))
 
     def batch_data(self):
@@ -45,11 +47,11 @@ class DataProvider(object):
         x = list(vocab_processor.fit_transform(chunk))
         print("vocab size", len(vocab_processor.vocabulary_))
     
-        if vocab_path:
-            dirpath = os.path.dirname(vocab_path)
+        if self.vocab_path:
+            dirpath = os.path.dirname(self.vocab_path)
             if not os.path.isdir(dirpath):
                 os.makedirs(dirpath)
-            vocab_processor.save(vocab_path)
+            vocab_processor.save(self.vocab_path)
         return vocab_processor
 
     def load_vocab(self):
@@ -67,6 +69,7 @@ class SpringerProvider(DataProvider):
         self.class_map = list(set(self.l2table.values()))
         self.total_class = len(self.class_map)
         super(SpringerProvider, self).__init__(args, need_shuffle)
+        self.load_all()
 
     def load_data(self, need_shuffle=True):
         chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
@@ -184,6 +187,7 @@ class NaicsProvider(DataProvider):
         self.class_map = list(set(self.d3table['code']))
         self.total_class = len(self.class_map)
         super(NaicsProvider, self).__init__(args, need_shuffle)
+        self.load_all()
 
     def load_d3table(self):
         return pd.read_csv(self.naics_codes_path, engine='python',
@@ -215,12 +219,12 @@ class NaicsProvider(DataProvider):
         return x, y
 
     def decode(self, pred):
-        header = ['iid', 'l1', 'l2']
+        header = ['iid', 'code']
         df = pd.DataFrame(columns=header)
         pred = np.squeeze(pred)
         for p in pred:
-            iid, l1, l2 = self.level_decode(p)
-            df = df.append(pd.Series((iid, l1, l2), index=header), ignore_index=True)
+            iid, code = self.level_decode(p)
+            df = df.append(pd.Series((iid, code), index=header), ignore_index=True)
         if os.path.isfile(self.pred_output):
             df.to_csv(self.pred_output, header=True, index=False, sep='#', mode='a')
         else:
@@ -233,11 +237,12 @@ class NaicsProvider(DataProvider):
 
     def level_decode(self, index):
         iid = self.class_map[index]
-        return self.d3table[d3table["code"] == iid].values
+        code = self.d3table[d3table["code"] == iid].values
+        return iid, code
 
     def level_encode(self):
         pass
 
     def train_vocab(self):
-        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="###")
+        reader = pd.read_csv(self.data_path, engine='python', header=0, delimiter="#")
         return self.train_vocab_from_data(chunk["desc"])
