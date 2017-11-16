@@ -33,14 +33,9 @@ class Julian(object):
         self.model_dir = args.model_dir
         self.data_path = args.data_path
         self.pred_output = args.pred_output_path
+        
+        self.create_provider()
 
-        provider = SpringerProvider if self.name.startswith('springer')\
-                else NaicsProvider
-
-        if not self.mode == Julian.Modes[2]: # predict
-            self.provider = provider(args)
-        else:
-            self.provider = provider(args, False)
         # Model args
         self.total_class = self.provider.total_class
         self.seqlen = self.provider.max_doc
@@ -49,6 +44,22 @@ class Julian(object):
         self.filter_sizes = [3, 5]
 
         self.prepare_dir()
+
+    def create_provider(self):
+        provider = None
+        if self.name.startswith('springer'):
+            provider = SpringerProvider
+        elif self.name.startswith('naics'):
+            provider = NaicsProvider
+        elif self.name.startwith('address'):
+            provider = AddressProvider
+        else:
+            raise NotImplemented("{} classification not supported".format(self.name))
+
+        if not self.mode == Julian.Modes[2]: # predict
+            self.provider = provider(args)
+        else:
+            self.provider = provider(args, False)
 
     def prepare_dir(self):
         self.log_path = os.path.join(
