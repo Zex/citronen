@@ -1,9 +1,12 @@
 #!/bin/bash
 export TF_CPP_MIN_LOG_LEVEL=2
 python3 with_tf.py \
-  --data_path ../data/springer/lang/english_tiny.csv \
-  --model_dir ../models/springer_cnn_eng \
+  --data_path ../data/springer/full.csv \
+  --model_dir ../models/springer/50_1024_07_full/cnn \
   --max_doc 50 \
-  --batch_size 512 \
+  --vocab_path ../data/springer/vocab.pickle \
+  --batch_size 1024 \
+  --summ_intv 1000 \
   --dropout 0.7 \
+  --verbose \
   --name springer
