@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
-from data_provider import SpringerProvider, NaicsProvider
+from provider import SpringerProvider, NaicsProvider, AddrProvider
 
 
 class Julian(object):
@@ -34,7 +34,7 @@ class Julian(object):
         self.data_path = args.data_path
         self.pred_output = args.pred_output_path
         
-        self.create_provider()
+        self.create_provider(args)
 
         # Model args
         self.total_class = self.provider.total_class
@@ -45,14 +45,14 @@ class Julian(object):
 
         self.prepare_dir()
 
-    def create_provider(self):
+    def create_provider(self, args):
         provider = None
         if self.name.startswith('springer'):
             provider = SpringerProvider
         elif self.name.startswith('naics'):
             provider = NaicsProvider
-        elif self.name.startwith('address'):
-            provider = AddressProvider
+        elif self.name.startswith('address'):
+            provider = AddrProvider
         else:
             raise NotImplemented("{} classification not supported".format(self.name))
 
