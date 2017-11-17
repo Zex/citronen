@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.utils import shuffle
 from tensorflow.contrib import learn
 import tensorflow as tf
-from provider.data_helper import persist, from_persist
+from julian.provider.data_helper import persist, from_persist
 
 
 class DataProvider(object):
@@ -31,7 +31,8 @@ class DataProvider(object):
             self.vocab_processor = self.load_vocab()
         else:
             self.vocab_processor = self.train_vocab()
-        self.x, self.y = self.load_data(self.need_shuffle)
+        if self.data_path:
+            self.x, self.y = self.load_data(self.need_shuffle)
         print("Max document length: {}".format(self.max_doc))
 
     def batch_data(self):

@@ -7,8 +7,8 @@ import pandas as pd
 from sklearn.utils import shuffle
 from tensorflow.contrib import learn
 import tensorflow as tf
-from provider.data_helper import persist, from_persist
-from provider.data_provider import DataProvider
+from julian.provider.data_helper import persist, from_persist
+from julian.provider.data_provider import DataProvider
 
 class NaicsProvider(DataProvider):
 

@@ -8,8 +8,14 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.contrib import learn, layers, framework
-from provider import SpringerProvider, NaicsProvider, AddrProvider
+from julian.provider import *
 
+
+avail_providers = {
+    'springer': SpringerProvider,
+    'naics': NaicsProvider,
+    'springer_stream': SpringerStreamProvider,
+}
 
 class Julian(object):
     """Define the model
@@ -46,14 +52,8 @@ class Julian(object):
         self.prepare_dir()
 
     def create_provider(self, args):
-        provider = None
-        if self.name.startswith('springer'):
-            provider = SpringerProvider
-        elif self.name.startswith('naics'):
-            provider = NaicsProvider
-        elif self.name.startswith('address'):
-            provider = AddrProvider
-        else:
+        provider = avail_providers.get(self.name)
+        if not provider:
             raise NotImplemented("{} classification not supported".format(self.name))
 
         if not self.mode == Julian.Modes[2]: # predict
@@ -172,14 +172,14 @@ class Julian(object):
 
     def foreach_epoch(self, sess):
         # for x, y in self.provider.gen_data():
-        for x, y in self.provider.batch_data():
+        for x, y in self.provider.batch_data()
             feed_dict = {
                     self.input_x: x,
                     self.dropout_keep: self.dropout,
             }
             if self.mode == Julian.Modes[2]: # predict
                 pred = sess.run([self.pred], feed_dict=feed_dict)
-                self.provider.decode(pred)
+                yield self.provider.decode(pred)
             elif self.mode == Julian.Modes[1]: # evaluate
                 pred = sess.run([self.pred], feed_dict=feed_dict)
 #                self.summary_writer.add_summary(summ, step)
@@ -210,19 +210,25 @@ class Julian(object):
                     self.saver.save(sess, self.model_dir,
                         global_step=tf.train.global_step(sess, self.global_step))
 
+    def setup_model(self, sess):
+        if hasattr(self, '_model_ready') and self._model_ready:
+            return
+        if self.restore:
+            metas = sorted(glob.glob("{}/*meta".format(self.model_dir)), key=os.path.getmtime)
+            self.graph_path = metas[-1] if metas else None
+            self._restore_model(sess)
+        else:
+            self._build_model()
+        self._model_ready = True
+
     def run(self):
         with tf.Session() as sess:
-            if self.restore:
-                metas = sorted(glob.glob("{}/*meta".format(self.model_dir)), key=os.path.getmtime)
-                self.graph_path = metas[-1] if metas else None
-                self._restore_model(sess)
-            else:
-                self._build_model()
+            self.setup_model(sess)
 
             if self.mode == Julian.Modes[2]:
-                if os.path.isfile(self.pred_output):
+                if self.pred_output and os.path.isfile(self.pred_output):
                     os.remove(self.pred_output)
-                self.foreach_epoch(sess)
+                yield self.foreach_epoch(sess)
             elif self.mode == Julian.Modes[1]:
                 self.foreach_epoch(sess)
             else:

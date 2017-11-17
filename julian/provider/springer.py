@@ -7,8 +7,9 @@ import pandas as pd
 from sklearn.utils import shuffle
 from tensorflow.contrib import learn
 import tensorflow as tf
-from provider.data_helper import persist, from_persist
-from provider.data_provider import DataProvider
+from julian.provider.data_helper import persist, from_persist
+from julian.provider.data_provider import DataProvider
+
 
 class SpringerProvider(DataProvider):
 
@@ -35,15 +36,14 @@ class SpringerProvider(DataProvider):
                 chunk = shuffle(chunk)
             yield self.__process_chunk(*self.__extract_xy(chunk))
 
-    def __process_chunk(self, text, label1, label2):
-        y = []
-        def init_label(lbl):
-            one = np.zeros(len(self.class_map))
-            one[self.class_map.index(lbl)] = 1.
-            y.append(one)
+    def init_label(self, lbl):
+        one = np.zeros(len(self.class_map))
+        one[self.class_map.index(lbl)] = 1.
+        return one 
 
+    def __process_chunk(self, text, label1, label2):
         x = list(self.vocab_processor.transform(text))
-        list(map(init_label, label2))
+        y = list(map(self.init_label, label2))
         return x, y
 
     def __extract_xy(self, chunk):
@@ -63,13 +63,16 @@ class SpringerProvider(DataProvider):
         header = ['iid', 'l1', 'l2']
         df = pd.DataFrame(columns=header)
         pred = np.squeeze(pred)
+
         for p in pred:
             iid, l1, l2 = self.level_decode(p)
             df = df.append(pd.Series((iid, l1, l2), index=header), ignore_index=True)
-        if os.path.isfile(self.pred_output):
-            df.to_csv(self.pred_output, header=True, index=False, sep='#', mode='a')
-        else:
-            df.to_csv(self.pred_output, header=False, index=False, sep='#')
+
+        if self.pred_output:
+            if os.path.isfile(self.pred_output):
+                df.to_csv(self.pred_output, header=True, index=False, sep='#', mode='a')
+            else:
+                df.to_csv(self.pred_output, header=False, index=False, sep='#')
         return df
 
     def level_decode(self, index):
@@ -127,3 +130,19 @@ class SpringerProvider(DataProvider):
     def train_vocab(self):
         chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
         return self.train_vocab_from_data(chunk["desc"])
+
+
+class SpringerStreamProvider(SpringerProvider):
+
+    def __init__(self, args, need_shuffle=True):
+        super(SpringerStreamProvider, self).__init__(args)
+        self.input_stream = args.input_stream
+
+    def batch_data(self):
+        for chunk in self.input_stream:
+            if isinstance(chunk, tuple): # (X, y)
+                yield [self._process_chunk(chunk[0], None, chunk[1])]
+            else:
+                x = list(self.vocab_processor.transform(chunk))
+                y = np.zeros(len(x))
+                yield x, y
