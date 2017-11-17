@@ -172,7 +172,7 @@ class Julian(object):
 
     def foreach_epoch(self, sess):
         # for x, y in self.provider.gen_data():
-        for x, y in self.provider.batch_data()
+        for x, y in self.provider.batch_data():
             feed_dict = {
                     self.input_x: x,
                     self.dropout_keep: self.dropout,
