@@ -54,13 +54,16 @@ class NaicsProvider(DataProvider):
         header = ['iid', 'code']
         df = pd.DataFrame(columns=header)
         pred = np.squeeze(pred)
+
         for p in pred:
             iid, code = self.level_decode(p)
             df = df.append(pd.Series((iid, code), index=header), ignore_index=True)
-        if os.path.isfile(self.pred_output):
-            df.to_csv(self.pred_output, header=True, index=False, sep='#', mode='a')
-        else:
-            df.to_csv(self.pred_output, header=False, index=False, sep='#')
+
+        if self.pred_otuput:
+            if os.path.isfile(self.pred_output):
+                df.to_csv(self.pred_output, header=True, index=False, sep='#', mode='a')
+            else:
+                df.to_csv(self.pred_output, header=False, index=False, sep='#')
         return df
 
     def __extract_xy(self, chunk):
