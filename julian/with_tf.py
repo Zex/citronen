@@ -228,7 +228,7 @@ class Julian(object):
             if self.mode == Julian.Modes[2]:
                 if self.pred_output and os.path.isfile(self.pred_output):
                     os.remove(self.pred_output)
-                yield self.foreach_epoch(sess)
+                yield from self.foreach_epoch(sess)
             elif self.mode == Julian.Modes[1]:
                 self.foreach_epoch(sess)
             else:
