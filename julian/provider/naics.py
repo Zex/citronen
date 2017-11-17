@@ -70,7 +70,7 @@ class NaicsProvider(DataProvider):
 
     def level_decode(self, index):
         iid = self.class_map[index]
-        code = self.d3table[d3table["code"] == iid].values
+        code = self.d3table[self.d3table["code"] == iid].values
         return iid, code
 
     def level_encode(self):
