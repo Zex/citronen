@@ -14,8 +14,8 @@ from julian.provider.data_provider import DataProvider
 class SpringerProvider(DataProvider):
 
     def __init__(self, args, need_shuffle=True):
-        self.l1_table_path = args.l1_table_path if hasattr(args, l1_table_path) else "../data/springer/l1_table.pickle"
-        self.l2_table_path = args.l2_table_path if hasattr(args, l2_table_path) else "../data/springer/l2_table.pickle"
+        self.l1_table_path = args.l1_table_path if hasattr(args, 'l1_table_path') else "../data/springer/l1_table.pickle"
+        self.l2_table_path = args.l2_table_path if hasattr(args, 'l2_table_path') else "../data/springer/l2_table.pickle"
         self.load_table()
         self.class_map = list(set(self.l2table.values()))
         self.total_class = len(self.class_map)
