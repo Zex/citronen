@@ -114,6 +114,8 @@ class VAE(object):
 #            tf.summary.histogram(v.name, k)
 #            tf.summary.scalar(v.name, k)
 
+        tf.summary.scalar("recon_loss", self.recon_loss)
+        tf.summary.scalar("kl_loss", self.kl_loss)
         tf.summary.scalar("loss", self.loss)
 #        tf.summary.histogram("x", self.enc.X)
 #        tf.summary.histogram("sample", self.sample_X)
