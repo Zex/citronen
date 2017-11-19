@@ -10,6 +10,7 @@ import tensorflow as tf
 from julian.provider.data_helper import persist, from_persist
 from julian.provider.data_provider import DataProvider
 
+
 class NaicsProvider(DataProvider):
 
     def __init__(self, args, need_shuffle=True):
@@ -29,7 +30,7 @@ class NaicsProvider(DataProvider):
         chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
         if need_shuffle:
             chunk = shuffle(chunk)
-        return self.__process_chunk(*self.__extract_xy(chunk))
+        return self._process_chunk(*self._extract_xy(chunk))
 
     def gen_data(self, need_shuffle=True):
         reader = pd.read_csv(self.data_path, header=0,
@@ -37,18 +38,7 @@ class NaicsProvider(DataProvider):
         for chunk in reader:
             if need_shuffle:
                 chunk = shuffle(chunk)
-            yield self.__process_chunk(*self.__extract_xy(chunk))
-
-    def __process_chunk(self, text, label):
-        y = []
-        def init_label(lbl):
-            one = np.zeros(len(self.class_map))
-            one[self.class_map.index(lbl)] = 1.
-            y.append(one)
-
-        x = list(self.vocab_processor.transform(text))
-        list(map(init_label, label))
-        return x, y
+            yield self._process_chunk(*self._extract_xy(chunk))
 
     def decode(self, pred):
         header = ['iid', 'code']
@@ -66,7 +56,7 @@ class NaicsProvider(DataProvider):
                 df.to_csv(self.pred_output, header=False, index=False, sep='#')
         return df
 
-    def __extract_xy(self, chunk):
+    def _extract_xy(self, chunk):
         chunk = chunk.dropna()
         chunk["code"] = chunk["code"].apply(lambda x: np.int64(x[:3]))
         return chunk["desc"], chunk["code"]
@@ -82,3 +72,18 @@ class NaicsProvider(DataProvider):
     def train_vocab(self):
         chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
         return self.train_vocab_from_data(chunk["desc"])
+
+class NaicsStreamProvider(NaicsProvider):
+
+    def __init__(self, args, need_shuffle=True):
+        super(NaicsStreamProvider, self).__init__(args)
+        self.input_stream = args.input_stream
+
+    def batch_data(self):
+        for chunk in self.input_stream:
+            if isinstance(chunk, tuple): # (X, y)
+                yield [self._process_chunk(chunk[0], chunk[1])]
+            else:
+                x = list(self.vocab_processor.transform(chunk))
+                y = np.zeros(len(x))
+                yield x, y
