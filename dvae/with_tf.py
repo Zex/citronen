@@ -22,7 +22,7 @@ def random_sample(mu, log):
 class Base(object):
     def __init__(self, args):
         self.X_dim = args.max_doc
-        self.h_dim = 128
+        self.h_dim = args.hidden_size
         self.z_dim = args.max_doc
 
 class Enc(Base):
@@ -73,6 +73,7 @@ class VAE(object):
         self.dec = Dec(args)
 
         self.data_path = args.data_path
+        self.verbose = args.verbose
         self.model_dir = args.model_dir
         self.log_path = os.path.join(
                 self.model_dir, "log_{}{}th".format(
@@ -125,7 +126,7 @@ class VAE(object):
         chunk = shuffle(chunk)
         return np.array(list(
             self.vocab_processor.fit_transform(
-                chunk["desc"])), dtype=np.float32), chunk["subcate"]
+                chunk["full_name"])), dtype=np.float32), None
 
     def batch_data(self):
         x, _ = self.load_data()
@@ -162,10 +163,10 @@ class VAE(object):
                 print("[{}] loss:{} z:{}".format(
                     step, loss, sample), flush=True)
                 with open("sample_code", 'a') as fd:
-                    fd.write(("\n"+"="*10+"{}"+"="*10).format(step))
+                    fd.write(("="*10+"{}"+"="*10+'\n').format(step))
                     [fd.write(str(text)) for text in sample]
                 with open("sample_text", 'a') as fd:
-                    fd.write(("\n"+"="*10+"{}"+"="*10).format(step))
+                    fd.write(("="*10+"{}"+"="*10+'\n').format(step))
                     [fd.write(text) for text in list(sample_text)]
 
     def __call__(self):
@@ -176,14 +177,16 @@ def init():
     tf.logging.set_verbosity(tf.logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
-    parser.add_argument('--data_path', default="../data/springer/mini.csv", type=str, help='Path to input data')
+    parser.add_argument('--data_path', default="../data/dvae/address.csv", type=str, help='Path to input data')
     parser.add_argument('--batch_size', default=128, type=int, help="Batch size")
     parser.add_argument('--summ_intv', default=100, type=int, help="Summary each several steps")
     parser.add_argument('--init_step', default=0, type=int, help="Initial training step")
     parser.add_argument('--epochs', default=10000, type=int, help="Total epochs to train")
     parser.add_argument('--noise_factor', default=0.30, type=float, help="Noise factor")
     parser.add_argument('--max_doc', default=512, type=int, help="Maximum document length")
-    parser.add_argument('--model_dir', default="../models/springer", type=str, help="Path to model and check point")
+    parser.add_argument('--hidden_size', default=128, type=int, help="Hidden layer size")
+    parser.add_argument('--model_dir', default="../models/dvae", type=str, help="Path to model and check point")
+    parser.add_argument('--verbose', default=False, action='store_true', help="Print verbose")
 
     return parser.parse_args()
 

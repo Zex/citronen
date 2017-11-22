@@ -1,0 +1,4 @@
+#!/bin/bash
+
+tensorboard --logdir \
+a:`pwd`/../models/dvae/log_2017326th
