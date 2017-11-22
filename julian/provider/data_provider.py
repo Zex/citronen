@@ -24,6 +24,15 @@ class DataProvider(object):
                 else os.path.join(args.model_dir,
                 "vocab_{}th".format(datetime.today().timetuple().tm_yday))
 
+    def init_label(self, lbl):
+        one = np.zeros(len(self.class_map))
+        one[self.class_map.index(lbl)] = 1.
+        return one 
+
+    def _process_chunk(self, text, label):
+        x = list(self.vocab_processor.transform(text))
+        y = list(map(self.init_label, label))
+        return x, y
 
     def load_all(self):
         """load vocaburary and data"""
