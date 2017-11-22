@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from sklearn.utils import shuffle
+from data_provider import Provider
 
 
 def xavier_init(size):
@@ -88,7 +88,10 @@ class VAE(object):
         self.global_step = tf.Variable(self.init_step, trainable=False)
         self.lr = args.lr
         self.max_doc = args.max_doc
-        self.vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor(self.max_doc)
+
+        self.provider = Provider(args)
+        self.provider.load_vocab()
+        #self.vocab_processor = self.provider.load_vocab()#tf.contrib.learn.preprocessing.VocabularyProcessor(self.max_doc)
         self._build_model(args)
 
     def _build_model(self, args):
@@ -121,21 +124,6 @@ class VAE(object):
 
         self.summary = tf.summary.merge_all()
 
-    def load_data(self):
-        chunk = pd.read_csv(self.data_path, engine='python', header=0, delimiter="#")
-        chunk = shuffle(chunk)
-        return np.array(list(
-            self.vocab_processor.fit_transform(
-                chunk["full_name"])), dtype=np.float32), None
-
-    def batch_data(self):
-        x, _ = self.load_data()
-        total_batch = int((len(x)-1)/self.batch_size)+1
-        print("Total batch: {}".format(total_batch))
-        for i in range(total_batch):
-            current = i * self.batch_size
-            yield x[current:current+self.batch_size+1]
-
     def foreach_train(self):
         with tf.Session() as sess:
             self.summary_writer = tf.summary.FileWriter(self.log_path, sess.graph)
@@ -148,7 +136,7 @@ class VAE(object):
                         global_step=tf.train.global_step(sess, self.global_step))
 
     def foreach_epoch(self, sess):
-        for X  in self.batch_data():
+        for X  in self.provider.batch_data():
             _, step, loss, summ = sess.run(
                     [self.train_op, self.global_step, \
                         self.loss, self.summary],
@@ -159,9 +147,11 @@ class VAE(object):
                     feed_dict={self.enc.z: np.random.randn(
                         self.batch_size, self.enc.z_dim)}
                     )
-                sample_text = self.vocab_processor.reverse(sample.astype(np.int32))
-                print("[{}] loss:{} z:{}".format(
-                    step, loss, sample), flush=True)
+                sample_text = self.provider.vocab_processor.reverse(sample.astype(np.int32))
+                if self.verbose:
+                    print("[{}] loss:{} z:{}".format(step, loss, sample), flush=True)
+                else:
+                    print("[{}] loss:{}".format(step, loss), flush=True)
                 with open("sample_code", 'a') as fd:
                     fd.write(("="*10+"{}"+"="*10+'\n').format(step))
                     [fd.write(str(text)+'\n') for text in sample]
@@ -187,11 +177,15 @@ def init():
     parser.add_argument('--hidden_size', default=128, type=int, help="Hidden layer size")
     parser.add_argument('--model_dir', default="../models/dvae", type=str, help="Path to model and check point")
     parser.add_argument('--verbose', default=False, action='store_true', help="Print verbose")
+    parser.add_argument('--vocab_path', default=None, type=str, help='Path to input data')
 
     return parser.parse_args()
 
 def start():
     args = init()
+    #provider = Provider(args)
+    #provider.train_vocab()
+
     vae = VAE(args)
     vae()
 

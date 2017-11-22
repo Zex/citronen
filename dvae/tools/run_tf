@@ -1,8 +1,13 @@
 #!/bin/bash
 export TF_CPP_MIN_LOG_LEVEL=2
 python3 with_tf.py \
-  --data_path ../data/dvae/address.csv\
+  --data_path ../data/dvae/address.csv \
   --model_dir ../models/dvae/ \
   --max_doc 6 \
   --hidden_size 3 \
-  --batch_size 512 
+  --batch_size 512 \
+  --noise_factor 0.8 \
+  --vocab_path ../data/dvae/vocab.pickle
+  
+  
+#--data_path ../data/dvae/GeoLite2-City-CSV_20171107/GeoLite2-City-Locations-en.csv \
