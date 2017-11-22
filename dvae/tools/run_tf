@@ -6,7 +6,7 @@ python3 with_tf.py \
   --max_doc 6 \
   --hidden_size 3 \
   --batch_size 512 \
-  --noise_factor 0.8 \
+  --noise_factor 0.2 \
   --vocab_path ../data/dvae/vocab.pickle
   
   
