@@ -2,7 +2,7 @@
 export TF_CPP_MIN_LOG_LEVEL=2
 python3 with_tf.py \
   --data_path ../data/dvae/address.csv\
-  --model_dir ../models/dvae \
-  --max_doc 512 \
-  --hidden_size 128 \
+  --model_dir ../models/dvae/ \
+  --max_doc 6 \
+  --hidden_size 3 \
   --batch_size 512 

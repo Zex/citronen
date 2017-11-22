@@ -164,10 +164,10 @@ class VAE(object):
                     step, loss, sample), flush=True)
                 with open("sample_code", 'a') as fd:
                     fd.write(("="*10+"{}"+"="*10+'\n').format(step))
-                    [fd.write(str(text)) for text in sample]
+                    [fd.write(str(text)+'\n') for text in sample]
                 with open("sample_text", 'a') as fd:
                     fd.write(("="*10+"{}"+"="*10+'\n').format(step))
-                    [fd.write(text) for text in list(sample_text)]
+                    [fd.write(text+'\n') for text in list(sample_text)]
 
     def __call__(self):
         self.foreach_train()
