@@ -36,7 +36,7 @@ class DataProvider(object):
         print("Max document length: {}".format(self.max_doc))
 
     def batch_data(self):
-        total_batch = int((len(self.x)-1)/self.batch_size)+1
+        total_batch = 1 if len(self.x) == 1 else int((len(self.x)-1)/self.batch_size)+1
         print("Total batch: {}".format(total_batch))
         for i in range(total_batch):
             current = i * self.batch_size
