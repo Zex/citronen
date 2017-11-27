@@ -26,7 +26,7 @@ class SpringerProvider(DataProvider):
         chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
         if need_shuffle:
             chunk = shuffle(chunk)
-        return self.__process_chunk(*self._extract_xy(chunk))
+        return self.__process_chunk(*self.__extract_xy(chunk))
 
     def gen_data(self, need_shuffle=True):
         reader = pd.read_csv(self.data_path, header=0,
@@ -34,14 +34,19 @@ class SpringerProvider(DataProvider):
         for chunk in reader:
             if need_shuffle:
                 chunk = shuffle(chunk)
-            yield self.__process_chunk(*self._extract_xy(chunk))
+            yield self.__process_chunk(*self.__extract_xy(chunk))
 
-    def _process_chunk(self, text, label1, label2):
+    def init_label(self, lbl):
+        one = np.zeros(len(self.class_map))
+        one[self.class_map.index(lbl)] = 1.
+        return one 
+
+    def __process_chunk(self, text, label1, label2):
         x = list(self.vocab_processor.transform(text))
         y = list(map(self.init_label, label2))
         return x, y
 
-    def _extract_xy(self, chunk):
+    def __extract_xy(self, chunk):
         chunk = chunk.dropna()
     
         if self.l1table:
@@ -58,6 +63,9 @@ class SpringerProvider(DataProvider):
         header = ['iid', 'l1', 'l2']
         df = pd.DataFrame(columns=header)
         pred = np.squeeze(pred)
+        
+        if not isinstance(pred, list):
+            pred = [pred]
 
         for p in pred:
             iid, l1, l2 = self.level_decode(p)

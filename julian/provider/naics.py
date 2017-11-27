@@ -10,12 +10,11 @@ import tensorflow as tf
 from julian.provider.data_helper import persist, from_persist
 from julian.provider.data_provider import DataProvider
 
-
 class NaicsProvider(DataProvider):
 
     def __init__(self, args, need_shuffle=True):
-        self.naics_codes_path = "../data/naics/codes_3digits.csv"
-        self.d3_table_path = "../data/naics/d3_table.pickle"
+        self.naics_codes_path = args.naics_codes_path if hasattr(args, "naics_codes_path") else "../data/naics/codes_3digits.csv"
+        self.d3_table_path = args.d3_table_path if hasattr(args, "d3_table_path") else "../data/naics/d3_table.pickle"
         self.d3table = self.load_d3table()
         self.class_map = list(set(self.d3table['code']))
         self.total_class = len(self.class_map)
@@ -30,7 +29,7 @@ class NaicsProvider(DataProvider):
         chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
         if need_shuffle:
             chunk = shuffle(chunk)
-        return self._process_chunk(*self._extract_xy(chunk))
+        return self.__process_chunk(*self.__extract_xy(chunk))
 
     def gen_data(self, need_shuffle=True):
         reader = pd.read_csv(self.data_path, header=0,
@@ -38,12 +37,26 @@ class NaicsProvider(DataProvider):
         for chunk in reader:
             if need_shuffle:
                 chunk = shuffle(chunk)
-            yield self._process_chunk(*self._extract_xy(chunk))
+            yield self.__process_chunk(*self.__extract_xy(chunk))
+
+    def __process_chunk(self, text, label):
+        y = []
+        def init_label(lbl):
+            one = np.zeros(len(self.class_map))
+            one[self.class_map.index(lbl)] = 1.
+            y.append(one)
+
+        x = list(self.vocab_processor.transform(text))
+        list(map(init_label, label))
+        return x, y
 
     def decode(self, pred):
         header = ['iid', 'code']
         df = pd.DataFrame(columns=header)
         pred = np.squeeze(pred)
+        
+        if not instance(pred, list):
+            pred = [pred]
 
         for p in pred:
             iid, code = self.level_decode(p)
@@ -56,7 +69,7 @@ class NaicsProvider(DataProvider):
                 df.to_csv(self.pred_output, header=False, index=False, sep='#')
         return df
 
-    def _extract_xy(self, chunk):
+    def __extract_xy(self, chunk):
         chunk = chunk.dropna()
         chunk["code"] = chunk["code"].apply(lambda x: np.int64(x[:3]))
         return chunk["desc"], chunk["code"]

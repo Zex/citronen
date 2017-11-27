@@ -15,6 +15,7 @@ avail_providers = {
     'springer': SpringerProvider,
     'naics': NaicsProvider,
     'springer_stream': SpringerStreamProvider,
+    'naics_stream': NaicsStreamProvider,
 }
 
 class Julian(object):
