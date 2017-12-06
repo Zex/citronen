@@ -1,7 +1,7 @@
 # Model handler
+import os, glob
 from julian.with_tf import Julian, init
 from julian.handler.model_handler import ModelHandler, MODE
-import os, glob
 
 
 class SpringerHandler(ModelHandler):
@@ -11,7 +11,7 @@ class SpringerHandler(ModelHandler):
         args = init()
         args.mode = "predict"
         args.data_path = None
-        args.model_dir = "models/springer"
+        args.model_dir = os.path.join(os.getcwd(), "models/springer/")
         args.vocab_path = "data/springer/vocab.pickle"
         args.l1_table_path = "data/springer/l1_table.pickle"
         args.l2_table_path = "data/springer/l2_table.pickle"
@@ -22,12 +22,13 @@ class SpringerHandler(ModelHandler):
         args.dropout = 1.0
         args.name = "springer_stream"
         args.input_stream = []
+
         if mode == MODE.STREAM:
             self.init_queues()
             args.input_stream = self.in_queue.receive_messages()
-        
+
         self.fetch_all(args)
-        self.julian = Julian(args) 
+        self.setup_model(args)
 
     def fetch_all(self, args):
         # FIXME
@@ -35,24 +36,25 @@ class SpringerHandler(ModelHandler):
                 'julian/models/springer/cnn-119000.data-00000-of-00001',
                 'julian/models/springer/cnn-119000.meta',
                 'julian/models/springer/cnn-119000.index',
+                'julian/models/springer/checkpoint',
         )
         list(map(lambda p:self.fetch_from_s3(\
                 p, os.path.join(args.model_dir, \
-                os.path.basename(p)), force=True), remote_paths))
+                os.path.basename(p)), force=False), remote_paths))
 
-        remove_paths = (
+        remote_paths = (
                 'julian/data/springer/l1_table.pickle',
                 'julian/data/springer/l2_table.pickle',
                 'julian/data/springer/lang/vocab.pickle',
                 )
         list(map(lambda p:self.fetch_from_s3(\
                 p, os.path.join(os.path.dirname(args.vocab_path), \
-                os.path.basename(p)), force=True), remote_paths))
+                os.path.basename(p)), force=False), remote_paths))
 
     def run(self):
         # TODO
         for res in self.julian.run():
-            self.out_queue.send_message(res.todict())
+            self.out_queue.send_message(res.to_dict())
 
 
 if __name__ == '__main__':

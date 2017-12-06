@@ -7,19 +7,29 @@ from julian.handler.naics_handler import NaicsHandler, MODE
 
 class Industry(Resource):
     
-    def __init__(self):
-        self.handler = NaicsHandler(MODE.COMPAT)
+    handler = NaicsHandler(MODE.COMPAT)
         
-    def get(self, descs):
+    def post(self):
+        data = request.json
+
+        if not data:
+            return jsonify({'error': 'description not given'})
+
+        descs = data.get('descs')
+        res = [] 
         if not descs:
             return jsonify({'error': 'description not given'})
 
         try:
             if isinstance(descs, str):
-                res = self.handler.predict([data])
+                df = Industry.handler.predict([descs])
             else:
-                res = self.handler.predict(data)
+                df = Industry.handler.predict(descs)
+            print(df['iid'].values)
+            print(df['code'].values)
+            list(map(lambda iid, code: res.append({'iid':iid, 'code':code}),\
+                df['iid'].values, df['code'].values))
         except Exception as ex:
-            print("Exception on handling request {}: {}".format(descs, ex))
+            print("Exception on handling request {}: {}".format(data, ex))
 
         return jsonify({'predicts':res})

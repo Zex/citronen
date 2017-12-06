@@ -4,6 +4,7 @@ import os, glob
 from enum import Enum, unique
 import pandas as pd
 import boto3
+import tensorflow as tf
 from julian.with_tf import Julian, init
 from julian.config import *
 
@@ -42,8 +43,7 @@ class ModelHandler(object):
         ddir = os.path.dirname(dest)
         if not os.path.isdir(ddir):
             os.makedirs(ddir)
-
-        if not glob.glob(ddir) and not force:
+        if os.path.isfile(dest) and not force:
             return
 
         try:
@@ -57,12 +57,18 @@ class ModelHandler(object):
         self.in_queue = sqs.get_queue_by_name(QueueName='AWS_SQS_INPUT')
         self.out_queue = sqs.get_queue_by_name(QueueName='AWS_SQS_OUTPUT')
 
-    def predict(self, x):
-        if not self.julian:
-            return
+    def setup_model(self, args):
+        self.julian = Julian(args) 
+        self.sess = tf.Session()
+        self.julian.setup_model(self.sess)
+
+    def predict(self, in_x):
+        if not self.julian or not in_x:
+            return None
+        x = list(self.julian.provider.vocab_processor.transform(in_x))
         feed_dict = {
             self.julian.input_x: x,
             self.julian.dropout_keep: self.julian.dropout,
         }
-        pred = sess.run([self.julian.pred], feed_dict=feed_dict)
-        return self.provider.decode(pred)
+        pred = self.sess.run([self.julian.pred], feed_dict=feed_dict)
+        return self.julian.provider.decode(pred)

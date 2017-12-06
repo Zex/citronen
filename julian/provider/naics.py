@@ -14,7 +14,7 @@ class NaicsProvider(DataProvider):
 
     def __init__(self, args, need_shuffle=True):
         self.naics_codes_path = args.naics_codes_path if hasattr(args, "naics_codes_path") else "../data/naics/codes_3digits.csv"
-        self.d3_table_path = args.d3_table_path if hasattr(args, "d3_table_path") else "../data/naics/d3_table.pickle"
+        #self.d3_table_path = args.d3_table_path if hasattr(args, "d3_table_path") else "../data/naics/d3_table.pickle"
         self.d3table = self.load_d3table()
         self.class_map = list(set(self.d3table['code']))
         self.total_class = len(self.class_map)
@@ -24,7 +24,7 @@ class NaicsProvider(DataProvider):
     def load_d3table(self):
         return pd.read_csv(self.naics_codes_path, engine='python',
                 header=0, delimiter="#", dtype={"code":np.int})
-    
+
     def load_data(self, need_shuffle=True):
         chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
         if need_shuffle:
@@ -53,16 +53,16 @@ class NaicsProvider(DataProvider):
     def decode(self, pred):
         header = ['iid', 'code']
         df = pd.DataFrame(columns=header)
-        pred = np.squeeze(pred)
-        
-        if not instance(pred, list):
+        pred = np.squeeze(pred).tolist()
+
+        if not isinstance(pred, list):
             pred = [pred]
 
         for p in pred:
             iid, code = self.level_decode(p)
             df = df.append(pd.Series((iid, code), index=header), ignore_index=True)
 
-        if self.pred_otuput:
+        if self.pred_output:
             if os.path.isfile(self.pred_output):
                 df.to_csv(self.pred_output, header=True, index=False, sep='#', mode='a')
             else:
@@ -77,7 +77,8 @@ class NaicsProvider(DataProvider):
     def level_decode(self, index):
         iid = self.class_map[index]
         code = self.d3table[self.d3table["code"] == iid].values
-        return iid, code
+        code = np.squeeze(code).tolist()
+        return iid, code[0]
 
     def level_encode(self):
         pass

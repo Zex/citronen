@@ -48,12 +48,12 @@ class SpringerProvider(DataProvider):
 
     def __extract_xy(self, chunk):
         chunk = chunk.dropna()
-    
+
         if self.l1table:
             chunk = chunk.replace({"cate":self.l1table})
         if self.l2table:
             chunk = chunk.replace({"subcate":self.l2table})
-    
+
         text = chunk["desc"]
         label1 = chunk["cate"]
         label2 = chunk["subcate"]
@@ -62,8 +62,8 @@ class SpringerProvider(DataProvider):
     def decode(self, pred):
         header = ['iid', 'l1', 'l2']
         df = pd.DataFrame(columns=header)
-        pred = np.squeeze(pred)
-        
+        pred = np.squeeze(pred).tolist()
+
         if not isinstance(pred, list):
             pred = [pred]
 
@@ -113,18 +113,18 @@ class SpringerProvider(DataProvider):
             if cate not in self.l1_table:
                 self.l1_table.update({cate:0x1000 if not self.l1_table \
                         else max(self.l1_table.values()) + 0x1000})
-    
+
         reader = pd.read_csv(self.data_path, header=0, chunksize=100, delimiter="#")
         [chunk["cate"].apply(assign_l1) for chunk in reader]
         persist(self.l1_table, self.l1_table_path)
-    
+
     def __encode_l2(self):
         mem = {}
         def assign_l2(cate, subcate):
             if subcate not in self.l2_table:
                 self.l2_table.update({subcate:self.l1_table[cate]+1 if cate not in mem else mem[cate]+1})
                 mem.update({cate:self.l2_table[subcate]})
-    
+
         reader = pd.read_csv(self.data_path, header=0, chunksize=100, delimiter="#")
         [chunk.apply(lambda x: assign_l2(x["cate"], x["subcate"]), axis=1) \
             for chunk in reader]

@@ -9,17 +9,26 @@ class TechDomain(Resource):
     #TODO add log
     handler = SpringerHandler(MODE.COMPAT)
         
-    def get(self, descs):
-        #data = request.json
+    def post(self):
+        data = request.json
+
+        if not data:
+            return jsonify({'error': 'description not given'})
+
+        descs = data.get('descs')
+        res = [] 
         if not descs:
             return jsonify({'error': 'description not given'})
 
         try:
             if isinstance(descs, str):
-                res = TechDomain.handler.predict([data])
+                df = TechDomain.handler.predict([descs])
             else:
-                res = TechDomain.handler.predict(data)
+                df = TechDomain.handler.predict(descs)
+            list(map(lambda iid, l1, l2: res.append({'iid':iid, 'l1':l1, 'l2':l2}),\
+                df['iid'].values, df['l1'].values, df['l2'].values))
         except Exception as ex:
-            print("Exception on handling request {}: {}".format(descs, ex))
+            print("Exception on handling request {}: {}".format(data, ex))
+            raise
 
         return jsonify({'predicts':res})
