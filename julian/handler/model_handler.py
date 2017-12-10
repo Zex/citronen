@@ -5,8 +5,11 @@ from enum import Enum, unique
 import pandas as pd
 import boto3
 import tensorflow as tf
+from kafka import KafkaProducer
 from julian.core.with_tf import Julian
-from julian.common.config import *
+from julian.common.config import get_config
+from julian.common.topic import Topic
+from julian.common.pipe import Pipe
 
 @unique
 class MODE(Enum):
@@ -15,26 +18,37 @@ class MODE(Enum):
     COMPAT = 3
 
 
-class ModelHandler(object):
+class ModelHandler(Pipe):
 
-    def __init__(self):
-
-        if not AWS_ACCESS_KEY:
-            raise RuntimeError("AWS_ACCESS_KEY not given")
-        if not AWS_SECRET_KEY:
-            raise RuntimeError("AWS_SECRET_KEY not given")
-        if not AWS_REGION:
-            raise RuntimeError("AWS_REGION not given")
-        if not AWS_S3_BUCKET:
-            raise RuntimeError("AWS_S3_BUCKET not given")
-
-        self.session = boto3.session.Session(
-          aws_access_key_id=AWS_ACCESS_KEY,
-          aws_secret_access_key=AWS_SECRET_KEY,
-          region_name=AWS_REGION
-        )
-        self.s3 = self.session.client('s3')
+    def __init__(self, *kwargs):
+        super(ModelHandler, self).__init__(**kwargs)
+        self._precheck()
         self.julian = None
+        self.s3 = boto3.service('s3')
+        self.setup_kafka(**kwargs)
+
+    def setup_kafka(self, **kwargs):
+        kw = {'bootstrap_servers': get_config().brokers,}
+
+        self.con = KafkaConsumer(
+                Topic.INPUT_TECH,
+                Topic.INPUT_NAICS,
+                'value_deserializer'=msgpack.unpackb,
+                **kw)
+        self.pro = KafkaProducer(
+                'value_serializer': msgpack.dumps,
+                **kw)
+
+    def _precheck(self):
+        config = get_config()
+#        config.raise_on_not_set('aws_access_key')
+#        config.raise_on_not_set('aws_secret_key')
+#        config.raise_on_not_set('aws_region_key')
+        config.raise_on_not_set('aws_s3_bucket')
+        self.bucket_name = config.aws_s3_bucket
+        config.raise_on_not_set('kafka_predict_topics')
+        self.kafka_topics = config.kafka_topics
+        config.raise_on_not_set('kafka_predict_topic')
 
     def __call__(self, *args, **kwargs):
         self.run(*args, **kwargs)
@@ -48,14 +62,9 @@ class ModelHandler(object):
 
         try:
             print("Fetching {} to {}".format(src, dest))
-            self.s3.download_file(AWS_S3_BUCKET, src, dest)
+            self.s3.meta.client.download_file(self.bucket_name, src, dest)
         except Exception as ex:
             print("Exception on fetching model: {}".format(ex))
-
-    def init_queues(self):
-        sqs = boto3.resource('sqs')
-        self.in_queue = sqs.get_queue_by_name(QueueName='AWS_SQS_INPUT')
-        self.out_queue = sqs.get_queue_by_name(QueueName='AWS_SQS_OUTPUT')
 
     def setup_model(self, args):
         self.julian = Julian(args) 
@@ -72,3 +81,16 @@ class ModelHandler(object):
         }
         pred = self.sess.run([self.julian.pred], feed_dict=feed_dict)
         return self.julian.provider.decode(pred)
+
+    def fetch(self, **kwargs):
+        """Fetch from feed dict producer"""
+        return kwargs
+
+    def convert(self, **kwargs):
+        input_x = kwargs['input_x']
+        res = self.predict(input_x)
+        kwargs.update('predict':res)
+        return kwargs
+
+    def send(self, **kwargs):
+        return {'future':self.pro.send(Topic.PREDICT, msgpack.dumps(kwargs))}

@@ -1,5 +1,7 @@
 # Model handler
 import os, glob
+from kafka import KafkaConsumer
+import msgpack
 from julian.core.with_tf import init
 from julian.handler.model_handler import ModelHandler, MODE
 
@@ -24,7 +26,6 @@ class SpringerHandler(ModelHandler):
         args.input_stream = []
 
         if mode == MODE.STREAM:
-            self.init_queues()
             args.input_stream = self.in_queue.receive_messages()
 
         self.fetch_all(args)
@@ -50,11 +51,6 @@ class SpringerHandler(ModelHandler):
         list(map(lambda p:self.fetch_from_s3(\
                 p, os.path.join(os.path.dirname(args.vocab_path), \
                 os.path.basename(p)), force=False), remote_paths))
-
-    def run(self):
-        # TODO
-        for res in self.julian.run():
-            self.out_queue.send_message(res.to_dict())
 
 
 if __name__ == '__main__':
