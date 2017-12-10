@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from tensorflow.contrib import learn, layers, framework
 from tensorflow.contrib.tensor_forest.python import tensor_forest
-from with_tf import Julian, start
+from core.with_tf import Julian, start
 
 
 class Forest(Julian):

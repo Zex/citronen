@@ -1,6 +1,6 @@
 # Model handler
 import os, glob
-from julian.with_tf import Julian, init
+from julian.core.with_tf import init
 from julian.handler.model_handler import ModelHandler, MODE
 
 

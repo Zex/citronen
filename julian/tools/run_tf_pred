@@ -1,6 +1,6 @@
 #!/bin/bash
 export TF_CPP_MIN_LOG_LEVEL=2
-python3 with_tf.py \
+python3 core/with_tf.py \
   --mode predict \
   --data_path ../data/springer/lang/english_mini.csv \
   --model_dir ../models/springer/50_1024_07_vocab/ \

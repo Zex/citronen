@@ -5,7 +5,7 @@ from enum import Enum, unique
 import pandas as pd
 import boto3
 import tensorflow as tf
-from julian.with_tf import Julian, init
+from julian.core.with_tf import Julian
 from julian.config import *
 
 @unique

@@ -1,6 +1,6 @@
 #!/bin/bash
 export TF_CPP_MIN_LOG_LEVEL=2
-python3 with_tf.py \
+python3 core/with_tf.py \
   --data_path ../data/springer/full.csv \
   --model_dir ../models/springer/50_1024_07_full/cnn \
   --max_doc 50 \
