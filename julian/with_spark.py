@@ -3,7 +3,7 @@
 import os
 import pyspark as spark
 
-psql_driver_path = "/media/sf_patsnap/dl/postgresql-42.1.4.jar"
+psql_driver_path = "/media/dl/postgresql-42.1.4.jar"
 #os.environ['PYSPARK_SUBMIT_ARGS'] = \
 #        '--driver-class-path {} --jars {} pyspark-shell'.format(psql_driver_path, psql_driver_path)
 
@@ -26,7 +26,6 @@ def conn_postgres(context):
 
     properties = {
             "user":"root",
-            "password":"patsnap360",
             "driver": "org.postgresql.Driver"
             }
     url = "jdbc:postgresql://192.168.44.101:5432"
