@@ -1,5 +1,5 @@
 # Service configure
-# Author: Zex Li <liyun@patsnap.com>
+# Author: Zex Li <top_zlynch@yahoo.com>
 from os import environ as env
 
 AWS_ACCESS_KEY = env.get('AWS_ACCESS_KEY')

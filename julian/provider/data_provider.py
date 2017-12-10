@@ -7,7 +7,6 @@ import pandas as pd
 from sklearn.utils import shuffle
 from tensorflow.contrib import learn
 import tensorflow as tf
-from julian.provider.data_helper import persist, from_persist
 
 
 class DataProvider(object):
