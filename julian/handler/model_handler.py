@@ -6,7 +6,7 @@ import pandas as pd
 import boto3
 import tensorflow as tf
 from julian.core.with_tf import Julian
-from julian.config import *
+from julian.common.config import *
 
 @unique
 class MODE(Enum):
