@@ -1,6 +1,6 @@
 # Output base for global control
 # Author: Zex Li <top_zlynch@yahoo.com>
-from common.pipe import Pipe
+from julian.common.pipe import Pipe
 
 class Output(Pipe):
 

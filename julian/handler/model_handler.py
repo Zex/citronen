@@ -5,6 +5,7 @@ from enum import Enum, unique
 import pandas as pd
 import boto3
 import tensorflow as tf
+import msgpack
 from kafka import KafkaProducer
 from julian.core.with_tf import Julian
 from julian.common.config import get_config
@@ -33,10 +34,10 @@ class ModelHandler(Pipe):
         self.con = KafkaConsumer(
                 Topic.INPUT_TECH,
                 Topic.INPUT_NAICS,
-                'value_deserializer'=msgpack.unpackb,
+                value_deserializer=msgpack.unpackb,
                 **kw)
         self.pro = KafkaProducer(
-                'value_serializer': msgpack.dumps,
+                value_serializer=msgpack.dumps,
                 **kw)
 
     def _precheck(self):
@@ -89,7 +90,7 @@ class ModelHandler(Pipe):
     def convert(self, **kwargs):
         input_x = kwargs['input_x']
         res = self.predict(input_x)
-        kwargs.update('predict':res)
+        kwargs.update({'predict':res})
         return kwargs
 
     def send(self, **kwargs):

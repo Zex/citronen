@@ -4,7 +4,6 @@ from kafka import KafkaProducer
 import msgpack
 from julian.common.config import get_config
 from julian.input.base import Input
-from src.dynamodb.tables.utils import get_table
 
 
 class FeedDict(Input):
@@ -24,8 +23,7 @@ class FeedDict(Input):
             kw['client_id'] = client_id
 
         self.pro = KafkaProducer(**kw)
-        self.data_type = kwargs.get('data_type')
-        self.table = get_table(self.data_type)
+        self.table = kwargs.get('table')
 
     def __del__(self):
         if hasattr(self, 'pro') and self.pro:

@@ -3,9 +3,8 @@
 from kafka import KafkaConsumer
 import msgpack
 from julian.common.config import get_config
-from julian.input.base import Output
+from julian.output.base import Output
 from julian.common.topic import Topic
-from src.dynamodb.tables.utils import get_table
 
 
 class Prediction(Output):
@@ -24,8 +23,7 @@ class Prediction(Output):
             kw['client_id'] = client_id
 
         self.con = KafkaConsumer(Topic.PREDICT,**kw)
-        self.data_type = kwargs.get('data_type')
-        self.table = get_table(self.data_type)
+        self.table = kwargs.get('table')
 
     def __del__(self):
         if hasattr(self, 'con') and self.con:
