@@ -1,5 +1,5 @@
 # Feed dict producer for each data type
-# Auhor: Zex Li <top_zlynch@yahoo.com>
+# Author: Zex Li <top_zlynch@yahoo.com>
 from julian.input.producer import FeedDict as FDProducer
 from julian.common.topic import Topic
 from src.dynamodb.common.utils import DataType, SliceType
