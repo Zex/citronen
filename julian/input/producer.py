@@ -23,7 +23,6 @@ class FeedDict(Input):
             kw['client_id'] = client_id
 
         self.pro = KafkaProducer(**kw)
-        self.table = kwargs.get('table')
 
     def __del__(self):
         if hasattr(self, 'pro') and self.pro:

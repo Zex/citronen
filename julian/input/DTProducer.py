@@ -3,6 +3,7 @@
 from julian.input.producer import FeedDict as FDProducer
 from julian.common.topic import Topic
 from src.dynamodb.common.utils import DataType, SliceType
+from src.dynamodb.tables.journal_article import JournalArticle
 
 
 class Article(FDProducer):
@@ -13,9 +14,7 @@ class Article(FDProducer):
 
     def fetch(self, **kwargs):
         """Fetch resource from database"""
-        for items in self.table.iscan(
-            Attr('data_type').eq(DataType.J_ARTICLE.name.lower())&\
-            Attr('slice_type').eq(SliceType.BASIC)):
+        for items in JournalArticle.iscan(chunksize=10000)
             # list of table object
             if not objs:
                 continue
@@ -39,7 +38,7 @@ class Org(FDProducer):
 
     def fetch(self, **kwargs):
         """Fetch resource from database"""
-        for objs in self.table.iscan(
+        for objs in self.table._iscan(
             Attr('data_type').eq(DataType.ORG.name.lower())&\
             Attr('slice_type').eq(SliceType.BASIC)):
             # list of table object
@@ -59,7 +58,7 @@ class Org(FDProducer):
 
 def start():
     ps = []
-    input_hdrs = [Article(), Org()]
+    input_hdrs = [Article()]
     [ps.append(mp.Process(target=hdr.run_async)) \
             for hdr in input_hdrs]
     [p.start() for p in ps]
