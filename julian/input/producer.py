@@ -10,7 +10,7 @@ class FeedDict(Input):
     """Feed dict producer"""
     def __init__(self, **kwargs):
         super(FeedDict, self).__init__(**kwargs)
-        brokers = get_config().brokers
+        brokers = get_config().kafka_brokers.split(',')
         self.topic = kwargs.get('topic')
         client_id = kwargs.get('client_id')
 
@@ -19,7 +19,7 @@ class FeedDict(Input):
                 'value_serializer': msgpack.dumps,
             }
 
-        if self.client_id:
+        if client_id:
             kw['client_id'] = client_id
 
         self.pro = KafkaProducer(**kw)

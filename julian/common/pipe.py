@@ -6,7 +6,7 @@ from abc import abstractmethod
 class Pipe(object):
 
     def __init__(self, **kwargs):
-        super(Pipe, self).__init__(**kwargs)
+        super(Pipe, self).__init__()
         pass
 
     @abstractmethod

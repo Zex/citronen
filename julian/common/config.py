@@ -1,6 +1,7 @@
 # Service configure
 # Author: Zex Li <top_zlynch@yahoo.com>
 from os import environ as env
+import string
 
 class Config(object):
 
@@ -12,7 +13,8 @@ class Config(object):
         self.load_env()
 
     def load_env(self):
-        [setattr(self, k.lower(), v) for k, v in env.items()]
+        _ = [setattr(self, k.lower().lstrip(string.digits+string.punctuation), v) \
+                for k, v in env.items()]
 
     def raise_on_not_set(self, name):
         if not name:
@@ -21,6 +23,8 @@ class Config(object):
         if not hasattr(self, name):
             raise AttributeError("{} not set".format(name.upper()))
 
+    def __str__(self):
+        return '\n'.join(['{}:{}'.format(k, v) for k, v in self.__dict__.items()])
 
 def get_config():
     if not globals().get('julian_config'):

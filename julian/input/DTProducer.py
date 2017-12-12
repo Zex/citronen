@@ -1,8 +1,9 @@
 # Feed dict producer for each data type
 # Author: Zex Li <top_zlynch@yahoo.com>
+import multiprocessing as mp
 from julian.input.producer import FeedDict as FDProducer
 from julian.common.topic import Topic
-from src.dynamodb.common.utils import DataType, SliceType
+from src.dynamodb.common.shared import DataType, SliceType
 from src.dynamodb.tables.journal_article import JournalArticle
 from src.dynamodb.tables.news import NewsTable
 
@@ -15,9 +16,10 @@ class Article(FDProducer):
 
     def fetch(self, **kwargs):
         """Fetch resource from database"""
-        #for items in JournalArticle.iscan(chunksize=10)
-        for items in NewsTable.iscan(chunksize=10)
+        gen = JournalArticle.iscan(chunksize=10, verbose=True)
+        for objs in gen:
             # list of table object
+            print(objs)
             if not objs:
                 continue
             gid = sty = in_x = []
@@ -60,10 +62,12 @@ class Org(FDProducer):
 
 
 def start():
-    input_hdrs = [Article()]
-    ps = [mp.Process(target=hdr.run_async) \
-            for hdr in input_hdrs]
-    [p.start() for p in ps]
+    hdr = Article()
+    for r in hdr.run_async():
+        print(r)
+    #ps = [mp.Process(target=hdr.run_async) \
+    #        for hdr in input_hdrs]
+    #[p.start() for p in ps]
     #[p.join() for p in ps]
      
 
