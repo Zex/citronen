@@ -52,4 +52,4 @@ class SpringerHandler(ModelHandler):
 if __name__ == '__main__':
     hdr = SpringerHandler()
     for x in hdr.run_async():
-        print(x)
+        print(x.keys())

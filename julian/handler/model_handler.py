@@ -84,14 +84,15 @@ class ModelHandler(Pipe):
     def fetch(self, **kwargs):
         """Fetch from feed dict producer"""
         for msg in self.cons:
-            print(msg.key, msg.value)
-            #self.predict(msg.value)
-            yield {msg.key:msg.value}
+            data = msgpack.unpackb(msg.value)
+            data = {k.decode():v for k, v in data.items()}
+            yield data
 
     def convert(self, **kwargs):
-        input_x = kwargs['input_x']
+        input_x = kwargs.pop('input_x', '')
+        input_x = list(map(lambda x: x.decode(), input_x))
         res = self.predict(input_x)
-        kwargs.update({'predict':res})
+        kwargs.update({'predict':res.values.tolist()})
         return kwargs
 
     def send(self, **kwargs):

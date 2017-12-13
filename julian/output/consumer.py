@@ -32,7 +32,9 @@ class Prediction(Output):
     def fetch(self, **kwargs):
         """Fetch results from model"""
         for msg in self.cons:
-            yield {msg.key:msg.value}
+            data = msgpack.unpackb(msg.value)
+            data = {k.decode():v for k, v in data.items()}
+            yield data
 
     def send(self, **kwargs):
         """Write back to database
@@ -42,3 +44,10 @@ class Prediction(Output):
     def convert(self, **kwargs):
         """Internal conversion"""
         return kwargs
+
+    def run_async(self, **kwargs):
+        """Asynchronous run, requires `fetch` to return generator"""
+        for x in self.fetch(**kwargs):
+            intm = yield self.convert(**x)
+            if intm:
+                yield self.send(**intm)

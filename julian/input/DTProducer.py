@@ -22,7 +22,7 @@ class Article(FDProducer):
             obj.data = JournalArticle(ujson.loads(obj.data))
             gid.append(obj.global_id)
             sty.append(obj.slice_type)
-            in_x.append(obj.data.abstract)
+            in_x.append(obj.data.abstract if obj.data.abstract else '')
         #for objs in JournalArticle.iscan(chunksize=10, verbose=True):
         #TODO REMOVE LATER
         with open('julian/tools/ja-100', 'rb') as fd:

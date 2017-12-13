@@ -22,13 +22,12 @@ class Article(PC):
         return self.cip_map.get(p.replace('\\/', '/').replace(',', ''))
 
     def convert(self, **kwargs):
-        #predicts = list(map(lambda iid, l1, l2: {'iid':iid, 'l1':l1, 'l2':l2}, \
-        #                df['iid'].values, df['l1'].values, df['l2'].values))
-        df = kwargs.get('predict')
         for gid, sty, predict in zip(
             kwargs.get('global_id'),\
             kwargs.get('slice_type'),\
-            df['l2'].values):
+            kwargs.get('predict')):
+            # each predict in structure [iid, l1, l2]
+            predict = predict[2].decode()
             cip = self.get_cip(predict)
             if cip:
                 yield {
@@ -53,25 +52,33 @@ class Org(PC):
     def __init__(self, **kwargs):
         super(Org, self).__init__(**kwargs)
 
+    def get_d6(self, predict):
+        #TODO
+        return None
+
     def convert(self, **kwargs):
         """Internal conversion"""
         for gid, sty, predict in zip(
             kwargs.get('global_id'),\
             kwargs.get('slice_type'),\
             kwargs.get('predict')):
-            kw = {
-                'global_id': gid,
-                'slice_type': sty,
+            # each predict in structure [iid, d6]
+            predict = predict[2].decode()
+            d6 = self.get_d6(predict)
+            if d6:
+                yield {
+                    'global_id': gid,
+                    'slice_type': sty,
+                    'd6code': d6,
                 }
-            kw['data'] = ''# TODO add predict 
-            yield kw
 
 
 def start():
     hdr = Article()
-    for r in hdr.run_async():
-        print(r['future'].get(timeout=5))
-     
+    for gen in hdr.run_async():
+        for r in gen:
+            print(r)
+
 
 if __name__ == '__main__':
     start()
