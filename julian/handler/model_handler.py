@@ -31,7 +31,7 @@ class ModelHandler(Pipe):
     def setup_kafka(self, **kwargs):
         kw = {'bootstrap_servers': get_config().kafka_brokers.split(','),}
 
-        self.con = KafkaConsumer(
+        self.cons = KafkaConsumer(
                 Topic.INPUT_TECH,
                 Topic.INPUT_NAICS,
                 value_deserializer=msgpack.unpackb,
@@ -83,7 +83,10 @@ class ModelHandler(Pipe):
 
     def fetch(self, **kwargs):
         """Fetch from feed dict producer"""
-        return kwargs
+        for msg in self.cons:
+            print(msg.key, msg.value)
+            #self.predict(msg.value)
+            yield {msg.key:msg.value}
 
     def convert(self, **kwargs):
         input_x = kwargs['input_x']

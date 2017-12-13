@@ -22,11 +22,6 @@ class NaicsHandler(ModelHandler):
         args.dropout = 1.0
         args.name = "naics_stream"
         args.input_stream = []
-
-        if mode == MODE.STREAM:
-            self.init()
-            args.input_stream = self.in_queue.receive_messages()
-
         self.fetch_all(args)
         self.setup_model(args)
 
@@ -52,11 +47,9 @@ class NaicsHandler(ModelHandler):
                 p, os.path.join(os.path.dirname(args.vocab_path), \
                 os.path.basename(p))), remote_paths))
 
-    def run(self):
-        # TODO
-        for res in self.julian.run():
-            self.out_queue.send_message(res.to_dict())
 
 
 if __name__ == '__main__':
-    NaicsHandler()()
+    hdr = NaicsHandler()
+    for x in hdr.run_async():
+        print(x)

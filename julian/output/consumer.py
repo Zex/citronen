@@ -22,16 +22,16 @@ class Prediction(Output):
         if client_id:
             kw['client_id'] = client_id
 
-        self.con = KafkaConsumer(Topic.PREDICT,**kw)
+        self.cons = KafkaConsumer(Topic.PREDICT,**kw)
         self.table = kwargs.get('table')
 
     def __del__(self):
-        if hasattr(self, 'con') and self.con:
-            self.con.close()
+        if hasattr(self, 'con') and self.cons:
+            self.cons.close()
 
     def fetch(self, **kwargs):
         """Fetch results from model"""
-        for msg in self.con:
+        for msg in self.cons:
             yield {msg.key:msg.value}
 
     def send(self, **kwargs):

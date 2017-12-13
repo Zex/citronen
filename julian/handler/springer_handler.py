@@ -1,7 +1,5 @@
 # Model handler
 import os, glob
-from kafka import KafkaConsumer
-import msgpack
 from julian.core.with_tf import init
 from julian.handler.model_handler import ModelHandler, MODE
 
@@ -24,10 +22,6 @@ class SpringerHandler(ModelHandler):
         args.dropout = 1.0
         args.name = "springer_stream"
         args.input_stream = []
-
-        if mode == MODE.STREAM:
-            args.input_stream = self.in_queue.receive_messages()
-
         self.fetch_all(args)
         self.setup_model(args)
 
@@ -56,4 +50,6 @@ class SpringerHandler(ModelHandler):
 
 
 if __name__ == '__main__':
-    SpringerHandler()()
+    hdr = SpringerHandler()
+    for x in hdr.run_async():
+        print(x)
