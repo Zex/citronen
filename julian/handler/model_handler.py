@@ -48,9 +48,6 @@ class ModelHandler(Pipe):
         if not (hasattr(config, 'local_model') and config.local_model):
             config.raise_on_not_set('aws_s3_bucket')
             self.bucket_name = config.aws_s3_bucket
-        config.raise_on_not_set('kafka_predict_topics')
-        self.kafka_topics = config.kafka_topics
-        config.raise_on_not_set('kafka_predict_topic')
 
     def __call__(self, *args, **kwargs):
         self.run(*args, **kwargs)
