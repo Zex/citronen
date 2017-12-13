@@ -13,7 +13,7 @@ setuptools==36.2.0
 snowballstemmer==1.2.1
 #Sphinx==1.6.3
 tensorflow==1.4.0
-tensorflow-tensorboard==0.1.5
+tensorflow-tensorboard==0.4.0rc3
 #torch==0.1.12.post1
 Flask-RESTful==0.3.6
 boto3==1.4.7

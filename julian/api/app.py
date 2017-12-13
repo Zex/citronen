@@ -7,6 +7,7 @@ from flask import Flask
 from julian.api.v1.tech_domain import TechDomain
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 api = Api(app)
 
 api.add_resource(TechDomain, '/api/v1/tech_domain')
