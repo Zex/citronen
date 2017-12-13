@@ -21,7 +21,7 @@ class MODE(Enum):
 
 class ModelHandler(Pipe):
 
-    def __init__(self, *kwargs):
+    def __init__(self, **kwargs):
         super(ModelHandler, self).__init__(**kwargs)
         self._precheck()
         self.julian = None
@@ -45,8 +45,9 @@ class ModelHandler(Pipe):
 #        config.raise_on_not_set('aws_access_key')
 #        config.raise_on_not_set('aws_secret_key')
 #        config.raise_on_not_set('aws_region_key')
-        config.raise_on_not_set('aws_s3_bucket')
-        self.bucket_name = config.aws_s3_bucket
+        if not (hasattr(config, 'local_model') and config.local_model):
+            config.raise_on_not_set('aws_s3_bucket')
+            self.bucket_name = config.aws_s3_bucket
         config.raise_on_not_set('kafka_predict_topics')
         self.kafka_topics = config.kafka_topics
         config.raise_on_not_set('kafka_predict_topic')
