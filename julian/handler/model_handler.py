@@ -25,11 +25,11 @@ class ModelHandler(Pipe):
         super(ModelHandler, self).__init__(**kwargs)
         self._precheck()
         self.julian = None
-        self.s3 = boto3.service('s3')
+        self.s3 = boto3.resource('s3')
         self.setup_kafka(**kwargs)
 
     def setup_kafka(self, **kwargs):
-        kw = {'bootstrap_servers': get_config().brokers,}
+        kw = {'bootstrap_servers': get_config().kafka_brokers.split(','),}
 
         self.con = KafkaConsumer(
                 Topic.INPUT_TECH,
