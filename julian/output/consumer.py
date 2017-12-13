@@ -11,7 +11,7 @@ class Prediction(Output):
     """Prediction Consumer"""
     def __init__(self, *args, **kwargs):
         super(Prediction, self).__init__()
-        brokers = get_config().brokers
+        brokers = get_config().kafka_brokers.split(',')
         client_id = kwargs.get('client_id')
 
         kw = {
@@ -19,7 +19,7 @@ class Prediction(Output):
                 'value_deserializer': msgpack.unpackb,
             }
 
-        if self.client_id:
+        if client_id:
             kw['client_id'] = client_id
 
         self.con = KafkaConsumer(Topic.PREDICT,**kw)

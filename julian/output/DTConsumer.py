@@ -2,9 +2,9 @@
 # Author: Zex Li <top_zlynch@yahoo.com>
 import multiprocessing as mp
 import ujson
-from julian.input.consumer import Prediction as PC
+from julian.output.consumer import Prediction as PC
 from src.dynamodb.common.shared import DataType
-from src.dynamodb.tables import JournalArticle
+from src.dynamodb.tables.journal_article import JournalArticle
 
 
 class Article(PC):
