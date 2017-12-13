@@ -8,8 +8,8 @@ from julian.handler.model_handler import ModelHandler, MODE
 
 class SpringerHandler(ModelHandler):
 
-    def __init__(self, mode=MODE.STREAM):
-        super(SpringerHandler, self).__init__()
+    def __init__(self, mode=MODE.STREAM, **kwargs):
+        super(SpringerHandler, self).__init__(**kwargs)
         args = init()
         args.mode = "predict"
         args.data_path = None
