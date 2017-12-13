@@ -1,33 +1,56 @@
 # Prediction consumer for each data type
 # Author: Zex Li <top_zlynch@yahoo.com>
+import multiprocessing as mp
+import ujson
 from julian.input.consumer import Prediction as PC
 from src.dynamodb.common.shared import DataType
-import multiprocessing as mp
+from src.dynamodb.tables import JournalArticle
 
 
 class Article(PC):
     """Prediction consumer for article"""
     def __init__(self, **kwargs):
-        kwargs['data_type'] = DataType.J_ARTICLE
         super(Article, self).__init__(**kwargs)
+        self.cip_map_path = 'springer_second.json'
+        self.load_cip_map()
+
+    def load_cip_map(self):
+        with open(self.cip_map_path) as fd:
+            self.cip_map = ujson.load(fd)
+
+    def get_cip(self, p):
+        return self.cip_map.get(p.replace('\\/', '/').replace(',', ''))
 
     def convert(self, **kwargs):
-        """Internal conversion"""
+        #predicts = list(map(lambda iid, l1, l2: {'iid':iid, 'l1':l1, 'l2':l2}, \
+        #                df['iid'].values, df['l1'].values, df['l2'].values))
+        df = kwargs.get('predict')
         for gid, sty, predict in zip(
             kwargs.get('global_id'),\
             kwargs.get('slice_type'),\
-            kwargs.get('predict')):
-            kw = {
-                'global_id': gid,
-                'slice_type': sty,
+            df['l2'].values):
+            cip = self.get_cip(predict)
+            if cip:
+                yield {
+                    'global_id': gid,
+                    'slice_type': sty,
+                    'cip': cip,
                 }
-            kw['data'] = ''# TODO add predict 
-            yield kw
+
+    def send(self, **kwargs):
+        gid = kwargs.get('global_id')
+        cip = kw['cip']
+        table = JournalArticle.rebuild(global_id=gid)
+        if table.techdomain:
+            table.techdomain[0]['techdomian_id'] = str(cip)
+        else:
+            table.techdomain = [{"techdomian_id":str(cip),}]
+        table.save()
+
 
 class Org(PC):
     """Prediction consumer for organization"""
     def __init__(self, **kwargs):
-        kwargs['data_type'] = DataType.ORG
         super(Org, self).__init__(**kwargs)
 
     def convert(self, **kwargs):
@@ -43,13 +66,11 @@ class Org(PC):
             kw['data'] = ''# TODO add predict 
             yield kw
 
+
 def start():
-    ps = []
-    output_hdrs = [Article(), Org()]
-    [ps.append(mp.Process(target=hdr.run_async)) \
-            for hdr in output_hdrs]
-    [p.start() for p in ps]
-    [p.join() for p in ps]
+    hdr = Article()
+    for r in hdr.run_async():
+        print(r['future'].get(timeout=5))
      
 
 if __name__ == '__main__':

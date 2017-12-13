@@ -37,7 +37,7 @@ class Prediction(Output):
     def send(self, **kwargs):
         """Write back to database
         """
-        return self.table.update(kwargs)
+        return kwargs
 
     def convert(self, **kwargs):
         """Internal conversion"""

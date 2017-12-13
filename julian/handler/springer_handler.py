@@ -33,20 +33,22 @@ class SpringerHandler(ModelHandler):
 
     def fetch_all(self, args):
         # FIXME
+        remote_base = 'config/julian/models/springer'
         remote_paths = (
-                'julian/models/springer/cnn-119000.data-00000-of-00001',
-                'julian/models/springer/cnn-119000.meta',
-                'julian/models/springer/cnn-119000.index',
-                'julian/models/springer/checkpoint',
+                os.path.join(remote_base, 'cnn-119000.data-00000-of-00001'),
+                os.path.join(remote_base, 'cnn-119000.meta'),
+                os.path.join(remote_base, 'cnn-119000.index'),
+                os.path.join(remote_base, 'checkpoint'),
         )
         list(map(lambda p:self.fetch_from_s3(\
                 p, os.path.join(args.model_dir, \
                 os.path.basename(p)), force=False), remote_paths))
 
+        remote_base = 'config/julian/data/springer'
         remote_paths = (
-                'julian/data/springer/l1_table.pickle',
-                'julian/data/springer/l2_table.pickle',
-                'julian/data/springer/lang/vocab.pickle',
+                os.path.join(remote_base, 'l1_table.pickle'),
+                os.path.join(remote_base, 'l2_table.pickle'),
+                os.path.join(remote_base, 'lang/vocab.pickle'),
                 )
         list(map(lambda p:self.fetch_from_s3(\
                 p, os.path.join(os.path.dirname(args.vocab_path), \
