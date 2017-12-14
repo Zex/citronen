@@ -1,6 +1,8 @@
 # Feed dict producer for each data type
 # Author: Zex Li <top_zlynch@yahoo.com>
+import sys
 import multiprocessing as mp
+import gc
 import pickle, ujson, glob, os #TODO REMOVE LATER
 from julian.input.producer import FeedDict as FDProducer
 from julian.common.topic import Topic
@@ -10,12 +12,14 @@ from src.dynamodb.common.shared import DataType, SliceType
 from src.dynamodb.core.global_table import Global
 from src.dynamodb.tables.journal_article import JournalArticle
 from src.dynamodb.tables.organization import OrganizationTable
+import logging
 
 
 class Article(FDProducer):
 
     def __init__(self, **kwargs):
         super(Article, self).__init__(topic=Topic.INPUT_TECH, **kwargs)
+        self.total = 0
         pass
 
     def fetch(self, **kwargs):
@@ -38,14 +42,14 @@ class Article(FDProducer):
         #    if not objs:
         #        continue
         #TODO REMOVE LATER
-        cur = 0
         for f in glob.iglob('julian/tools/ja.pickle.enum/*'):
-            cur += 1
             with open(f, 'rb') as fd:
                 objs = pickle.load(fd)
             gid, sty, in_x = [], [], []
             list(map(extract_x, objs))
             if gid and sty and in_x:
+                self.total += len(in_x)
+                print(self, self.total)
                 yield {
                     'global_id': gid,
                     'slice_type': sty,
@@ -57,6 +61,7 @@ class Org(FDProducer):
 
     def __init__(self, **kwargs):
         super(Org, self).__init__(topic=Topic.INPUT_NAICS, **kwargs)
+        self.total = 0
         pass
 
     def fetch(self, **kwargs):
@@ -78,14 +83,14 @@ class Org(FDProducer):
         #    if not objs:
         #        continue
         #TODO REMOVE LATER
-        cur = 0
         for f in glob.iglob('julian/tools/org.pickle.enum/*'):
-            cur += 1
             with open(f, 'rb') as fd:
                 objs = pickle.load(fd)
             gid, sty, in_x = [], [], []
             list(map(extract_x, objs))
             if gid and sty and in_x:
+                self.total += len(in_x)
+                print(self, self.total)
                 yield {
                     'global_id': gid,
                     'slice_type': sty,

@@ -1,13 +1,15 @@
 # Model handler
 import os, glob
 from julian.core.with_tf import init
+from julian.common.topic import Topic
 from julian.handler.model_handler import ModelHandler, MODE
 
 
 class NaicsHandler(ModelHandler):
 
     def __init__(self, mode=MODE.STREAM, **kwargs):
-        super(NaicsHandler, self).__init__(**kwargs)
+        super(NaicsHandler, self).__init__(topic_pair={
+            Topic.INPUT_NAICS: Topic.PREDICT_NAICS}, **kwargs)
         args = init()
         args.mode = "predict"
         args.data_path = None

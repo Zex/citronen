@@ -29,10 +29,16 @@ class ModelHandler(Pipe):
         self.setup_kafka(**kwargs)
 
     def setup_kafka(self, **kwargs):
+        """
+        Setup kafka consumer and producer
+
+        Args:
+        topic_pair: A `dict` represents in-topic and out-topic
+        """
         kw = {'bootstrap_servers': get_config().kafka_brokers.split(','),}
-        topics = (Topic.INPUT_TECH, Topic.INPUT_NAICS)
+        self.topic_pair = kwargs.get('topic_pair', {})
         self.cons = KafkaConsumer(
-                *topics,
+                *self.topic_pair.keys(),
                 value_deserializer=msgpack.unpackb,
                 **kw)
         self.pro = KafkaProducer(
@@ -85,17 +91,20 @@ class ModelHandler(Pipe):
         for msg in self.cons:
             data = msgpack.unpackb(msg.value)
             data = {k.decode():v for k, v in data.items()}
+            data.update({'topic': msg.topic})
             yield data
 
     def convert(self, **kwargs):
         input_x = kwargs.pop('input_x', '')
         input_x = list(map(lambda x: x.decode(), input_x))
         res = self.predict(input_x)
-        kwargs.update({'predict':res.values.tolist()})
+        kwargs.update({
+            'predict': res.values.tolist(),
+            })
         return kwargs
 
     def send(self, **kwargs):
-        return {'future':self.pro.send(Topic.PREDICT, msgpack.dumps(kwargs))}
+        return {'future':self.pro.send(self.topic_pair.get(kwargs['topic']), msgpack.dumps(kwargs))}
 
 
     def __del__(self):

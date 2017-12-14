@@ -7,6 +7,7 @@ import pandas as pd
 from julian.output.consumer import Prediction as PC
 from julian.common.utils import raise_if_not_found
 from julian.common.config import get_config
+from julian.common.topic import Topic
 from src.dynamodb.common.shared import DataType
 from src.dynamodb.tables.journal_article import JournalArticle
 from src.dynamodb.tables.organization import OrganizationTable
@@ -15,7 +16,7 @@ from src.dynamodb.tables.organization import OrganizationTable
 class Article(PC):
     """Prediction consumer for article"""
     def __init__(self, **kwargs):
-        super(Article, self).__init__(**kwargs)
+        super(Article, self).__init__(topics=(Topic.PREDICT_TECH,),  **kwargs)
         self.cip_map_path = 'data/springer/springer_second.json'
         self.load_cip_map()
         self.cnt = 0
@@ -50,7 +51,7 @@ class Article(PC):
         gid = kwargs.get('global_id')
         cip = kwargs['cip']
         # TODO REMOVE LATER
-        print('++ [updated] {} {}'.format(gid, cip))
+        print('++ [updated] {} {}'.format(gid, cip), self.cnt)
         return
         table = JournalArticle.rebuild(global_id=gid)
         if table.techdomain:
@@ -64,7 +65,7 @@ class Article(PC):
 class Org(PC):
     """Prediction consumer for organization"""
     def __init__(self, **kwargs):
-        super(Org, self).__init__(**kwargs)
+        super(Org, self).__init__(topics=(Topic.PREDICT_NAICS,), **kwargs)
         self.d3_path = "data/naics/codes_3digits.csv"
         self.d6_path = "data/naics/codes_6digits.csv"
         self.load_naics_tables()
@@ -108,7 +109,7 @@ class Org(PC):
         gid = kwargs.get('global_id')
         d6_code = kwargs['d6code']
         # TODO REMOVE LATER
-        print('++ [updated] {} {}'.format(gid, d6_code))
+        print('++ [updated] {} {}'.format(gid, d6_code), self.cnt)
         return
         table = OrganizationTable.rebuild(global_id=gid)
         if table.industry_classifications:

@@ -22,8 +22,8 @@ class Prediction(Output):
         if client_id:
             kw['client_id'] = client_id
 
-        self.cons = KafkaConsumer(Topic.PREDICT,**kw)
-        self.table = kwargs.get('table')
+        self.topics = kwargs.get('topics')
+        self.cons = KafkaConsumer(*self.topics, **kw)
 
     def __del__(self):
         if hasattr(self, 'con') and self.cons:

@@ -1,7 +1,7 @@
 # Input producer
 # Author: Zex Li <top_zlynch@yahoo.com>
-from kafka import KafkaProducer
 import msgpack
+from kafka import KafkaProducer
 from julian.common.config import get_config
 from julian.input.base import Input
 
