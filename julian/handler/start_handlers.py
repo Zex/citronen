@@ -5,10 +5,14 @@ from julian.common.config import get_config
 from julian.handler.springer_handler import SpringerHandler
 from julian.handler.naics_handler import NaicsHandler
 
+
 def run_async(hdr_name):
-    hdr = globals().get(hdr_name)()
-    for res in hdr.run_async():
-        print(res)
+    try:
+        hdr = globals().get(hdr_name)()
+        for res in hdr.run_async():
+            print(res)
+    except KeyboardInterrupt:
+        print("++ [terminate] {}".format(hdr_name))
 
 
 def start():

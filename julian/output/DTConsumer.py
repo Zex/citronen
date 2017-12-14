@@ -55,7 +55,7 @@ class Article(PC):
         else:
             table.techdomain = [{"techdomian_id":str(cip),}]
         table.save()
-        print('++ [updated] {}'.format(gid))
+        print('++ [updated] {} {}'.format(gid, cip))
 
 
 class Org(PC):
@@ -110,7 +110,7 @@ class Org(PC):
         else:
             table.industry_classifications = [{'source_unique':str(d6_code),}]
         table.save()
-        print('++ [updated] {}'.format(gid))
+        print('++ [updated] {} {}'.format(gid, d6_code))
 
 
 def run_async(hdr_name):

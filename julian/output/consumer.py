@@ -49,7 +49,6 @@ class Prediction(Output):
         """Asynchronous run, requires `fetch` to return generator"""
         for x in self.fetch(**kwargs):
             for intm in self.convert(**x):
-                print('yield intm', intm)
                 if intm:
                     yield self.send(**intm)
 
