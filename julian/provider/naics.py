@@ -7,14 +7,14 @@ import pandas as pd
 from sklearn.utils import shuffle
 from tensorflow.contrib import learn
 import tensorflow as tf
+from julian.common.utils import raise_if_not_found
 from julian.provider.data_helper import persist, from_persist
 from julian.provider.data_provider import DataProvider
 
 class NaicsProvider(DataProvider):
 
     def __init__(self, args, need_shuffle=True):
-        self.naics_codes_path = args.naics_codes_path if hasattr(args, "naics_codes_path") else "../data/naics/codes_3digits.csv"
-        #self.d3_table_path = args.d3_table_path if hasattr(args, "d3_table_path") else "../data/naics/d3_table.pickle"
+        self.naics_codes_path = getattr(args, "naics_codes_path", "data/naics/codes_3digits.csv")
         self.d3table = self.load_d3table()
         self.class_map = list(set(self.d3table['code']))
         self.total_class = len(self.class_map)
@@ -22,16 +22,19 @@ class NaicsProvider(DataProvider):
         self.load_all()
 
     def load_d3table(self):
-        return pd.read_csv(self.naics_codes_path, engine='python',
+        raise_if_not_found(self.naics_codes_path)
+        return pd.read_csv(self.naics_codes_path,
                 header=0, delimiter="#", dtype={"code":np.int})
 
     def load_data(self, need_shuffle=True):
+        raise_if_not_found(self.data_path)
         chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
         if need_shuffle:
             chunk = shuffle(chunk)
         return self.__process_chunk(*self.__extract_xy(chunk))
 
     def gen_data(self, need_shuffle=True):
+        raise_if_not_found(self.data_path)
         reader = pd.read_csv(self.data_path, header=0,
             delimiter="#", chunksize=self.batch_size)
         for chunk in reader:
@@ -51,7 +54,7 @@ class NaicsProvider(DataProvider):
         return x, y
 
     def decode(self, pred):
-        header = ['iid', 'code']
+        header = ['iid', 'code', 'name']
         df = pd.DataFrame(columns=header)
         pred = np.squeeze(pred).tolist()
 
@@ -59,8 +62,8 @@ class NaicsProvider(DataProvider):
             pred = [pred]
 
         for p in pred:
-            iid, code = self.level_decode(p)
-            df = df.append(pd.Series((iid, code), index=header), ignore_index=True)
+            iid, code, name = self.level_decode(p)
+            df = df.append(pd.Series((iid, code, name), index=header), ignore_index=True)
 
         if self.pred_output:
             if os.path.isfile(self.pred_output):
@@ -78,7 +81,7 @@ class NaicsProvider(DataProvider):
         iid = self.class_map[index]
         code = self.d3table[self.d3table["code"] == iid].values
         code = np.squeeze(code).tolist()
-        return iid, code[0]
+        return iid, code[0], code[1]
 
     def level_encode(self):
         pass

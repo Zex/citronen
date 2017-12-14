@@ -48,6 +48,12 @@ class Prediction(Output):
     def run_async(self, **kwargs):
         """Asynchronous run, requires `fetch` to return generator"""
         for x in self.fetch(**kwargs):
-            intm = yield self.convert(**x)
-            if intm:
-                yield self.send(**intm)
+            for intm in self.convert(**x):
+                print('yield intm', intm)
+                if intm:
+                    yield self.send(**intm)
+
+    def __del__(self):
+        cons = getattr(self, 'cons', None)
+        if cons:
+            cons.close()

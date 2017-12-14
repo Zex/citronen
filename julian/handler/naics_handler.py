@@ -14,7 +14,6 @@ class NaicsHandler(ModelHandler):
         args.model_dir = os.path.join(os.getcwd(), "models/naics/")
         args.vocab_path = "data/naics/vocab.pickle"
         args.naics_codes_path = "data/naics/codes_3digits.csv"
-        #args.d3_table_path = "data/naics/d3_table.pickle"
         args.restore = True
         args.pred_output_path = None
         args.max_doc = 50
@@ -29,10 +28,10 @@ class NaicsHandler(ModelHandler):
         # FIXME
         remote_base = 'config/julian/models/naics'
         remote_paths = (
-           os.path.join(remote_base, '/cnn-381000.data-00000-of-00001'),
-           os.path.join(remote_base, '/cnn-381000.meta'),
-           os.path.join(remote_base, '/cnn-381000.index'),
-           os.path.join(remote_base, '/checkpoint'),
+           os.path.join(remote_base, 'cnn-381000.data-00000-of-00001'),
+           os.path.join(remote_base, 'cnn-381000.meta'),
+           os.path.join(remote_base, 'cnn-381000.index'),
+           os.path.join(remote_base, 'checkpoint'),
         )
         list(map(lambda p:self.fetch_from_s3(\
                 p, os.path.join(args.model_dir, \
@@ -40,8 +39,8 @@ class NaicsHandler(ModelHandler):
 
         remote_base = 'config/julian/data/naics'
         remote_paths = (
-           os.path.join(remote_base, '/codes_3digits.csv'),
-           os.path.join(remote_base, '/vocab.pickle'),
+           os.path.join(remote_base, 'codes_3digits.csv'),
+           os.path.join(remote_base, 'vocab.pickle'),
         )
         list(map(lambda p:self.fetch_from_s3(\
                 p, os.path.join(os.path.dirname(args.vocab_path), \

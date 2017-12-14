@@ -6,6 +6,7 @@ source $ETL_ROOT/dev_env_rawdata.sh
 export LOCAL_MODEL=true
 export TABLE_GLOBAL='360_global'
 export KAFKA_BROKERS="localhost:9092,localhost:9093"
+export PRODUCERS="Article,Org"
 
 #$py3 julian/input/DTProducer.py
 #$py3 julian/handler/springer_handler.py

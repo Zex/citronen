@@ -46,3 +46,8 @@ class FeedDict(Input):
     def convert(self, **kwargs):
         """Internal conversion"""
         return kwargs
+
+    def __del__(self):
+        pro = getattr(self, 'pro', None)
+        if pro:
+            pro.close()

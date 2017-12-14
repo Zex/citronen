@@ -30,10 +30,9 @@ class ModelHandler(Pipe):
 
     def setup_kafka(self, **kwargs):
         kw = {'bootstrap_servers': get_config().kafka_brokers.split(','),}
-
+        topics = (Topic.INPUT_TECH, Topic.INPUT_NAICS)
         self.cons = KafkaConsumer(
-                Topic.INPUT_TECH,
-                Topic.INPUT_NAICS,
+                *topics,
                 value_deserializer=msgpack.unpackb,
                 **kw)
         self.pro = KafkaProducer(
@@ -97,3 +96,13 @@ class ModelHandler(Pipe):
 
     def send(self, **kwargs):
         return {'future':self.pro.send(Topic.PREDICT, msgpack.dumps(kwargs))}
+
+
+    def __del__(self):
+        cons = getattr(self, 'cons', None)
+        if cons:
+            cons.close()
+
+        pro = getattr(self, 'pro', None)
+        if pro:
+            pro.close()
