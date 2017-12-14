@@ -38,8 +38,11 @@ class Article(FDProducer):
         #    if not objs:
         #        continue
         #TODO REMOVE LATER
-        with open('julian/tools/ja-100', 'rb') as fd:
-            objs = pickle.load(fd)
+        cur = 0
+        for f in glob.iglob('julian/tools/ja.pickle.enum/*'):
+            cur += 1
+            with open(f, 'rb') as fd:
+                objs = pickle.load(fd)
             gid, sty, in_x = [], [], []
             list(map(extract_x, objs))
             if gid and sty and in_x:
@@ -75,10 +78,11 @@ class Org(FDProducer):
         #    if not objs:
         #        continue
         #TODO REMOVE LATER
+        cur = 0
         for f in glob.iglob('julian/tools/org.pickle.enum/*'):
+            cur += 1
             with open(f, 'rb') as fd:
                 objs = pickle.load(fd)
-
             gid, sty, in_x = [], [], []
             list(map(extract_x, objs))
             if gid and sty and in_x:
@@ -95,6 +99,8 @@ def run_async(hdr_name):
         _ = list(hdr.run_async())
     except KeyboardInterrupt:
         print("++ [terminate] {}".format(hdr_name))
+    except Exception as ex:
+        print("-- [error] {}".format(ex))
 
 
 def start():
@@ -103,7 +109,8 @@ def start():
         for hdr_name in get_config().producers.split(','):
             pool.append(mp.Process(target=run_async,
                                     args=(hdr_name,),
-                                    name=hdr_name))
+                                    name=hdr_name,
+                                    ))
         list(map(lambda p: p.start(), pool))
     except KeyboardInterrupt:
         #list(map(lambda p: p.join(), pool))

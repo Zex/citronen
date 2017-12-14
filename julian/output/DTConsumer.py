@@ -18,6 +18,7 @@ class Article(PC):
         super(Article, self).__init__(**kwargs)
         self.cip_map_path = 'data/springer/springer_second.json'
         self.load_cip_map()
+        self.cnt = 0
 
     def load_cip_map(self):
         with open(self.cip_map_path) as fd:
@@ -35,15 +36,17 @@ class Article(PC):
             gid = gid.decode()
             sty = sty.decode()
             predict = predict[2].decode()
-            cip = str(self.get_cip(predict))
+            cip = self.get_cip(predict)
+
             if cip:
+                cip = list(cip.keys())[0]
                 yield {
                     'global_id': gid,
                     'slice_type': sty,
                     'cip': cip,
                 }
-
     def send(self, **kwargs):
+        self.cnt += 1
         gid = kwargs.get('global_id')
         cip = kwargs['cip']
         # TODO REMOVE LATER
@@ -65,6 +68,7 @@ class Org(PC):
         self.d3_path = "data/naics/codes_3digits.csv"
         self.d6_path = "data/naics/codes_6digits.csv"
         self.load_naics_tables()
+        self.cnt = 0
 
     def load_naics_tables(self):
         raise_if_not_found(self.d3_path)
@@ -86,11 +90,12 @@ class Org(PC):
             kwargs.get('global_id'),\
             kwargs.get('slice_type'),\
             kwargs.get('predict')):
-            # each predict in structure [iid, d6]
+            # each predict in structure [iid, d3, name]
             gid = gid.decode()
             sty = sty.decode()
             predict = str(predict[1])
             d6_code = self.get_d6_code(predict)
+
             if d6_code:
                 yield {
                     'global_id': gid,
@@ -99,6 +104,7 @@ class Org(PC):
                 }
 
     def send(self, **kwargs):
+        self.cnt += 1
         gid = kwargs.get('global_id')
         d6_code = kwargs['d6code']
         # TODO REMOVE LATER
@@ -121,7 +127,6 @@ def run_async(hdr_name):
         print("++ [terminate] {}".format(hdr_name))
 
 
-
 def start():
     pool = []
     try:
@@ -131,7 +136,7 @@ def start():
                                     name=hdr_name))
         list(map(lambda p: p.start(), pool))
     except KeyboardInterrupt:
-        #list(map(lambda p: p.join(), pool))
+        list(map(lambda p: p.join(), pool))
         print("++ [terminate]")
 
 
