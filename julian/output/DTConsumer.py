@@ -114,9 +114,12 @@ class Org(PC):
 
 
 def run_async(hdr_name):
-    hdr = globals().get(hdr_name)()
-    for res in hdr.run_async():
-        print(res)
+    try:
+        hdr = globals().get(hdr_name)()
+        _ = list(hdr.run_async())
+    except KeyboardInterrupt:
+        print("++ [terminate] {}".format(hdr_name))
+
 
 
 def start():
