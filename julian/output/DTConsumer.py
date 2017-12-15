@@ -131,7 +131,7 @@ def run_async(hdr_name):
 def start():
     pool = []
     try:
-        for hdr_name in get_config().producers.split(','):
+        for hdr_name in get_config().consumers.split(','):
             pool.append(mp.Process(target=run_async,
                                     args=(hdr_name,),
                                     name=hdr_name))
