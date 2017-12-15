@@ -51,9 +51,12 @@ class Article(PC):
         gid = kwargs.get('global_id')
         cip = kwargs['cip']
         # TODO REMOVE LATER
-        print('++ [updated] {} {}'.format(gid, cip), self.cnt)
-        return
+        #print('++ [updated] {} {}'.format(gid, cip), self.cnt)
+        #return
         table = JournalArticle.rebuild(global_id=gid)
+        print(table)
+        if not table:
+            return
         if table.techdomain:
             table.techdomain[0]['techdomian_id'] = str(cip)
         else:
@@ -109,9 +112,12 @@ class Org(PC):
         gid = kwargs.get('global_id')
         d6_code = kwargs['d6code']
         # TODO REMOVE LATER
-        print('++ [updated] {} {}'.format(gid, d6_code), self.cnt)
-        return
-        table = OrganizationTable.rebuild(global_id=gid)
+        #print('++ [updated] {} {}'.format(gid, d6_code), self.cnt)
+        #return
+        table, _ = OrganizationTable.rebuild(global_id=gid)
+        print(table)
+        if not table:
+            return
         if table.industry_classifications:
             table.industry_classifications[0]['source_unique'] = str(d6_code)
         else:
@@ -126,6 +132,8 @@ def run_async(hdr_name):
         _ = list(hdr.run_async())
     except KeyboardInterrupt:
         print("++ [terminate] {}".format(hdr_name))
+    except Exception as ex:
+        print("-- [error] {}".format(ex))
 
 
 def start():

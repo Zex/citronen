@@ -26,8 +26,8 @@ class Article(FDProducer):
         """Fetch resource from database"""
         def extract_x(obj):
             # TODO REMOVE LATER
-            obj = Global(ujson.loads(obj))
-            obj.data = JournalArticle(ujson.loads(obj.data))
+            #obj = Global(ujson.loads(obj))
+            #obj.data = JournalArticle(ujson.loads(obj.data))
             if not getattr(obj.data, 'abstract', None):
                 return
 
@@ -38,23 +38,25 @@ class Article(FDProducer):
         config = get_config()
         chunksize = int(getattr(config, 'producer_chunksize', Default.PRODUCER_CHUNKSIZE))
 
-        #for objs in JournalArticle.iquery(chunksize=chunksize, verbose=True):
-        #    if not objs:
-        #        continue
+        for chunk in JournalArticle.iquery(chunksize=chunksize, verbose=True):
+            if not chunk:
+                continue
         #TODO REMOVE LATER
-        for f in glob.iglob('julian/tools/ja.pickle.enum/*'):
-            with open(f, 'rb') as fd:
-                objs = pickle.load(fd)
-            gid, sty, in_x = [], [], []
-            list(map(extract_x, objs))
-            if gid and sty and in_x:
-                self.total += len(in_x)
-                print(self, self.total)
-                yield {
-                    'global_id': gid,
-                    'slice_type': sty,
-                    'input_x': in_x,
-                    }
+        #for f in glob.iglob('julian/tools/ja.pickle.enum/*'):
+        #    with open(f, 'rb') as fd:
+        #        objs = pickle.load(fd)
+            for objs in chunk:
+                gid, sty, in_x = [], [], []
+    
+                list(map(extract_x, objs))
+                if gid and sty and in_x:
+                    self.total += len(in_x)
+                    print(self, self.total)
+                    yield {
+                        'global_id': gid,
+                        'slice_type': sty,
+                        'input_x': in_x,
+                        }
 
 
 class Org(FDProducer):
@@ -68,8 +70,8 @@ class Org(FDProducer):
         """Fetch resource from database"""
         def extract_x(obj):
             # TODO REMOVE LATER
-            obj = Global(ujson.loads(obj))
-            obj.data = OrganizationTable(ujson.loads(obj.data))
+            #obj = Global(ujson.loads(obj))
+            #obj.data = OrganizationTable(ujson.loads(obj.data))
             if not getattr(obj.data, 'description', None):
                 return
             gid.append(obj.global_id)
@@ -79,23 +81,24 @@ class Org(FDProducer):
         config = get_config()
         chunksize = int(getattr(config, 'producer_chunksize', Default.PRODUCER_CHUNKSIZE))
 
-        #for objs in OrganizationTable.iquery(chunksize=chunksize, verbose=True):
-        #    if not objs:
-        #        continue
+        for chunk in OrganizationTable.iquery(chunksize=chunksize, verbose=True):
+            if not chunk:
+                continue
         #TODO REMOVE LATER
-        for f in glob.iglob('julian/tools/org.pickle.enum/*'):
-            with open(f, 'rb') as fd:
-                objs = pickle.load(fd)
-            gid, sty, in_x = [], [], []
-            list(map(extract_x, objs))
-            if gid and sty and in_x:
-                self.total += len(in_x)
-                print(self, self.total)
-                yield {
-                    'global_id': gid,
-                    'slice_type': sty,
-                    'input_x': in_x,
-                    }
+        #for f in glob.iglob('julian/tools/org.pickle.enum/*'):
+        #    with open(f, 'rb') as fd:
+        #        objs = pickle.load(fd)
+            for objs in chunk:
+                gid, sty, in_x = [], [], []
+                list(map(extract_x, objs))
+                if gid and sty and in_x:
+                    self.total += len(in_x)
+                    print(self, self.total)
+                    yield {
+                        'global_id': gid,
+                        'slice_type': sty,
+                        'input_x': in_x,
+                        }
 
 
 def run_async(hdr_name):

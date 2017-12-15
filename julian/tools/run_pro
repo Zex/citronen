@@ -1,13 +1,5 @@
 #!/bin/bash
-export py3=python3
-export ETL_ROOT=~/lab/360-etl
-export PYTHONPATH=$ETL_ROOT:`pwd`
-source $ETL_ROOT/dev_env_rawdata.sh
-export LOCAL_MODEL=true
-export TABLE_GLOBAL='360_global'
-export KAFKA_BROKERS="localhost:17811,localhost:9092"
-export PRODUCER_CHUNKSIZE=100
-export PRODUCERS="Article,Org"
+source ./julian/tools/common
 
 $py3 julian/input/DTProducer.py
 #$py3 julian/handler/springer_handler.py

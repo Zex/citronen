@@ -50,7 +50,7 @@ class ModelHandler(Pipe):
 #        config.raise_on_not_set('aws_access_key')
 #        config.raise_on_not_set('aws_secret_key')
 #        config.raise_on_not_set('aws_region_key')
-        if not (hasattr(config, 'local_model') and config.local_model):
+        if not (getattr(config, 'local_model', 'false') and bool(config.local_model)):
             config.raise_on_not_set('aws_s3_bucket')
             self.bucket_name = config.aws_s3_bucket
 
