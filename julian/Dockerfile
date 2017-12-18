@@ -16,7 +16,7 @@ COPY externs/360-etl/dev_env_rawdata.sh $ETL_ROOT/dev_env_rawdata.sh
 
 WORKDIR $JULIAN_ROOT
 #RUN dnf update -y;
-RUN dnf install python3-pip python3 -y
+RUN dnf install python3-pip python3 unzip -y
 RUN ./tools/setup_kafka.sh 
 RUN pip3 install -U pip; pip3 install -r requirements.txt
 
