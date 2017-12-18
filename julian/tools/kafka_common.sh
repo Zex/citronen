@@ -4,7 +4,7 @@ export pkg_base="/opt"
 
 export grandle_src="https://downloads.gradle.org/distributions/gradle-4.4-bin.zip"
 export grandle_target="$pkg_base/gradle-4.4-bin.zip"
-export grandle_root="$pkg_base/gradle-4.4-bin"
+export grandle_root="$pkg_base/gradle-4.4"
 
 export kafka_src="http://mirrors.hust.edu.cn/apache/kafka/1.0.0/kafka1.0.0-src.tgz"
 export kafka_target="$pkg_base/kafka1.0.0-src.tgz"

@@ -51,10 +51,9 @@ class Article(PC):
         gid = kwargs.get('global_id')
         cip = kwargs['cip']
         # TODO REMOVE LATER
-        #print('++ [updated] {} {}'.format(gid, cip), self.cnt)
-        #return
-        table = JournalArticle.rebuild(global_id=gid)
-        print(table)
+        print('++ [updated] {} {}'.format(gid, cip), self.cnt)
+        return
+        table, _ = JournalArticle.rebuild(global_id=gid)
         if not table:
             return
         if table.techdomain:
@@ -112,10 +111,9 @@ class Org(PC):
         gid = kwargs.get('global_id')
         d6_code = kwargs['d6code']
         # TODO REMOVE LATER
-        #print('++ [updated] {} {}'.format(gid, d6_code), self.cnt)
-        #return
+        print('++ [updated] {} {}'.format(gid, d6_code), self.cnt)
+        return
         table, _ = OrganizationTable.rebuild(global_id=gid)
-        print(table)
         if not table:
             return
         if table.industry_classifications:
