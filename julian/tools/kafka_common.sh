@@ -1,35 +1,38 @@
 #!/bin/bash
+#set -e
 
 export pkg_base="/opt"
 
-export grandle_src="https://downloads.gradle.org/distributions/gradle-4.4-bin.zip"
-export grandle_target="$pkg_base/gradle-4.4-bin.zip"
-export grandle_root="$pkg_base/gradle-4.4"
+export gradle_src="https://downloads.gradle.org/distributions/gradle-4.4-bin.zip"
+export gradle_target="$pkg_base/gradle-4.4-bin.zip"
+export gradle_root="$pkg_base/gradle-4.4"
 
-export kafka_src="http://mirrors.hust.edu.cn/apache/kafka/1.0.0/kafka1.0.0-src.tgz"
-export kafka_target="$pkg_base/kafka1.0.0-src.tgz"
-export kafka_root="$pkg_base/kafka1.0.0-src"
+#export kafka_src="http://mirrors.hust.edu.cn/apache/kafka/1.0.0/kafka-1.0.0-src.tgz"
+export kafka_src="http://apache.mirrors.ionfish.org/kafka/1.0.0/kafka_2.11-1.0.0.tgz"
+export kafka_target="$pkg_base/kafka_2.11-1.0.0.tgz"
+export kafka_root="$pkg_base/kafka_2.11-1.0.0"
 
 export zk_src="http://mirrors.shuosc.org/apache/zookeeper/zookeeper-3.5.3-beta/zookeeper-3.5.3-beta.tar.gz"
 export zk_target="$pkg_base/zookeeper-3.5.3-beta.tar.gz"
 export zk_root="$pkg_base/zookeeper-3.5.3-beta"
 export clean_list=""
 
-function install_grandle() {
-  if [ -f $grandle_root/bin/grandle ] ;then 
-    echo "grandle installed in $grandle_root"
+function install_gradle() {
+  if [ -f $gradle_root/bin/gradle ] ;then 
+    echo "gradle installed in $gradle_root"
     return 0
   fi
 
-  if [ ! -f $grandle_target ] ;then
-    echo "$grandle_target not found, downloading"
-    curl -o "$grandle_target" "$grandle_src" 
-    if [ ! -f $grandle_target ] ;then echo "$grandle_target not found"; return 1;fi
+  if [ ! -f $gradle_target ] ;then
+    echo "$gradle_target not found, downloading"
+    curl -o "$gradle_target" "$gradle_src" 
+    if [ ! -f $gradle_target ] ;then echo "$gradle_target not found"; return 1;fi
   fi
 
-  unzip -x $grandle_target -d $pkg_base
-  if [ ! -f $grandle_root ] ;then echo "$grandle_root not found"; return 1;fi
-  export clean_list="$clean_list $grandle_target $grandle_root"
+  unzip -x $gradle_target -d $pkg_base
+  if [ ! -d $gradle_root ] ;then echo "$gradle_root not found"; return 1;fi
+  export clean_list="$clean_list $gradle_target $gradle_root"
+  rm -f $gradle_target
   return 0
 }
 
@@ -48,15 +51,16 @@ function install_kafka() {
 
   tar xf $kafka_target -C $pkg_base
   if [ ! -f $kafka_target ] ;then echo "$kafka_target not found"; return 1;fi
-  pushd $kafka_root
-  $grandle_root/bin/grandle jar
-  popd
+#  pushd $kafka_root
+#  $gradle_root/bin/gradle jar
+#  popd
   export clean_list="$clean_list $kafka_target"
+  rm -f $kafka_target
   return 0
 }
 
 
-function install_zookeeper() {
+function install_zk() {
   if [ -f $zk_root/bin/zkServer.sh ] ;then
     echo "zk installed in $zk_root"
     return 0
@@ -70,17 +74,15 @@ function install_zookeeper() {
 
   tar xf $zk_target -C $pkg_base
   if [ ! -f $zk_target ] ;then echo "$zk_target not found"; return 1;fi
-  pushd $zk_root
-  $grandle_root/bin/grandle jar
-  popd
   export clean_list="$clean_list $zk_target"
+  rm -f $zk_target
   return 0
 }
 
 
 function install_pkgs() {
-  install_grandle
-  if [ ! $? -eq 0 ] ;then echo "failed to install grandle"; return 1; fi
+#  install_gradle
+#  if [ ! $? -eq 0 ] ;then echo "failed to install gradle"; return 1; fi
 
   install_kafka
   if [ ! $? -eq 0 ] ;then echo "failed to install kafka"; return 1; fi
