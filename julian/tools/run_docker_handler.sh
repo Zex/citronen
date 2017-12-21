@@ -5,7 +5,8 @@ source ./tools/docker_common.sh
 
 
 docker-current run \
-    --name julian-output \
+    --name julian-handler \
     --env-file ./tools/env_julian.sh \
+    --link julian-broker \
     -it $local_tag \
-    /opt/julian/tools/start_output.sh
+    /opt/julian/tools/start_handler.sh

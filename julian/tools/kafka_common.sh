@@ -104,5 +104,6 @@ function cleanup() {
 
 function start_kafka() {
   $kafka_root/bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
-  $kafka_root/bin/kafka-server-start.sh -daemon config/server.properties
+  #$kafka_root/bin/kafka-server-start.sh -daemon config/server.properties
+  $kafka_root/bin/kafka-server-start.sh config/server.properties
 }
