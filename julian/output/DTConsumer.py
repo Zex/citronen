@@ -1,5 +1,6 @@
 # Prediction consumer for each data type
 # Author: Zex Li <top_zlynch@yahoo.com>
+import os
 import multiprocessing as mp
 import ujson
 import numpy as np
@@ -22,6 +23,9 @@ class Article(PC):
         self.cnt = 0
 
     def load_cip_map(self):
+        remote_path = os.path.join('config/julian', self.cip_map_path)
+        self.fetch_from_s3(remote_path, self.cip_map_path)
+
         with open(self.cip_map_path) as fd:
             self.cip_map = ujson.load(fd)
 
@@ -46,6 +50,7 @@ class Article(PC):
                     'slice_type': sty,
                     'cip': cip,
                 }
+
     def send(self, **kwargs):
         self.cnt += 1
         gid = kwargs.get('global_id')
@@ -76,6 +81,10 @@ class Org(PC):
     def load_naics_tables(self):
         raise_if_not_found(self.d3_path)
         raise_if_not_found(self.d6_path)
+
+        self.fetch_from_s3(os.path.join('config/julian', self.d3_path), self.d3_path)
+        self.fetch_from_s3(os.path.join('config/julian', self.d6_path), self.d6_path)
+
         self.d3_table = pd.read_csv(self.d3_path, header=0, delimiter='#', \
                 dtype={'code': np.str})
         self.d6_table = pd.read_csv(self.d6_path, header=0, delimiter='#', \
