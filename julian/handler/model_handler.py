@@ -25,8 +25,19 @@ class ModelHandler(Pipe):
         super(ModelHandler, self).__init__(**kwargs)
         self._precheck()
         self.julian = None
-        self.s3 = boto3.resource('s3')
+        self.setup_s3cli()
         self.setup_kafka(**kwargs)
+
+    def setup_s3cli(self):
+        config = get_config()
+        if getattr(config, 'aws_access_key', None) and \
+                getattr(config, 'aws_secret_key', None):
+            self.s3_cli = boto3.client('s3',
+                    aws_access_key=config.aws_access_key,
+                    aws_secret_key=config.aws_secret_key,
+                    )
+        else:
+            self.s3_cli = boto3.resource('s3').meta.client
 
     def setup_kafka(self, **kwargs):
         """
@@ -47,12 +58,13 @@ class ModelHandler(Pipe):
 
     def _precheck(self):
         config = get_config()
-#        config.raise_on_not_set('aws_access_key')
-#        config.raise_on_not_set('aws_secret_key')
-#        config.raise_on_not_set('aws_region_key')
         if not (getattr(config, 'local_model', 'false') and bool(config.local_model)):
             config.raise_on_not_set('aws_s3_bucket')
             self.bucket_name = config.aws_s3_bucket
+
+#        config.raise_on_not_set('aws_access_key')
+#        config.raise_on_not_set('aws_secret_key')
+#        config.raise_on_not_set('aws_region_key')
 
     def __call__(self, *args, **kwargs):
         self.run(*args, **kwargs)
@@ -65,8 +77,10 @@ class ModelHandler(Pipe):
             return
 
         try:
-            print("Fetching {} to {}".format(src, dest))
-            self.s3.meta.client.download_file(self.bucket_name, src, dest)
+            print("Fetching {}/{} to {}".format(self.bucket_name, src, dest))
+            self.s3_cli.download_file(self.bucket_name, src, dest)
+            if os.path.isfile(dest):
+                print("{} downloaded".format(dest))
         except Exception as ex:
             print("Exception on fetching model: {}".format(ex))
 
