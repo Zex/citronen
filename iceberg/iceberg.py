@@ -15,7 +15,6 @@ class Iceberg(object):
 
     def __init__(self):
         super(Iceberg, self).__init__()
-        self.axes = []
     
     def load_data(self, path):
         if not os.path.isfile(path):
@@ -26,6 +25,7 @@ class Iceberg(object):
     def preprocess(self):
         path = "data/iceberg/train.json"
         data = self.load_data(path)
+        self.axes = []
         self.fig = plt.figure(figsize=(20, 10), facecolor='black', edgecolor='black')
         self.fig.show()
         self.cur_i = 0
