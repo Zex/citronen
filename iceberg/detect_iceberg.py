@@ -26,12 +26,12 @@ class Iceberg(object):
     def preprocess(self):
         path = "data/iceberg/train.json"
         data = self.load_data(path)
-        self.fig = plt.figure(figsize=(8, 8), facecolor='darkgray', edgecolor='black')
+        self.fig = plt.figure(figsize=(20, 10), facecolor='black', edgecolor='black')
         self.fig.show()
         self.cur_i = 0
         for i, one in data.iterrows():
             self.plot_one(one, i)
-            if i == 28: input(); sys.exit()
+            if i == 62: input(); sys.exit()
 
     def plot_one(self, one, i):
         img_band_1 = np.array(one['band_1']).reshape(75, 75)
@@ -41,7 +41,7 @@ class Iceberg(object):
         self.cur_i += 1
 
     def plot_img(self, img, angle, is_iceberg, iid, i):
-        row = 6; col = 6
+        row = 8; col = 16
         cur = i%(row*col)+1
 
         if len(self.axes) > cur:
