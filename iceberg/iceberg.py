@@ -1,14 +1,10 @@
-# Iceberg classification
+# Iceberg identifier
 # Author: Zex Li <top_zlynch@yahoo.com>
-
-import ujson
 import os
 import sys
+import ujson
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use("TkAgg")
-from matplotlib import pyplot as plt
 
 
 class Iceberg(object):
@@ -62,6 +58,9 @@ class Iceberg(object):
 
 
 if __name__ == '__main__':
+    import matplotlib
+    matplotlib.use("TkAgg")
+    from matplotlib import pyplot as plt
     plt.ion()
     ice = Iceberg()
     ice.preprocess()
