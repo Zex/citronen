@@ -37,8 +37,7 @@ class FeedDict(Input):
         """Send to broker
         Args:
 
-        global_id: Global unique ID
-        slice_type: Slice type for record
+        id: unique ID
         input_x: Batch of raw text for data provider
         """
         return {'future':self.pro.send(self.topic, msgpack.dumps(kwargs))}

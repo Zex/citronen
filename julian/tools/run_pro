@@ -2,8 +2,5 @@
 source ./julian/tools/common
 
 $py3 julian/input/DTProducer.py
-#$py3 julian/handler/springer_handler.py
-#$py3 julian/output/DTConsumer.py
-
 
 find . -name __pycache__ -exec rm -rf {} \; 2> /dev/null

@@ -1,104 +1,10 @@
 # Feed dict producer for each data type
 # Author: Zex Li <top_zlynch@yahoo.com>
-import sys
 import multiprocessing as mp
-import gc
-import pickle, ujson, glob, os #TODO REMOVE LATER
-from julian.input.producer import FeedDict as FDProducer
 from julian.common.topic import Topic
 from julian.common.config import get_config
-from julian.common.shared import Default
-from src.dynamodb.common.shared import DataType, SliceType
-from src.dynamodb.core.global_table import Global
-from src.dynamodb.tables.journal_article import JournalArticle
-from src.dynamodb.tables.organization import OrganizationTable
+from julian.input.producers import *
 import logging
-
-
-class Article(FDProducer):
-
-    def __init__(self, **kwargs):
-        super(Article, self).__init__(topic=Topic.INPUT_TECH, **kwargs)
-        self.total = 0
-        pass
-
-    def fetch(self, **kwargs):
-        """Fetch resource from database"""
-        def extract_x(obj):
-            # TODO REMOVE LATER
-            #obj = Global(ujson.loads(obj))
-            #obj.data = JournalArticle(ujson.loads(obj.data))
-            if not getattr(obj.data, 'abstract', None):
-                return
-
-            gid.append(obj.global_id)
-            sty.append(obj.slice_type)
-            in_x.append(obj.data.abstract)
-
-        config = get_config()
-        chunksize = int(getattr(config, 'producer_chunksize', Default.PRODUCER_CHUNKSIZE))
-
-        for chunk in JournalArticle.iquery(chunksize=chunksize, verbose=True):
-            if not chunk:
-                continue
-        #TODO REMOVE LATER
-        #for f in glob.iglob('julian/tools/ja.pickle.enum/*'):
-        #    with open(f, 'rb') as fd:
-        #        objs = pickle.load(fd)
-            for objs in chunk:
-                gid, sty, in_x = [], [], []
-    
-                list(map(extract_x, objs))
-                if gid and sty and in_x:
-                    self.total += len(in_x)
-                    print(self, self.total)
-                    yield {
-                        'global_id': gid,
-                        'slice_type': sty,
-                        'input_x': in_x,
-                        }
-
-
-class Org(FDProducer):
-
-    def __init__(self, **kwargs):
-        super(Org, self).__init__(topic=Topic.INPUT_NAICS, **kwargs)
-        self.total = 0
-        pass
-
-    def fetch(self, **kwargs):
-        """Fetch resource from database"""
-        def extract_x(obj):
-            # TODO REMOVE LATER
-            #obj = Global(ujson.loads(obj))
-            #obj.data = OrganizationTable(ujson.loads(obj.data))
-            if not getattr(obj.data, 'description', None):
-                return
-            gid.append(obj.global_id)
-            sty.append(obj.slice_type)
-            in_x.append(obj.data.description)
-
-        config = get_config()
-        chunksize = int(getattr(config, 'producer_chunksize', Default.PRODUCER_CHUNKSIZE))
-
-        for chunk in OrganizationTable.iquery(chunksize=chunksize, verbose=True):
-            if not chunk:
-                continue
-        #TODO REMOVE LATER
-        #for f in glob.iglob('julian/tools/org.pickle.enum/*'):
-        #    with open(f, 'rb') as fd:
-        #        objs = pickle.load(fd)
-            for objs in chunk:
-                gid, sty, in_x = [], [], []
-                list(map(extract_x, objs))
-                if gid and sty and in_x:
-                    self.total += len(in_x)
-                    print(self, self.total)
-                    yield {
-                        'global_id': gid,
-                        'slice_type': sty,
-                        'input_x': in_x,
-                        }
 
 
 def run_async(hdr_name):

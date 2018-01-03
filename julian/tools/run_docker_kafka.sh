@@ -7,7 +7,7 @@ docker-current run \
     --name julian-broker\
     --net bridge \
     --env-file tools/env_julian.sh \
-    -p 17839:17839 \
+    --link julian-zk \
     -p 17811:17811 \
     -d \
     -t $local_tag \
