@@ -70,8 +70,11 @@ class Xgb(Iceberg):
         pred = self.model.predict(xgb.DMatrix(X))
         print('++ [pred] {}'.format(pred))
 
-        plt.scatter(range(len(pred)), pred, color='r')
-        plt.scatter(range(len(pred)), y, color='b')
+        plt.scatter(range(len(pred)), pred, color='r', s=5)
+        plt.scatter(range(len(pred)), y, color='b', s=5)
+        plt.scatter(range(len(pred)), \
+            np.array(np.squeeze(y).round())-np.array(pred.astype(np.float)),\
+            color='g', s=5)
         plt.show()
 
 
