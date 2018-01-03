@@ -2,6 +2,7 @@
 # Author: Zex Li <top_zlynch@yahoo.com>
 import os
 import sys
+import glob
 import ujson
 import numpy as np
 import pandas as pd
@@ -10,6 +11,7 @@ import sys
 sys.path.insert(0, "/home/zex/lab_a/citronen")
 import xgboost as xgb
 from iceberg.iceberg import Iceberg
+from matplotlib import pyplot as plt
 
 
 class Xgb(Iceberg):
@@ -44,11 +46,36 @@ class Xgb(Iceberg):
         y = label.values.reshape(len(label), 1)
         return X, y
 
+    def load_model(self):
+        mod = glob.glob('{}/*.xgb'.format(self.model_dir))
+        if mod:
+            self.model = xgb.Booster()
+            self.model.load_model(mod[-1])
+
     def train(self):
         for epoch in range(1, self.steps+1):
             self.foreach_epoch(epoch)
 
-    def foreach_epoch(self, step):
+    def test(self):
+        self.load_model()
+
+        scores = self.model.get_score()
+        print('++ [feature_score] {}'.format(len(scores)))
+
+        X, y = self.preprocess()
+        dtrain = xgb.DMatrix(X, y)
+
+        res = self.model.eval(dtrain)
+        print('++ [eval] {}'.format(res))
+        pred = self.model.predict(xgb.DMatrix(X))
+        print('++ [pred] {}'.format(pred))
+
+        plt.scatter(range(len(pred)), pred, color='r')
+        plt.scatter(range(len(pred)), y, color='b')
+        plt.show()
+
+
+    def foreach_epoch(self, epoch):
         X, y = self.preprocess()
         params = {
             'learning_rate': self.lr,
@@ -72,7 +99,7 @@ class Xgb(Iceberg):
                 callbacks=[self.callback_iter])
 
         pred = self.model.predict(xgb.DMatrix(X))
-        print("++ [step-{}] pred:{}\nlbl:{}".format(step, pred, y.T))
+        print("++ [epoch-{}] pred:{}\nlbl:{}".format(epoch, pred, y.T))
         self.model_path = os.path.join(self.model_dir, 'iceberg-{}.xgb'.format(step))
         self.model.save_model(self.model_path)
 
@@ -90,4 +117,4 @@ class Xgb(Iceberg):
 
 if __name__ == '__main__':
     ice = Xgb()
-    ice.train()
+    ice.test()
