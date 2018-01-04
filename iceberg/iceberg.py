@@ -27,17 +27,22 @@ class Iceberg(object):
         self.cur_i = 0
         for i, one in data.iterrows():
             self.plot_one(one, i)
-            if i == 62: input(); sys.exit()
+            if i == 54: input(); sys.exit()
 
     def plot_one(self, one, i):
         img_band_1 = np.array(one['band_1']).reshape(75, 75)
         img_band_2 = np.array(one['band_2']).reshape(75, 75)
-        self.plot_img(img_band_1, one['inc_angle'], one['is_iceberg'], one['id'], self.cur_i*2)
-        self.plot_img(img_band_2, one['inc_angle'], one['is_iceberg'], one['id'], self.cur_i*2+1)
+        comb = img_band_1+img_band_2
+       
+        grp = 3
+        self.plot_img(img_band_1, one['inc_angle'], one['is_iceberg'], one['id'], self.cur_i*grp)
+        self.plot_img(img_band_2, one['inc_angle'], one['is_iceberg'], one['id'], self.cur_i*grp+1)
+        self.plot_img(comb, 'comb', one['is_iceberg'], one['id'], self.cur_i*grp+2)
+
         self.cur_i += 1
 
     def plot_img(self, img, angle, is_iceberg, iid, i):
-        row = 8; col = 16
+        row = 6; col = 9
         cur = i%(row*col)+1
 
         if len(self.axes) > cur:
