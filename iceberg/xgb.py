@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import sys
-sys.path.insert(0, "/home/zex/lab_a/citronen")
+sys.path.insert(0, os.getcwd())
 import xgboost as xgb
 from iceberg.iceberg import Iceberg
 from matplotlib import pyplot as plt
@@ -37,6 +37,7 @@ class Xgb(Iceberg):
     
     def preprocess(self):
         path = "data/iceberg/train.json"
+        path = "data/iceberg/test.json"
         data = self.load_data(path)
         band_1 = data['band_1']
         band_2 = data['band_2']
@@ -53,6 +54,8 @@ class Xgb(Iceberg):
             self.model.load_model(mod[-1])
 
     def train(self):
+        self.load_model()
+
         for epoch in range(1, self.steps+1):
             self.foreach_epoch(epoch)
 
@@ -103,7 +106,7 @@ class Xgb(Iceberg):
 
         pred = self.model.predict(xgb.DMatrix(X))
         print("++ [epoch-{}] pred:{}\nlbl:{}".format(epoch, pred, y.T))
-        self.model_path = os.path.join(self.model_dir, 'iceberg-{}.xgb'.format(step))
+        self.model_path = os.path.join(self.model_dir, 'iceberg-{}.xgb'.format(epoch))
         self.model.save_model(self.model_path)
 
     def callback_iter(self, env):
@@ -120,4 +123,5 @@ class Xgb(Iceberg):
 
 if __name__ == '__main__':
     ice = Xgb()
+    #ice.train()
     ice.test()
