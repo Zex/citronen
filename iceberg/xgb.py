@@ -138,7 +138,7 @@ class Xgb(Iceberg):
                 callbacks=[self.callback_iter])
 
         pred = self.model.predict(xgb.DMatrix(X))
-        print("++ [epoch-{}] pred:{}\nlbl:{}".format(epoch, pred, y.T))
+        print("++ [epoch-{}] pred:{}\nlbl:{}".format(epoch, np.round(pred, 4), y.T))
         self.model_path = os.path.join(self.model_dir, 'iceberg-{}.xgb'.format(epoch))
         self.model.save_model(self.model_path)
 
