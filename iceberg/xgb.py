@@ -1,14 +1,14 @@
 # Iceberg identifier
 # Author: Zex Li <top_zlynch@yahoo.com>
+import sys
 import os
+sys.path.insert(0, os.getcwd())
 import sys
 import glob
 import ujson
 import numpy as np
 import pandas as pd
 from datetime import datetime
-import sys
-sys.path.insert(0, os.getcwd())
 import xgboost as xgb
 from iceberg.iceberg import Iceberg
 #from matplotlib import pyplot as plt
@@ -41,13 +41,16 @@ class Xgb(Iceberg):
         return data
     
     def preprocess(self):
-        path = "data/iceberg/train.json"
-        data = self.load_data(path)
+        data = self.load_data(self.path)
 
         iid = data['id']
         band_1 = data['band_1']
         band_2 = data['band_2']
-        X = np.array(list(map(lambda val:np.array(val), band_1.values)))
+
+        #X = np.array(list(map(lambda val:np.array(val), band_1.values)))
+        #X = list(map(lambda l: l[1][0]+l[1][1], enumerate(zip(band_1.values, band_2.values))))
+        X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1]), enumerate(zip(band_1.values, band_2.values))))
+        X = np.array(X)
 
         if self.mode in (Mode.TRAIN, Mode.EVAL):
             label = data['is_iceberg']
@@ -63,6 +66,7 @@ class Xgb(Iceberg):
 
     def train(self):
         self.mode = Mode.TRAIN
+        self.path = "data/iceberg/train.json"
         self.load_model()
 
         for epoch in range(1, self.steps+1):
@@ -70,6 +74,8 @@ class Xgb(Iceberg):
 
     def test(self):
         self.mode = Mode.TEST
+        self.path = "data/iceberg/test.json"
+        self.result_path = "data/iceberg/pred.csv"
         self.load_model()
 
         scores = self.model.get_score()
@@ -78,13 +84,15 @@ class Xgb(Iceberg):
         iid, X = self.preprocess()
         pred = self.model.predict(xgb.DMatrix(X))
         print('++ [pred] {}'.format(pred))
+        self.csv_result(iid, pred)
 
+    def csv_result(self, iid, result):
         df = pd.DataFrame({
             'id': iid,
-            'is_iceberg': np.around(pred, decimals=1),
+            'is_iceberg': np.around(result, decimals=1),
         })
 
-        df.to_csv('data/pred.csv', index=None, float_format='%0.1f')
+        df.to_csv(self.result_path, index=None, float_format='%0.1f')
 
     def eval(self):
         self.mode = Mode.EVAL
@@ -113,7 +121,7 @@ class Xgb(Iceberg):
             'update':'refresh',
             #'process_type': 'update',
             'refresh_leaf': True,
-            'reg_lambda': 0.45,
+            'reg_lambda': 1,
             #'reg_alpha': 3,
             'silent': False,
             'objective': 'binary:logistic',
@@ -147,7 +155,6 @@ class Xgb(Iceberg):
 
 
 if __name__ == '__main__':
-    import pickle
     ice = Xgb()
-    #ice.train()
-    ice.test()
+    ice.train()
+    #ice.test()
