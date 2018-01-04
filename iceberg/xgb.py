@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.getcwd())
 import xgboost as xgb
 from iceberg.iceberg import Iceberg
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 
 
 class Mode(object):
@@ -44,6 +44,7 @@ class Xgb(Iceberg):
         path = "data/iceberg/train.json"
         data = self.load_data(path)
 
+        iid = data['id']
         band_1 = data['band_1']
         band_2 = data['band_2']
         X = np.array(list(map(lambda val:np.array(val), band_1.values)))
@@ -52,7 +53,7 @@ class Xgb(Iceberg):
             label = data['is_iceberg']
             y = label.values.reshape(len(label), 1)
             return X, y
-        return X
+        return iid.values, X
 
     def load_model(self):
         mod = glob.glob('{}/*.xgb'.format(self.model_dir))
@@ -74,9 +75,16 @@ class Xgb(Iceberg):
         scores = self.model.get_score()
         print('++ [feature_score] {}'.format(len(scores)))
 
-        X = self.preprocess()
+        iid, X = self.preprocess()
         pred = self.model.predict(xgb.DMatrix(X))
         print('++ [pred] {}'.format(pred))
+
+        df = pd.DataFrame({
+            'id': iid,
+            'is_iceberg': np.around(pred, decimals=1),
+        })
+
+        df.to_csv('data/pred.csv', index=None, float_format='%0.1f')
 
     def eval(self):
         self.mode = Mode.EVAL
@@ -139,6 +147,7 @@ class Xgb(Iceberg):
 
 
 if __name__ == '__main__':
+    import pickle
     ice = Xgb()
     #ice.train()
     ice.test()
