@@ -11,8 +11,7 @@ def gen_result(path):
             line = fd.readline()
             if not line:
                 break
-            raw = ujson.loads(line)
-            yield raw
+            yield ujson.loads(line)
 
 
 def extract_result(raw):
