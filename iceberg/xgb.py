@@ -14,6 +14,11 @@ from iceberg.iceberg import Iceberg
 from matplotlib import pyplot as plt
 
 
+class Mode(object):
+    TRAIN = 'train'
+    TEST = 'test'
+    EVAL = 'eval'
+
 class Xgb(Iceberg):
 
     def __init__(self):
@@ -37,15 +42,17 @@ class Xgb(Iceberg):
     
     def preprocess(self):
         path = "data/iceberg/train.json"
-        path = "data/iceberg/test.json"
         data = self.load_data(path)
+
         band_1 = data['band_1']
         band_2 = data['band_2']
-        label = data['is_iceberg']
-        
         X = np.array(list(map(lambda val:np.array(val), band_1.values)))
-        y = label.values.reshape(len(label), 1)
-        return X, y
+
+        if self.mode in (Mode.TRAIN, Mode.EVAL):
+            label = data['is_iceberg']
+            y = label.values.reshape(len(label), 1)
+            return X, y
+        return X
 
     def load_model(self):
         mod = glob.glob('{}/*.xgb'.format(self.model_dir))
@@ -54,12 +61,25 @@ class Xgb(Iceberg):
             self.model.load_model(mod[-1])
 
     def train(self):
+        self.mode = Mode.TRAIN
         self.load_model()
 
         for epoch in range(1, self.steps+1):
             self.foreach_epoch(epoch)
 
     def test(self):
+        self.mode = Mode.TEST
+        self.load_model()
+
+        scores = self.model.get_score()
+        print('++ [feature_score] {}'.format(len(scores)))
+
+        X = self.preprocess()
+        pred = self.model.predict(xgb.DMatrix(X))
+        print('++ [pred] {}'.format(pred))
+
+    def eval(self):
+        self.mode = Mode.EVAL
         self.load_model()
 
         scores = self.model.get_score()
@@ -70,8 +90,6 @@ class Xgb(Iceberg):
 
         res = self.model.eval(dtrain)
         print('++ [eval] {}'.format(res))
-        pred = self.model.predict(xgb.DMatrix(X))
-        print('++ [pred] {}'.format(pred))
 
         plt.scatter(range(len(pred)), pred, color='r', s=5)
         plt.scatter(range(len(pred)), y, color='b', s=5)
@@ -79,7 +97,6 @@ class Xgb(Iceberg):
             np.array(np.squeeze(y).round())-np.array(pred.astype(np.float)),\
             color='g', s=5)
         plt.show()
-
 
     def foreach_epoch(self, epoch):
         X, y = self.preprocess()
