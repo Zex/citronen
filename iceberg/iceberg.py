@@ -32,7 +32,7 @@ class Iceberg(object):
     def plot_one(self, one, i):
         img_band_1 = np.array(one['band_1']).reshape(75, 75)
         img_band_2 = np.array(one['band_2']).reshape(75, 75)
-        comb = img_band_1+img_band_2
+        comb = (img_band_1+img_band_2)*one['inc_angle']
        
         grp = 3
         self.plot_img(img_band_1, one['inc_angle'], one['is_iceberg'], one['id'], self.cur_i*grp)

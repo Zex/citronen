@@ -46,10 +46,18 @@ class Xgb(Iceberg):
         iid = data['id']
         band_1 = data['band_1']
         band_2 = data['band_2']
+        data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
+        angle = data['inc_angle']
+        #angle = list(map(lambda a: 1.0 if a=='na' else float(a), angle))
 
         #X = np.array(list(map(lambda val:np.array(val), band_1.values)))
         #X = list(map(lambda l: l[1][0]+l[1][1], enumerate(zip(band_1.values, band_2.values))))
-        X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1]), enumerate(zip(band_1.values, band_2.values))))
+        #X = list(map(lambda l: np.array(np.array(l[1][0])+np.array(l[1][1]))*l[1][2], \
+        #        enumerate(zip(band_1.values, band_2.values, angle.values))))
+        X = []
+        for b1, b2, b3 in zip(band_1.values, band_2.values, angle.values):
+            print(b3)
+            X.append((np.array(b1)+np.array(b2))*b3)
         X = np.array(X)
 
         if self.mode in (Mode.TRAIN, Mode.EVAL):
