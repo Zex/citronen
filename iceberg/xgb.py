@@ -83,16 +83,16 @@ class Xgb(Iceberg):
 
         iid, X = self.preprocess()
         pred = self.model.predict(xgb.DMatrix(X))
-        print('++ [pred] {}'.format(pred))
+        print('++ [pred] {%.4f}'.format(pred))
         self.csv_result(iid, pred)
 
     def csv_result(self, iid, result):
         df = pd.DataFrame({
             'id': iid,
-            'is_iceberg': np.around(result, decimals=1),
+            'is_iceberg': np.around(result, decimals=4),
         })
 
-        df.to_csv(self.result_path, index=None, float_format='%0.1f')
+        df.to_csv(self.result_path, index=None, float_format='%0.4f')
 
     def eval(self):
         self.mode = Mode.EVAL
