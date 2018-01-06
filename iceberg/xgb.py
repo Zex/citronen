@@ -4,6 +4,7 @@ import sys
 import os
 sys.path.insert(0, os.getcwd())
 import sys
+import string
 import glob
 import ujson
 import numpy as np
@@ -39,6 +40,60 @@ class Xgb(Iceberg):
             return None
         data = pd.read_json(path)
         return data
+
+    def iload_data(self, path):
+        if not os.path.isfile(path):
+            return None
+
+        with open(path) as fd:
+            one = {}
+            band, buf, met_colon, list_on = [], '', False, False
+
+            while True:
+                c = fd.read(1).strip()
+                if not c:
+                    break
+                if c == ':':
+                    met_colon = True
+                    continue
+                if not met_colon:
+                    continue
+                if c == '[':
+                    list_on = True
+                    continue
+                if c in '-'+'.'+string.digits+string.ascii_letters:
+                   buf += c
+                   continue
+                if c == ']':
+                    list_on = False
+                    band.append(float(buf))
+
+                    if len(one.get('band_1', [])) == 0:
+                        one['band_1'] = np.array(band)
+                        band, buf, met_colon, list_on = [], '', False, False
+                        continue
+                    if len(one.get('band_2', [])) == 0:
+                        one['band_2'] = np.array(band)
+                        band, buf, met_colon, list_on = [], '', False, False
+                        continue
+                if c == ',':
+                    if list_on:
+                        band.append(float(buf))
+                        buf = ''
+                        continue
+                    if not one.get('id'):
+                        one['id'] = buf
+                        band, buf, met_colon, list_on = [], '', False, False
+                        continue
+                    if not one.get('inc_angle') and not list_on:
+                        one['inc_angle'] = float(buf) if buf != 'na' else 1.0
+                        band, buf, met_colon, list_on = [], '', False, False
+
+                if all([True if k in one else False \
+                        for k in ('id', 'band_1', 'band_2', 'inc_angle')]):
+                    yield one
+                    one = {}
+                    band, buf, met_colon, list_on = [], '', False, False
     
     def preprocess(self):
         data = self.load_data(self.path)
@@ -48,14 +103,11 @@ class Xgb(Iceberg):
         band_2 = data['band_2']
         data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
         angle = data['inc_angle'].astype(np.float64)
-        #angle = list(map(lambda a: 1.0 if a=='na' else float(a), angle))
 
-        #X = np.array(list(map(lambda val:np.array(val), band_1.values)))
-        #X = list(map(lambda l: l[1][0]+l[1][1], enumerate(zip(band_1.values, band_2.values))))
+        #X = list(map(lambda l: l[1][0]+l[1][1], \
+        #        enumerate(zip(band_1.values, band_2.values))))
         X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1])*l[1][2], \
                 enumerate(zip(band_1.values, band_2.values, angle.values))))
-        #X = list(map(lambda l: l[1][0]*l[1][1], \
-        #        enumerate(zip(X, angle.values))))
         X = np.array(X)
 
         if self.mode in (Mode.TRAIN, Mode.EVAL):
@@ -68,7 +120,9 @@ class Xgb(Iceberg):
         mod = glob.glob('{}/*.xgb'.format(self.model_dir))
         if mod:
             self.model = xgb.Booster()
-            self.model.load_model(mod[-1])
+            mod = mod[-1]
+            print('++ [info] model:{}'.format(mod))
+            self.model.load_model(mod)
 
     def train(self):
         self.mode = Mode.TRAIN
@@ -84,13 +138,23 @@ class Xgb(Iceberg):
         self.result_path = "data/iceberg/pred.csv"
         self.load_model()
 
+        def pred(iid, X):
+            res = self.model.predict(xgb.DMatrix(X))
+            print('++ [pred] {}'.format(res))
+            self.csv_result(iid, res)
+
         scores = self.model.get_score()
         print('++ [feature_score] {}'.format(len(scores)))
 
-        iid, X = self.preprocess()
-        pred = self.model.predict(xgb.DMatrix(X))
-        print('++ [pred] {%.4f}'.format(pred))
-        self.csv_result(iid, pred)
+        if os.path.isfile(self.result_path):
+            os.remove(self.result_path)
+
+        #iid, X = self.preprocess()
+        #pred(iid, X)
+
+        for one in self.iload_data(self.path):
+            X = np.array([one.get('band_1')+one.get('band_2')])*one.get('inc_angle')
+            pred(one.get('id'), X) 
 
     def csv_result(self, iid, result):
         df = pd.DataFrame({
@@ -98,7 +162,11 @@ class Xgb(Iceberg):
             'is_iceberg': np.around(result, decimals=4),
         })
 
-        df.to_csv(self.result_path, index=None, float_format='%0.4f')
+        if not os.path.isfile(self.result_path):
+            df.to_csv(self.result_path, index=None, float_format='%0.4f')
+        else:
+            df.to_csv(self.result_path, index=None, float_format='%0.4f',\
+                    mode='a', header=False)
 
     def eval(self):
         self.mode = Mode.EVAL
@@ -162,5 +230,5 @@ class Xgb(Iceberg):
 
 if __name__ == '__main__':
     ice = Xgb()
-    ice.train()
-    #ice.test()
+    #ice.train()
+    ice.test()
