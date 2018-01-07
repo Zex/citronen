@@ -28,14 +28,17 @@ def load_pred(path):
     return df['is_iceberg'].values
 
 def plot_pred():
-    colors = ['r', 'b', 'k', 'g']
+    colors = ['g', 'b', 'y']
     #colors = list(matplotlib.colors.cnames.keys())
     lbls = []
+    fig = plt.figure(facecolor='darkred', edgecolor='k')
+    ax = fig.add_subplot(111)
     for i, path in enumerate(glob.glob('data/iceberg/pred*csv')):
         vals = load_pred(path)
-        plt.scatter(range(len(vals)), vals, color=colors[i], s=4)
+        ax.scatter(range(len(vals)), vals, color=colors[i], s=3)
         lbls.append(os.path.basename(path).split('.')[0])
-    plt.legend(lbls)
+    ax.legend(lbls)
+    ax.set_facecolor('darkred')
     plt.show()
 
 def plot_eval():
