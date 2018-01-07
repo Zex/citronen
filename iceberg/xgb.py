@@ -12,6 +12,8 @@ import pandas as pd
 from datetime import datetime
 import xgboost as xgb
 from iceberg.iceberg import Iceberg, Mode
+import matplotlib
+matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 
 
@@ -24,7 +26,7 @@ class Xgb(Iceberg):
         self.batch_size = 100
         self.steps = 1000
         self.model = None
-        self.model_dir = args.model_dir #'models/iceberg'
+        self.model_dir = args.model_dir
         self.eval_result_path = os.path.join(self.model_dir, 'logs', 'eval.json')
         self.has_model = args.load_model
         self.error_stop_cnt = 0
@@ -48,31 +50,36 @@ class Xgb(Iceberg):
         self.path = "data/iceberg/test.json"
         self.result_path = "data/iceberg/pred_{}.csv".format(\
                 datetime.now().strftime("%y%m%d%H%M"))
-        self.load_model()
+        #self.load_model()
 
         def pred(iid, X):
             res = self.model.predict(xgb.DMatrix(X))
             print('++ [pred] {}'.format(res))
             self.csv_result(iid, res)
 
-        scores = self.model.get_score()
-        print('++ [feature_score] {}'.format(len(scores)))
+        #scores = self.model.get_score()
+        #print('++ [feature_score] {}'.format(len(scores)))
 
-        ax = xgb.plot_importance(self.model)
-        plt.savefig("data/iceberg/feature_importance_plot.png")
+        #ax = xgb.plot_importance(self.model)
+        #plt.savefig("data/iceberg/feature_importance_plot.png")
 
-        ax = xgb.plot_tree(self.model)
-        plt.savefig("data/iceberg/feature_tree_plot.png")
+        #ax = xgb.plot_tree(self.model)
+        #plt.savefig("data/iceberg/feature_tree_plot.png")
 
         if os.path.isfile(self.result_path):
             os.remove(self.result_path)
 
         #iid, X = self.preprocess()
         #pred(iid, X)
-
+        fig = plt.figure(facecolor='k')
+        ax = fig.add_subplot(111)
+        fig.show()
         for one in self.iload_data(self.path):
-            X = np.array([one.get('band_1')+one.get('band_2')])#*one.get('inc_angle')
-            pred(one.get('id'), X) 
+            X = np.array([one.get('band_1')*one.get('band_2').T])
+            #pred(one.get('id'), X) 
+            print(X)
+            ax.imshow(X.reshape(75,75))
+            fig.canvas.show()
 
     def csv_result(self, iid, result):
         df = pd.DataFrame({
@@ -105,11 +112,11 @@ class Xgb(Iceberg):
         params = {
             'learning_rate': self.lr,
             'update':'refresh',
-            #'process_type': 'update',
+#           'process_type': 'update',
             'refresh_leaf': True,
             'reg_lambda': 0.1,
             'max_depth': 8,
-            #'reg_alpha': 3,
+#            'reg_alpha': 3,
             'silent': False,
             'n_jobs': 2,
             'objective': 'binary:logistic',
@@ -156,4 +163,5 @@ class Xgb(Iceberg):
 
     
 if __name__ == '__main__':
+    plt.ion()
     Xgb.start()

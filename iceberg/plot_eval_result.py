@@ -27,8 +27,9 @@ def load_pred(path):
     df = pd.read_csv(path)
     return df['is_iceberg'].values
 
+
 def plot_pred():
-    colors = ['g', 'b', 'y', 'k', 'l']
+    colors = ['g', 'b', 'y', 'k', 'c']
     #colors = list(matplotlib.colors.cnames.keys())
     lbls = []
     fig = plt.figure(facecolor='darkred', edgecolor='k')
@@ -55,6 +56,7 @@ def plot_eval():
 
 def start():
     plot_pred()
+    #plot_eval()
 
 if __name__ == '__main__':
     import matplotlib

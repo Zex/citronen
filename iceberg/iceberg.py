@@ -49,7 +49,9 @@ class Iceberg(object):
             return
         img_band_1 = np.array(one['band_1']).reshape(75, 75)
         img_band_2 = np.array(one['band_2']).reshape(75, 75)
-        comb_add = (img_band_1-img_band_2)
+        #one['inc_angle'] = 1.0 if one['inc_angle'] == 'na' else float(one['inc_angle'])
+        comb_add = (np.array(one['band_1'])*np.array(one['band_2']).T)
+        comb_add = comb_add.reshape(75, 75)
 
         inc_angle = one['inc_angle']
         is_iceberg = one['is_iceberg']
@@ -57,8 +59,8 @@ class Iceberg(object):
         print(comb_add)
 
         grp = 3
-        self.plot_img(img_band_1, inc_angle, is_iceberg, one['id'], self.cur_i*grp)
-        self.plot_img(img_band_2, inc_angle, is_iceberg, one['id'], self.cur_i*grp+1)
+        self.plot_img(img_band_1, np.max(img_band_1), is_iceberg, one['id'], self.cur_i*grp)
+        self.plot_img(img_band_2, np.max(img_band_2), is_iceberg, one['id'], self.cur_i*grp+1)
         self.plot_img(comb_add, 'comb_add', is_iceberg, one['id'], self.cur_i*grp+2)
         #self.plot_img(comb, 'comb', is_iceberg, one['id'], self.cur_i*grp+3)
 
@@ -154,7 +156,7 @@ class Iceberg(object):
         #data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
         #angle = data['inc_angle'].astype(np.float64)
 
-        X = list(map(lambda l: np.array(l[1][0])-np.array(l[1][1]), \
+        X = list(map(lambda l: np.array(l[1][0])*np.array(l[1][1]).T, \
                 enumerate(zip(band_1.values, band_2.values))))
         #X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1])*l[1][2], \
         #        enumerate(zip(band_1.values, band_2.values, angle.values))))
