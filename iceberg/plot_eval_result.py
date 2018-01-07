@@ -28,7 +28,7 @@ def load_pred(path):
     return df['is_iceberg'].values
 
 def plot_pred():
-    colors = ['g', 'b', 'y']
+    colors = ['g', 'b', 'y', 'k', 'l']
     #colors = list(matplotlib.colors.cnames.keys())
     lbls = []
     fig = plt.figure(facecolor='darkred', edgecolor='k')

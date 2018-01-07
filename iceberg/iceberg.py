@@ -26,7 +26,7 @@ class Iceberg(object):
         data = pd.read_json(path)
         return data
    
-    def analysis(self):
+    def analyze(self):
         path = "data/iceberg/train.json"
         data = self.load_data(path)
         self.axes = []
@@ -38,8 +38,8 @@ class Iceberg(object):
         #data['inc_angle'] = data['inc_angle'].astype(np.float64)
 
         for i, one in data.iterrows():
-            #if i < 1000:
-            #    continue
+            if i < 1000:
+                continue
             self.plot_one(one, i)
             if i == 1060: input(); sys.exit()
 
@@ -49,22 +49,13 @@ class Iceberg(object):
             return
         img_band_1 = np.array(one['band_1']).reshape(75, 75)
         img_band_2 = np.array(one['band_2']).reshape(75, 75)
-        comb_add = (img_band_1+img_band_2)
+        comb_add = (img_band_1-img_band_2)
 
         inc_angle = one['inc_angle']
         is_iceberg = one['is_iceberg']
         #comb = (img_band_1+img_band_2)*one['inc_angle']
-        #print(comb_add[40:50], np.mean(comb_add), np.mean(comb_add[40:50]), one['is_iceberg'])
-        tile = comb_add.reshape(1, 75*75)
-        grp = 3
-        plt.bar(self.cur_i*grp, np.mean(tile), color='blue')
-        plt.bar(self.cur_i*grp+1, np.max(tile), color='red')
-        plt.bar(self.cur_i*grp+2, np.min(tile), color='k')
-        plt.annotate('{}'.format(int(is_iceberg)), xy=(self.cur_i*grp, 14))
-        plt.annotate('{}'.format(int(is_iceberg)), xy=(self.cur_i*grp+1, 14))
-        plt.annotate('{}'.format(int(is_iceberg)), xy=(self.cur_i*grp+2, 14))
-        self.cur_i += 1
-        return 
+        print(comb_add)
+
         grp = 3
         self.plot_img(img_band_1, inc_angle, is_iceberg, one['id'], self.cur_i*grp)
         self.plot_img(img_band_2, inc_angle, is_iceberg, one['id'], self.cur_i*grp+1)
@@ -163,8 +154,7 @@ class Iceberg(object):
         #data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
         #angle = data['inc_angle'].astype(np.float64)
 
-        X = list(map(lambda l: l[1][1], \
-                #+l[1][1], \
+        X = list(map(lambda l: np.array(l[1][0])-np.array(l[1][1]), \
                 enumerate(zip(band_1.values, band_2.values))))
         #X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1])*l[1][2], \
         #        enumerate(zip(band_1.values, band_2.values, angle.values))))
@@ -183,6 +173,7 @@ class Iceberg(object):
         parser.add_argument('--train', action='store_true', default=False, help='train a model')
         parser.add_argument('--test', action='store_true', default=False, help='test a model')
         parser.add_argument('--eval', action='store_true', default=False, help='eval a model')
+        parser.add_argument('--anal', action='store_true', default=False, help='analyse data')
         parser.add_argument('--load_model', action='store_true', default=False, help='load exist model')
         parser.add_argument('--model_dir', type=str, default='models/iceberg', help='model directory')
         return parser.parse_args()
@@ -198,6 +189,8 @@ class Iceberg(object):
             ice.test()
         if args.eval:
             ice.eval()
+        if args.anal:
+            ice.analyze()
 
 
 if __name__ == '__main__':
@@ -205,6 +198,4 @@ if __name__ == '__main__':
     matplotlib.use("TkAgg")
     from matplotlib import pyplot as plt
     plt.ion()
-
-    ice = Iceberg()
-    ice.analysis()
+    Iceberg.start()

@@ -46,7 +46,8 @@ class Xgb(Iceberg):
     def test(self):
         self.mode = Mode.TEST
         self.path = "data/iceberg/test.json"
-        self.result_path = "data/iceberg/pred.csv"
+        self.result_path = "data/iceberg/pred_{}.csv".format(\
+                datetime.now().strftime("%y%m%d%H%M"))
         self.load_model()
 
         def pred(iid, X):
@@ -87,6 +88,7 @@ class Xgb(Iceberg):
 
     def eval(self):
         self.mode = Mode.EVAL
+        self.path = "data/iceberg/train.json"
         self.load_model()
 
         scores = self.model.get_score()
@@ -97,13 +99,6 @@ class Xgb(Iceberg):
 
         res = self.model.eval(dtrain)
         print('++ [eval] {}'.format(res))
-
-        plt.scatter(range(len(pred)), pred, color='r', s=5)
-        plt.scatter(range(len(pred)), y, color='b', s=5)
-        plt.scatter(range(len(pred)), \
-            np.array(np.squeeze(y).round())-np.array(pred.astype(np.float)),\
-            color='g', s=5)
-        plt.show()
 
     def foreach_epoch(self, epoch):
         X, y = self.preprocess()
