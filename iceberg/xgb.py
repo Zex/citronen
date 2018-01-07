@@ -11,123 +11,34 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import xgboost as xgb
-from iceberg.iceberg import Iceberg
-#from matplotlib import pyplot as plt
+from iceberg.iceberg import Iceberg, Mode
+from matplotlib import pyplot as plt
 
 
-class Mode(object):
-    TRAIN = 'train'
-    TEST = 'test'
-    EVAL = 'eval'
 
 class Xgb(Iceberg):
 
-    def __init__(self):
-        super(Xgb, self).__init__()
-        self.lr = 1e-3
+    def __init__(self, args):
+        super(Xgb, self).__init__(args)
+        self.lr = 1e-2
         self.batch_size = 100
         self.steps = 1000
         self.model = None
-        self.model_dir = 'models/iceberg'
+        self.model_dir = args.model_dir #'models/iceberg'
         self.eval_result_path = os.path.join(self.model_dir, 'logs', 'eval.json')
+        self.has_model = args.load_model
+        self.error_stop_cnt = 0
+        self.last_epoch = 0
 
         base = os.path.dirname(self.eval_result_path)
         if not os.path.isdir(base):
             os.makedirs(base)
-    
-    def load_data(self, path):
-        if not os.path.isfile(path):
-            return None
-        data = pd.read_json(path)
-        return data
-
-    def iload_data(self, path):
-        if not os.path.isfile(path):
-            return None
-
-        with open(path) as fd:
-            one = {}
-            band, buf, met_colon, list_on = [], '', False, False
-
-            while True:
-                c = fd.read(1).strip()
-                if not c:
-                    break
-                if c == ':':
-                    met_colon = True
-                    continue
-                if not met_colon:
-                    continue
-                if c == '[':
-                    list_on = True
-                    continue
-                if c in '-'+'.'+string.digits+string.ascii_letters:
-                   buf += c
-                   continue
-                if c == ']':
-                    list_on = False
-                    band.append(float(buf))
-
-                    if len(one.get('band_1', [])) == 0:
-                        one['band_1'] = np.array(band)
-                        band, buf, met_colon, list_on = [], '', False, False
-                        continue
-                    if len(one.get('band_2', [])) == 0:
-                        one['band_2'] = np.array(band)
-                        band, buf, met_colon, list_on = [], '', False, False
-                        continue
-                if c == ',':
-                    if list_on:
-                        band.append(float(buf))
-                        buf = ''
-                        continue
-                    if not one.get('id'):
-                        one['id'] = buf
-                        band, buf, met_colon, list_on = [], '', False, False
-                        continue
-                    if not one.get('inc_angle') and not list_on:
-                        one['inc_angle'] = float(buf) if buf != 'na' else 1.0
-                        band, buf, met_colon, list_on = [], '', False, False
-
-                if all([True if k in one else False \
-                        for k in ('id', 'band_1', 'band_2', 'inc_angle')]):
-                    yield one
-                    one = {}
-                    band, buf, met_colon, list_on = [], '', False, False
-    
-    def preprocess(self):
-        data = self.load_data(self.path)
-
-        iid = data['id']
-        band_1 = data['band_1']
-        band_2 = data['band_2']
-        data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
-        angle = data['inc_angle'].astype(np.float64)
-
-        #X = list(map(lambda l: l[1][0]+l[1][1], \
-        #        enumerate(zip(band_1.values, band_2.values))))
-        X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1])*l[1][2], \
-                enumerate(zip(band_1.values, band_2.values, angle.values))))
-        X = np.array(X)
-
-        if self.mode in (Mode.TRAIN, Mode.EVAL):
-            label = data['is_iceberg']
-            y = label.values.reshape(len(label), 1)
-            return X, y
-        return iid.values, X
-
-    def load_model(self):
-        mod = glob.glob('{}/*.xgb'.format(self.model_dir))
-        if mod:
-            self.model = xgb.Booster()
-            mod = mod[-1]
-            print('++ [info] model:{}'.format(mod))
-            self.model.load_model(mod)
 
     def train(self):
         self.mode = Mode.TRAIN
         self.path = "data/iceberg/train.json"
-        self.load_model()
+        if self.has_model:
+            self.load_model()
 
         for epoch in range(1, self.steps+1):
             self.foreach_epoch(epoch)
@@ -146,6 +57,12 @@ class Xgb(Iceberg):
         scores = self.model.get_score()
         print('++ [feature_score] {}'.format(len(scores)))
 
+        ax = xgb.plot_importance(self.model)
+        plt.savefig("data/iceberg/feature_importance_plot.png")
+
+        ax = xgb.plot_tree(self.model)
+        plt.savefig("data/iceberg/feature_tree_plot.png")
+
         if os.path.isfile(self.result_path):
             os.remove(self.result_path)
 
@@ -153,19 +70,19 @@ class Xgb(Iceberg):
         #pred(iid, X)
 
         for one in self.iload_data(self.path):
-            X = np.array([one.get('band_1')+one.get('band_2')])*one.get('inc_angle')
+            X = np.array([one.get('band_1')+one.get('band_2')])#*one.get('inc_angle')
             pred(one.get('id'), X) 
 
     def csv_result(self, iid, result):
         df = pd.DataFrame({
             'id': iid,
-            'is_iceberg': np.around(result, decimals=4),
+            'is_iceberg': np.around(result, decimals=6),
         })
 
         if not os.path.isfile(self.result_path):
-            df.to_csv(self.result_path, index=None, float_format='%0.4f')
+            df.to_csv(self.result_path, index=None, float_format='%0.6f')
         else:
-            df.to_csv(self.result_path, index=None, float_format='%0.4f',\
+            df.to_csv(self.result_path, index=None, float_format='%0.6f',\
                     mode='a', header=False)
 
     def eval(self):
@@ -195,9 +112,11 @@ class Xgb(Iceberg):
             'update':'refresh',
             #'process_type': 'update',
             'refresh_leaf': True,
-            'reg_lambda': 1,
+            'reg_lambda': 0.1,
+            'max_depth': 8,
             #'reg_alpha': 3,
             'silent': False,
+            'n_jobs': 2,
             'objective': 'binary:logistic',
             'eval_metrics': 'logloss',
         } 
@@ -208,12 +127,12 @@ class Xgb(Iceberg):
                 xgb_model=self.model,
                 evals=[(dtrain, 'train')],
                 evals_result=eval_res,
-                num_boost_round=20,
+                num_boost_round=7,
                 callbacks=[self.callback_iter])
 
         pred = self.model.predict(xgb.DMatrix(X))
-        print("++ [epoch-{}] pred:{}\nlbl:{}".format(epoch, np.round(pred, 4), y.T))
-        self.model_path = os.path.join(self.model_dir, 'iceberg-{}.xgb'.format(epoch))
+        print("++ [epoch-{}] pred:{}\nlbl:{}".format(epoch, [x for x in np.round(pred, 4)], [x for x in y.T]))
+        self.model_path = os.path.join(self.model_dir, 'iceberg-{}.xgb'.format(self.last_epoch+epoch))
         self.model.save_model(self.model_path)
 
     def callback_iter(self, env):
@@ -226,9 +145,20 @@ class Xgb(Iceberg):
                     'step': env.iteration,
                     'train_err': env.evaluation_result_list[0][1],
                     }})+'\n')
+        if str(env.evaluation_result_list[0][1]) == '0.0':
+            self.error_stop_cnt += 1
+        if self.error_stop_cnt == 7:
+            sys.exit()
 
+    def load_model(self):
+        mod = glob.glob('{}/*.xgb'.format(self.model_dir))
+        if mod:
+            self.model = xgb.Booster()
+            mod = mod[-1]
+            print('++ [info] model:{}'.format(mod))
+            self.model.load_model(mod)
+            self.last_epoch = int(os.path.basename(mod).split('.')[0].split('-')[1])
 
+    
 if __name__ == '__main__':
-    ice = Xgb()
-    #ice.train()
-    ice.test()
+    Xgb.start()

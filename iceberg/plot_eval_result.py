@@ -1,5 +1,8 @@
 # Plot evaluation result
 # Author: Zex Li <top_zlynch@yahoo.com>
+import numpy as np
+import pandas as pd
+import glob
 from datetime import datetime
 import ujson
 import os
@@ -20,7 +23,22 @@ def extract_result(raw):
     return ts,loss
 
 
-def start():
+def load_pred(path):
+    df = pd.read_csv(path)
+    return df['is_iceberg'].values
+
+def plot_pred():
+    colors = ['r', 'b', 'k', 'g']
+    #colors = list(matplotlib.colors.cnames.keys())
+    lbls = []
+    for i, path in enumerate(glob.glob('data/iceberg/pred*csv')):
+        vals = load_pred(path)
+        plt.scatter(range(len(vals)), vals, color=colors[i], s=4)
+        lbls.append(os.path.basename(path).split('.')[0])
+    plt.legend(lbls)
+    plt.show()
+
+def plot_eval():
     path = "models/iceberg/logs/eval.json"
     res = list(map(extract_result, gen_result(path)))
     ts, loss = [], []
@@ -29,9 +47,11 @@ def start():
         ts.extend(t)
         loss.extend(l)
     
-    plt.plot(ts, loss)
+    plt.plot(range(len(loss)), loss)
     plt.show()
 
+def start():
+    plot_pred()
 
 if __name__ == '__main__':
     import matplotlib

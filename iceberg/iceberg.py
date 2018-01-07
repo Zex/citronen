@@ -3,13 +3,21 @@
 import os
 import sys
 import ujson
+import string
 import numpy as np
+import argparse
 import pandas as pd
+
+
+class Mode(object):
+    TRAIN = 'train'
+    TEST = 'test'
+    EVAL = 'eval'
 
 
 class Iceberg(object):
 
-    def __init__(self):
+    def __init__(self, args):
         super(Iceberg, self).__init__()
     
     def load_data(self, path):
@@ -17,33 +25,51 @@ class Iceberg(object):
             return None
         data = pd.read_json(path)
         return data
-    
-    def preprocess(self):
+   
+    def analysis(self):
         path = "data/iceberg/train.json"
         data = self.load_data(path)
         self.axes = []
-        self.fig = plt.figure(figsize=(20, 10), facecolor='black', edgecolor='black')
+        self.fig = plt.figure(figsize=(20, 10), facecolor='grey', edgecolor='black')
         self.fig.show()
         self.cur_i = 0
-
-        data[data['inc_angle']=='na'] = 0.1
-        data['inc_angle'] = data['inc_angle'].astype(np.float64)
+        
+        #data[data['inc_angle']=='na'] = 0.1
+        #data['inc_angle'] = data['inc_angle'].astype(np.float64)
 
         for i, one in data.iterrows():
+            #if i < 1000:
+            #    continue
             self.plot_one(one, i)
-            if i == 1604: input(); sys.exit()
+            if i == 1060: input(); sys.exit()
 
     def plot_one(self, one, i):
+        if isinstance(one['band_1'], float):
+            print(one['band_1'])
+            return
         img_band_1 = np.array(one['band_1']).reshape(75, 75)
         img_band_2 = np.array(one['band_2']).reshape(75, 75)
         comb_add = (img_band_1+img_band_2)
-        comb = (img_band_1+img_band_2)*one['inc_angle']
-       
-        grp = 4
-        self.plot_img(img_band_1, one['inc_angle'], one['is_iceberg'], one['id'], self.cur_i*grp)
-        self.plot_img(img_band_2, one['inc_angle'], one['is_iceberg'], one['id'], self.cur_i*grp+1)
-        self.plot_img(comb_add, 'comb_add', one['is_iceberg'], one['id'], self.cur_i*grp+2)
-        self.plot_img(comb, 'comb', one['is_iceberg'], one['id'], self.cur_i*grp+3)
+
+        inc_angle = one['inc_angle']
+        is_iceberg = one['is_iceberg']
+        #comb = (img_band_1+img_band_2)*one['inc_angle']
+        #print(comb_add[40:50], np.mean(comb_add), np.mean(comb_add[40:50]), one['is_iceberg'])
+        tile = comb_add.reshape(1, 75*75)
+        grp = 3
+        plt.bar(self.cur_i*grp, np.mean(tile), color='blue')
+        plt.bar(self.cur_i*grp+1, np.max(tile), color='red')
+        plt.bar(self.cur_i*grp+2, np.min(tile), color='k')
+        plt.annotate('{}'.format(int(is_iceberg)), xy=(self.cur_i*grp, 14))
+        plt.annotate('{}'.format(int(is_iceberg)), xy=(self.cur_i*grp+1, 14))
+        plt.annotate('{}'.format(int(is_iceberg)), xy=(self.cur_i*grp+2, 14))
+        self.cur_i += 1
+        return 
+        grp = 3
+        self.plot_img(img_band_1, inc_angle, is_iceberg, one['id'], self.cur_i*grp)
+        self.plot_img(img_band_2, inc_angle, is_iceberg, one['id'], self.cur_i*grp+1)
+        self.plot_img(comb_add, 'comb_add', is_iceberg, one['id'], self.cur_i*grp+2)
+        #self.plot_img(comb, 'comb', is_iceberg, one['id'], self.cur_i*grp+3)
 
         self.cur_i += 1
 
@@ -67,11 +93,118 @@ class Iceberg(object):
         plt.tight_layout(w_pad=0.1, h_pad=0.05, pad=0.1)
         self.fig.canvas.draw()
 
+    def load_data(self, path):
+        if not os.path.isfile(path):
+            return None
+        data = pd.read_json(path)
+        return data
+
+    def iload_data(self, path):
+        if not os.path.isfile(path):
+            return None
+
+        with open(path) as fd:
+            one = {}
+            band, buf, met_colon, list_on = [], '', False, False
+
+            while True:
+                if all([True if k in one else False \
+                        for k in ('id', 'band_1', 'band_2', 'inc_angle')]):
+                    yield one
+                    one = {}
+                    band, buf, met_colon, list_on = [], '', False, False
+
+                c = fd.read(1).strip()
+                if not c:
+                    break
+                if c == ':':
+                    met_colon = True
+                    continue
+                if not met_colon:
+                    continue
+                if c == '[':
+                    list_on = True
+                    continue
+                if c in '-'+'.'+string.digits+string.ascii_letters:
+                   buf += c
+                   continue
+                if c == ']':
+                    list_on = False
+                    band.append(float(buf))
+
+                    if len(one.get('band_1', [])) == 0:
+                        one['band_1'] = np.array(band)
+                        band, buf, met_colon, list_on = [], '', False, False
+                        continue
+                    if len(one.get('band_2', [])) == 0:
+                        one['band_2'] = np.array(band)
+                        band, buf, met_colon, list_on = [], '', False, False
+                        continue
+                if c == ',':
+                    if list_on:
+                        band.append(float(buf))
+                        buf = ''
+                        continue
+                    if not one.get('id'):
+                        one['id'] = buf
+                        band, buf, met_colon, list_on = [], '', False, False
+                        continue
+                    if not one.get('inc_angle') and not list_on:
+                        one['inc_angle'] = float(buf) if buf != 'na' else 1.0
+                        band, buf, met_colon, list_on = [], '', False, False
+
+    
+    def preprocess(self):
+        data = self.load_data(self.path)
+
+        iid = data['id']
+        band_1 = data['band_1']
+        band_2 = data['band_2']
+        #data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
+        #angle = data['inc_angle'].astype(np.float64)
+
+        X = list(map(lambda l: l[1][1], \
+                #+l[1][1], \
+                enumerate(zip(band_1.values, band_2.values))))
+        #X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1])*l[1][2], \
+        #        enumerate(zip(band_1.values, band_2.values, angle.values))))
+        if self.mode in (Mode.TRAIN, Mode.EVAL):
+            label = data['is_iceberg']
+            y = label.values.reshape(len(label), 1)
+            return X, y
+        return iid.values, X
+
+    def load_model(self):
+        pass
+
+    @classmethod
+    def init(cls):
+        parser = argparse.ArgumentParser(description="Iceberg Identifier")
+        parser.add_argument('--train', action='store_true', default=False, help='train a model')
+        parser.add_argument('--test', action='store_true', default=False, help='test a model')
+        parser.add_argument('--eval', action='store_true', default=False, help='eval a model')
+        parser.add_argument('--load_model', action='store_true', default=False, help='load exist model')
+        parser.add_argument('--model_dir', type=str, default='models/iceberg', help='model directory')
+        return parser.parse_args()
+
+    @classmethod
+    def start(cls):
+        args = cls.init()
+        ice = cls(args)
+    
+        if args.train:
+            ice.train()
+        if args.test:
+            ice.test()
+        if args.eval:
+            ice.eval()
+
 
 if __name__ == '__main__':
     import matplotlib
     matplotlib.use("TkAgg")
     from matplotlib import pyplot as plt
     plt.ion()
+
     ice = Iceberg()
-    ice.preprocess()
+    ice.analysis()
