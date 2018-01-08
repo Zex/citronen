@@ -44,19 +44,14 @@ class Iceberg(object):
             if i == 1060: input(); sys.exit()
 
     def plot_one(self, one, i):
-        if isinstance(one['band_1'], float):
-            print(one['band_1'])
-            return
         img_band_1 = np.array(one['band_1']).reshape(75, 75)
         img_band_2 = np.array(one['band_2']).reshape(75, 75)
-        #one['inc_angle'] = 1.0 if one['inc_angle'] == 'na' else float(one['inc_angle'])
-        comb_add = (np.array(one['band_1'])*np.array(one['band_2']).T)
-        comb_add = comb_add.reshape(75, 75)
+        one['inc_angle'] = 1.0 if one['inc_angle'] == 'na' else float(one['inc_angle'])
+        comb_add = (np.array(one['band_1'])+np.array(one['band_2'])) % 255
 
         inc_angle = one['inc_angle']
         is_iceberg = one['is_iceberg']
         #comb = (img_band_1+img_band_2)*one['inc_angle']
-        print(comb_add)
 
         grp = 3
         self.plot_img(img_band_1, np.max(img_band_1), is_iceberg, one['id'], self.cur_i*grp)
@@ -153,13 +148,13 @@ class Iceberg(object):
         iid = data['id']
         band_1 = data['band_1']
         band_2 = data['band_2']
-        #data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
-        #angle = data['inc_angle'].astype(np.float64)
+        data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
+        angle = data['inc_angle'].astype(np.float64)
 
-        X = list(map(lambda l: np.array(l[1][0])*np.array(l[1][1]).T, \
-                enumerate(zip(band_1.values, band_2.values))))
-        #X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1])*l[1][2], \
-        #        enumerate(zip(band_1.values, band_2.values, angle.values))))
+        #X = list(map(lambda l: np.array(l[1][0])*np.array(l[1][1]).T, \
+        #        enumerate(zip(band_1.values, band_2.values))))
+        X = list(map(lambda l: (np.array(l[1][0])+np.array(l[1][1])).T*l[1][2], \
+                enumerate(zip(band_1.values, band_2.values, angle.values))))
         if self.mode in (Mode.TRAIN, Mode.EVAL):
             label = data['is_iceberg']
             y = label.values.reshape(len(label), 1)
