@@ -29,7 +29,7 @@ def load_pred(path):
 
 
 def plot_pred():
-    colors = ['g', 'b', 'y', 'k', 'c']
+    colors = ['g', 'b', 'y', 'k', 'c', 'pink']
     #colors = list(matplotlib.colors.cnames.keys())
     lbls = []
     fig = plt.figure(facecolor='darkred', edgecolor='k')
