@@ -22,19 +22,6 @@ class Xgb(Iceberg):
 
     def __init__(self, args):
         super(Xgb, self).__init__(args)
-        self.lr = 1e-2
-        self.batch_size = 100
-        self.steps = 1000
-        self.model = None
-        self.model_dir = args.model_dir
-        self.eval_result_path = os.path.join(self.model_dir, 'logs', 'eval.json')
-        self.has_model = args.load_model
-        self.error_stop_cnt = 0
-        self.last_epoch = 0
-
-        base = os.path.dirname(self.eval_result_path)
-        if not os.path.isdir(base):
-            os.makedirs(base)
 
     def train(self):
         self.mode = Mode.TRAIN
@@ -42,7 +29,7 @@ class Xgb(Iceberg):
         if self.has_model:
             self.load_model()
 
-        for epoch in range(1, self.steps+1):
+        for epoch in range(1, self.epochs+1):
             self.foreach_epoch(epoch)
 
     def test(self):

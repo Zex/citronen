@@ -19,6 +19,19 @@ class Iceberg(object):
 
     def __init__(self, args):
         super(Iceberg, self).__init__()
+        self.lr = 1e-2
+        self.batch_size = 100
+        self.epochs = 1000
+        self.model = None
+        self.model_dir = args.model_dir
+        self.eval_result_path = os.path.join(self.model_dir, 'logs', 'eval.json')
+        self.has_model = args.load_model
+        self.error_stop_cnt = 0
+        self.last_epoch = 0
+
+        base = os.path.dirname(self.eval_result_path)
+        if not os.path.isdir(base):
+            os.makedirs(base)
     
     def load_data(self, path):
         if not os.path.isfile(path):
