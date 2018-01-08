@@ -153,8 +153,11 @@ class Iceberg(object):
 
         #X = list(map(lambda l: np.array(l[1][0])*np.array(l[1][1]).T, \
         #        enumerate(zip(band_1.values, band_2.values))))
-        X = list(map(lambda l: (np.array(l[1][0])+np.array(l[1][1])).T*l[1][2], \
+        X = list(map(lambda l: l[1][0].extend(l[1][1]),\
+            #(np.array(l[1][0])+np.array(l[1][1])).T*l[1][2], \
                 enumerate(zip(band_1.values, band_2.values, angle.values))))
+        X = list(map(lambda l: np.array(l), band_1.values))
+
         if self.mode in (Mode.TRAIN, Mode.EVAL):
             label = data['is_iceberg']
             y = label.values.reshape(len(label), 1)
