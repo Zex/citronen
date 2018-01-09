@@ -94,7 +94,7 @@ class Xgb(Iceberg):
 #           'process_type': 'update',
             'refresh_leaf': True,
             'reg_lambda': 0.1,
-            'max_depth': 8,
+            'max_depth': 10,
 #            'reg_alpha': 3,
             'silent': False,
             'n_jobs': 2,
