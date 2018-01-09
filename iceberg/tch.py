@@ -69,7 +69,7 @@ class Torch(Iceberg, Module):
                 save({
                     'epoch': e,
                     'model': self.model,
-                    'opt': optimizer,
+                    'opt': self.optimizer,
                     }, 'iceberg-torch-{}'.format(e))
 
     def foreach_epoch(self, e):
@@ -90,7 +90,7 @@ class Torch(Iceberg, Module):
         y = Variable(from_numpy(y))
         output = self(X)
         output = F.sigmoid(output)
-        print("++ [epoch-{}] output:{} lbl:{}".format(e, output.data.numpy().tolist(), y.data.numpy().tolist())) 
+        print("++ [epoch-{}] output:{}".format(e, output.data.numpy().tolist()) )
         pred = F.binary_cross_entropy_with_logits(output, y)
         loss = self.loss_fn(output, y)
         print("++ [epoch-{}] loss:{}".format(e, loss.data.numpy().tolist())) 
