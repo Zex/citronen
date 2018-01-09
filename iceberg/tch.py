@@ -12,8 +12,8 @@ from torch.nn import Sequential
 from torch.nn import Dropout
 from torch.nn import ReLU
 from torch.nn import Linear
-from torch.nn import Conv2d
-from torch.nn import MaxPool2d
+from torch.nn import Conv1d
+from torch.nn import MaxPool1d
 from torch.nn import BCELoss
 from torch import optim
 from torch import from_numpy
@@ -27,19 +27,25 @@ class Torch(Iceberg, Module):
         self.total_class = 2
 
         self.model = Sequential(
-                Conv2d(11250, 1024,
+                Conv1d(75, 1024,
+                    kernel_size=3,
+                    stride=2,
+                    bias=True),
+                MaxPool1d(kernel_size=3),
+                ReLU(False),
+                Conv1d(1024, 512,
                     kernel_size=5,
                     stride=2,
                     bias=True),
-                MaxPool2d(kernel_size=3),
+                MaxPool1d(kernel_size=3),
                 ReLU(False),
-                Conv2d(1024, 512,
-                    kernel_size=5,
-                    stride=2,
+                Conv1d(512, 64,
+                    kernel_size=3,
+                    stride=1,
                     bias=True),
-                MaxPool2d(kernel_size=3),
+                MaxPool1d(kernel_size=3),
                 ReLU(False),
-                Linear(512, self.total_class),
+                Linear(1604*128, self.total_class),
                 Dropout(0.2, False),
                 ReLU(False),
                 )
@@ -69,8 +75,9 @@ class Torch(Iceberg, Module):
         """
         # 1604, 11250
         """
-        X = X.reshape(1604, 11250, 1, 1)
-        output = self(Variable(from_numpy(X)))
+        X = X.reshape(1604, 75, 75).astype(np.float32)
+        X = Variable(from_numpy(X))
+        output = self(X)
         pred = F.binary_cross_entropy(output, y)
         print("++ [epoch-{}] output:{} lbl:{}".format(e, output, y)) 
         loss = self.loss_fn(output, y)
