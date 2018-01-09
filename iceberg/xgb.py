@@ -43,7 +43,7 @@ class Xgb(Iceberg):
             res = self.model.predict(xgb.DMatrix(X))
             print('++ [pred] {}'.format(res))
             self.csv_result(iid, res)
-            print('++ [result_path] {}'.format(self.resulit_path))
+            print('++ [result_path] {}'.format(self.result_path))
 
         scores = self.model.get_score()
         print('++ [feature_score] {}'.format(len(scores)))
