@@ -27,27 +27,30 @@ class Torch(Iceberg, Module):
         self.total_class = 2
 
         self.features = Sequential(
-                Conv2d(75, 1024,
-                    kernel_size=3,
+                Conv2d(1, 1024,
+                    kernel_size=5,
                     stride=2,
+                    padding=2,
                     bias=True),
                 MaxPool2d(kernel_size=2),
                 ReLU(False),
                 Conv2d(1024, 512,
-                    kernel_size=3,
+                    kernel_size=5,
+                    padding=2,
                     stride=2,
                     bias=True),
                 MaxPool2d(kernel_size=3),
                 ReLU(False),
                 )
         self.classifier = Sequential(
-                Linear(67584, self.total_class),
+                Linear(512*3*3, self.total_class),
                 #Dropout(0.2, False),
                 )
 
     def forward(self, x):
         x = self.features(x)
         print("feature",  x.data.numpy().shape)
+        # 1604, 512, 3, 3
         x = x.view(x.size(0), -1)
         print("feature",  x.data.numpy().shape)
         x = x.data.numpy().reshape(x.shape[0], x.shape[1])
@@ -75,10 +78,9 @@ class Torch(Iceberg, Module):
         X, y = self.preprocess()
         X = np.array(X)
         """
-        # 1604, 11250
+        # 1604, 5625
         """
-        X = np.tile(X, 75)
-        X = X.reshape(1604, 75, 75, 75).astype(np.float32)
+        X = X.reshape(1604, 1, 75, 75).astype(np.float32)
         X = Variable(from_numpy(X))
         output = self(X)
         pred = F.binary_cross_entropy(output, y)
