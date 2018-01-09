@@ -12,8 +12,8 @@ from torch.nn import Sequential
 from torch.nn import Dropout
 from torch.nn import ReLU
 from torch.nn import Linear
-from torch.nn import Conv1d
-from torch.nn import MaxPool1d
+from torch.nn import Conv2d
+from torch.nn import MaxPool2d
 from torch.nn import BCELoss
 from torch import optim
 from torch import from_numpy
@@ -26,39 +26,41 @@ class Torch(Iceberg, Module):
         super(Torch, self).__init__(args)
         self.total_class = 2
 
-        self.model = Sequential(
-                Conv1d(75, 1024,
+        self.features = Sequential(
+                Conv2d(75, 1024,
                     kernel_size=3,
                     stride=2,
                     bias=True),
-                MaxPool1d(kernel_size=3),
+                MaxPool2d(kernel_size=2),
                 ReLU(False),
-                Conv1d(1024, 512,
-                    kernel_size=5,
+                Conv2d(1024, 512,
+                    kernel_size=3,
                     stride=2,
                     bias=True),
-                MaxPool1d(kernel_size=3),
+                MaxPool2d(kernel_size=3),
                 ReLU(False),
-                Conv1d(512, 32,
-                    kernel_size=3,
-                    stride=1,
-                    bias=True),
-                MaxPool1d(kernel_size=3),
-                ReLU(False),
-                Linear(1604*128, self.total_class),
-                Dropout(0.2, False),
-                ReLU(False),
+                )
+        self.classifier = Sequential(
+                Linear(67584, self.total_class),
+                #Dropout(0.2, False),
                 )
 
     def forward(self, x):
-        x = self.model(x)
+        x = self.features(x)
+        print("feature",  x.data.numpy().shape)
+        x = x.view(x.size(0), -1)
+        print("feature",  x.data.numpy().shape)
+        x = x.data.numpy().reshape(x.shape[0], x.shape[1])
+        x = Variable(from_numpy(x))
+        x = self.classifier(x)
+        print('fw', x.data.numpy().shape)
         return x
 
     def train(self):
         self.mode = Mode.TRAIN
         self.path = "data/iceberg/train.json"
         self.loss_fn = BCELoss().cpu()
-        self.optimizer = optim.Adam(self.model.parameters(), self.lr)
+        self.optimizer = optim.Adam(self.parameters(), self.lr)
 
         for e in range(1, self.epochs+1):
             self.foreach_epoch(e)
@@ -75,7 +77,8 @@ class Torch(Iceberg, Module):
         """
         # 1604, 11250
         """
-        X = X.reshape(1604, 75, 75).astype(np.float32)
+        X = np.tile(X, 75)
+        X = X.reshape(1604, 75, 75, 75).astype(np.float32)
         X = Variable(from_numpy(X))
         output = self(X)
         pred = F.binary_cross_entropy(output, y)
