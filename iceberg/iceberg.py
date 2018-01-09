@@ -41,18 +41,17 @@ class Iceberg(object):
    
     def analyze(self):
         path = "data/iceberg/train.json"
-        data = self.load_data(path)
+        path = "data/iceberg/test.json"
+        #data = self.load_data(path)
         self.axes = []
         self.fig = plt.figure(figsize=(20, 10), facecolor='grey', edgecolor='black')
-        self.fig.show()
+        #self.fig.show()
         self.cur_i = 0
         
         #data[data['inc_angle']=='na'] = 0.1
         #data['inc_angle'] = data['inc_angle'].astype(np.float64)
 
-        for i, one in data.iterrows():
-            if i < 1000:
-                continue
+        for i, one in enumerate(self.iload_data(path)):#data.iterrows():
             self.plot_one(one, i)
             if i == 1060: input(); sys.exit()
 
@@ -60,10 +59,12 @@ class Iceberg(object):
         img_band_1 = np.array(one['band_1']).reshape(75, 75)
         img_band_2 = np.array(one['band_2']).reshape(75, 75)
         one['inc_angle'] = 1.0 if one['inc_angle'] == 'na' else float(one['inc_angle'])
-        comb_add = (np.array(one['band_1'])+np.array(one['band_2'])) % 255
-
+        comb_add = np.array(one['band_1'])+np.array(one['band_2'])
+        comb_add = comb_add.reshape(75, 75)
+        print(img_band_1, np.mean(img_band_1), np.max(img_band_1))
+        return
         inc_angle = one['inc_angle']
-        is_iceberg = one['is_iceberg']
+        is_iceberg = -1 #one['is_iceberg']
         #comb = (img_band_1+img_band_2)*one['inc_angle']
 
         grp = 3

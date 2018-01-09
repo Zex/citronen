@@ -12,10 +12,6 @@ import pandas as pd
 from datetime import datetime
 import xgboost as xgb
 from iceberg.iceberg import Iceberg, Mode
-#import matplotlib
-#matplotlib.use('TkAgg')
-#from matplotlib import pyplot as plt
-
 
 
 class Xgb(Iceberg):
@@ -47,12 +43,6 @@ class Xgb(Iceberg):
 
         scores = self.model.get_score()
         print('++ [feature_score] {}'.format(len(scores)))
-
-        #ax = xgb.plot_importance(self.model)
-        #plt.savefig("data/iceberg/feature_importance_plot.png")
-
-        #ax = xgb.plot_tree(self.model)
-        #plt.savefig("data/iceberg/feature_tree_plot.png")
 
         if os.path.isfile(self.result_path):
             os.remove(self.result_path)
