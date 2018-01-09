@@ -39,7 +39,7 @@ class Torch(Iceberg, Module):
                     bias=True),
                 MaxPool1d(kernel_size=3),
                 ReLU(False),
-                Conv1d(512, 64,
+                Conv1d(512, 32,
                     kernel_size=3,
                     stride=1,
                     bias=True),
