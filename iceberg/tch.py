@@ -16,7 +16,7 @@ from torch.nn import Conv2d
 from torch.nn import MaxPool2d
 from torch.nn import BCELoss
 from torch import optim
-from torch import from_numpy
+from torch import from_numpy, save
 from torch.autograd import Variable
 from iceberg.iceberg import Iceberg, Mode
 
@@ -53,10 +53,8 @@ class Torch(Iceberg, Module):
         # 1604, 512, 3, 3
         x = x.view(x.size(0), -1)
         print("feature",  x.data.numpy().shape)
-        x = x.data.numpy().reshape(x.shape[0], x.shape[1])
-        x = Variable(from_numpy(x))
         x = self.classifier(x)
-        print('fw', x.data.numpy().shape)
+        print('feature', x.data.numpy().shape)
         return x
 
     def train(self):
@@ -68,7 +66,7 @@ class Torch(Iceberg, Module):
         for e in range(1, self.epochs+1):
             self.foreach_epoch(e)
             if e % 100:
-                torch.save({
+                save({
                     'epoch': e,
                     'model': self.model,
                     'opt': optimizer,
@@ -80,15 +78,24 @@ class Torch(Iceberg, Module):
         """
         # 1604, 5625
         """
+        def foreach_yi(yi):
+            i = np.zeros(2)
+            i[yi] = 1
+            yi = i
+            return yi
+
         X = X.reshape(1604, 1, 75, 75).astype(np.float32)
         X = Variable(from_numpy(X))
+        y = np.array(list(map(lambda yi: foreach_yi(yi), y))).astype(np.float32)
+        y = Variable(from_numpy(y))
         output = self(X)
-        pred = F.binary_cross_entropy(output, y)
-        print("++ [epoch-{}] output:{} lbl:{}".format(e, output, y)) 
+        output = F.sigmoid(output)
+        print("++ [epoch-{}] output:{} lbl:{}".format(e, output.data.numpy().tolist(), y.data.numpy().tolist())) 
+        pred = F.binary_cross_entropy_with_logits(output, y)
         loss = self.loss_fn(output, y)
-        print("++ [epoch-{}] loss:{} lbl:{}".format(e, loss, y)) 
+        print("++ [epoch-{}] loss:{}".format(e, loss.data.numpy().tolist())) 
         loss.backward()
-        optimizer.step()
+        self.optimizer.step()
 
     def test(self):
         pass
