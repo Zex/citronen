@@ -1,0 +1,36 @@
+# Resource configuration
+#
+#
+s3:
+  bucket: "360-npl-patsnap-us-east-1"
+
+springer:
+    remote_model_base: "config/julian/models/springer"
+    model_base: "models/springer"
+    model: 
+      graph: "cnn-119000.meta"
+      index: "cnn-119000.index"
+      path: "cnn-119000.data-00000-of-00001"
+    remote_data_base: "config/julian/data/springer"
+    data_base: "data/springer"
+    data:
+      l1_path: "l1_table.pickle"
+      l2_path: "l2_table.pickle"
+      cip_map: "cip_map.json"
+      vocab_path: "lang/vocab.pickle"
+    force_fetch: false
+  
+naics:
+    remote_model_base: "config/julian/models/naics"
+    model_base: "models/naics"
+    model:
+      graph: "cnn-381000.meta"
+      index: "cnn-381000.index"
+      path: "cnn-381000.data-00000-of-00001"
+    remote_data_base: "config/julian/data/naics"
+    data_base: "data/naics"
+    data:
+      d3_path: "codes_3digits.csv"
+      d6_path: "codes_6digits.csv"
+      vocab_path: "vocab.pickle"
+    force_fetch: false
