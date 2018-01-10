@@ -189,7 +189,7 @@ class Iceberg(object):
         parser.add_argument('--anal', action='store_true', default=False, help='analyse data')
         parser.add_argument('--batch_size', default=None, help='Batch size')
         parser.add_argument('--load_model', action='store_true', default=False, help='load exist model')
-        parser.add_argument('--model_dir', type=str, default='models/iceberg', help='model directory')
+        parser.add_argument('--model_dir', type=int, default='models/iceberg', help='model directory')
         return parser.parse_args()
 
     @classmethod
