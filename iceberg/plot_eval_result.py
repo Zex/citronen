@@ -73,9 +73,9 @@ def plot_model():
     plt.savefig("data/iceberg/feature_tree_plot.png")
 
 def start():
-    #plot_pred()
+    plot_pred()
     #plot_eval()
-    plot_model()
+    #plot_model()
 
 if __name__ == '__main__':
     import matplotlib

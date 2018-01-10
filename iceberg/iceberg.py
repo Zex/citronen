@@ -20,7 +20,7 @@ class Iceberg(object):
     def __init__(self, args):
         super(Iceberg, self).__init__()
         self.lr = 1e-2
-        self.batch_size = 100
+        self.batch_size = args.batch_size
         self.epochs = 1000
         self.model = None
         self.model_dir = args.model_dir
@@ -41,7 +41,7 @@ class Iceberg(object):
    
     def analyze(self):
         path = "data/iceberg/train.json"
-        path = "data/iceberg/test.json"
+        #path = "data/iceberg/test.json"
         #data = self.load_data(path)
         self.axes = []
         self.fig = plt.figure(figsize=(20, 10), facecolor='grey', edgecolor='black')
@@ -51,7 +51,8 @@ class Iceberg(object):
         #data[data['inc_angle']=='na'] = 0.1
         #data['inc_angle'] = data['inc_angle'].astype(np.float64)
 
-        for i, one in enumerate(self.iload_data(path)):#data.iterrows():
+        #for i, one in enumerate(self.iload_data(path)):
+        for one in data.iterrows():
             self.plot_one(one, i)
             if i == 1060: input(); sys.exit()
 
@@ -61,15 +62,14 @@ class Iceberg(object):
         one['inc_angle'] = 1.0 if one['inc_angle'] == 'na' else float(one['inc_angle'])
         comb_add = np.array(one['band_1'])+np.array(one['band_2'])
         comb_add = comb_add.reshape(75, 75)
-        print(img_band_1, np.mean(img_band_1), np.max(img_band_1))
-        return
+
         inc_angle = one['inc_angle']
         is_iceberg = -1 #one['is_iceberg']
         #comb = (img_band_1+img_band_2)*one['inc_angle']
 
         grp = 3
-        self.plot_img(img_band_1, np.max(img_band_1), is_iceberg, one['id'], self.cur_i*grp)
-        self.plot_img(img_band_2, np.max(img_band_2), is_iceberg, one['id'], self.cur_i*grp+1)
+        self.plot_img(img_band_1, inc_angle, is_iceberg, one['id'], self.cur_i*grp)
+        self.plot_img(img_band_2, inc_angle, is_iceberg, one['id'], self.cur_i*grp+1)
         self.plot_img(comb_add, 'comb_add', is_iceberg, one['id'], self.cur_i*grp+2)
         #self.plot_img(comb, 'comb', is_iceberg, one['id'], self.cur_i*grp+3)
 
@@ -187,6 +187,7 @@ class Iceberg(object):
         parser.add_argument('--test', action='store_true', default=False, help='test a model')
         parser.add_argument('--eval', action='store_true', default=False, help='eval a model')
         parser.add_argument('--anal', action='store_true', default=False, help='analyse data')
+        parser.add_argument('--batch_size', default=None, help='Batch size')
         parser.add_argument('--load_model', action='store_true', default=False, help='load exist model')
         parser.add_argument('--model_dir', type=str, default='models/iceberg', help='model directory')
         return parser.parse_args()
