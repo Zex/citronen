@@ -67,17 +67,10 @@ class Torch(Iceberg, Module):
         self.optimizer = optim.Adam(self.parameters(), self.lr)
 
         X, y = self.preprocess()
+        y = np.where(y == 0, [1, 0], [0, 1])
 
         if not self.batch_size:
             self.batch_size = len(X)
-
-        X = np.array(X)
-        X = X.reshape(self.batch_size, 1, 75, 75).astype(np.float32)
-        X = Variable(from_numpy(X), requires_grad=True)
-
-        y = np.where(y == 0,[1,0],[0,1])
-        y = y.astype(np.float32)
-        y = Variable(from_numpy(y))
 
         for e in range(1, self.epochs+1):
             self.foreach_epoch(e, X, y)
@@ -95,6 +88,14 @@ class Torch(Iceberg, Module):
             cur += self.batch_size
 
     def foreach_batch(self, e, X, y):
+
+        X = np.array(X)
+        X = X.reshape(self.batch_size, 1, 75, 75).astype(np.float32)
+        X = Variable(from_numpy(X), requires_grad=True)
+
+        y = y.astype(np.float32)
+        y = Variable(from_numpy(y))
+
         output = self(X)
         loss = self.loss_fn(F.softmax(output), F.softmax(y))
         print("++ [epoch-{}] y:{}".format(e, y.data.numpy().tolist()))
