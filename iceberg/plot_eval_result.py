@@ -40,7 +40,10 @@ def plot_pred():
     lbls = []
     fig = plt.figure(facecolor='black', edgecolor='k')
     ax = fig.add_subplot(111)
-    for i, path in enumerate(glob.glob('data/iceberg/pred*csv')):
+    paths = glob.glob('data/iceberg/pred_180110*50.csv')
+    paths.append('data/iceberg/pred_1801071845_04912.csv')
+
+    for i, path in enumerate(paths):
         vals = load_pred(path)
         ax.scatter(range(len(vals)), vals, color=colors[i], s=3)
         lbls.append(os.path.basename(path).split('.')[0])
@@ -75,9 +78,9 @@ def plot_model():
     plt.show()
 
 def start():
-    #plot_pred()
+    plot_pred()
     #plot_eval()
-    plot_model()
+    #plot_model()
 
 if __name__ == '__main__':
     start()
