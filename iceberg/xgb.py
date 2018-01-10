@@ -122,7 +122,9 @@ class Xgb(Iceberg):
             sys.exit()
 
     def load_model(self):
-        mod = glob.glob('{}/*.xgb'.format(self.model_dir))
+        mod = glob.glob('{}/iceberg-*.xgb'.format(self.model_dir))
+        mod = sorted(mod, key=lambda p:int(os.path.basename(p).split('.')[0].split('-')[1]))
+
         if mod:
             self.model = xgb.Booster()
             mod = mod[-1]

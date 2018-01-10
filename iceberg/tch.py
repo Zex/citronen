@@ -16,8 +16,10 @@ from torch.nn import Conv2d
 from torch.nn import MaxPool2d
 from torch.nn import BatchNorm2d
 from torch.nn import BCELoss
+from torch.nn import NLLLoss
 from torch.nn import MSELoss
 from torch.nn import Sigmoid
+from torch.nn import LogSoftmax
 from torch import optim
 from torch import from_numpy, save
 from torch.autograd import Variable
@@ -50,6 +52,7 @@ class Torch(Iceberg, Module):
                 )
         self.classifier = Sequential(
                 Linear(512*3*3, self.total_class),
+                LogSoftmax(),
                 #Sigmoid(),
                 #Dropout(0.2, False),
                 )
@@ -63,11 +66,11 @@ class Torch(Iceberg, Module):
     def train(self):
         self.mode = Mode.TRAIN
         self.path = "data/iceberg/train.json"
-        self.loss_fn = MSELoss() #BCELoss()
+        self.loss_fn = NLLLoss()#MSELoss() #BCELoss()
         self.optimizer = optim.Adam(self.parameters(), self.lr)
 
         X, y = self.preprocess()
-        y = np.where(y == 0, [1, 0], [0, 1])
+        #y = np.where(y == 0, [1, 0], [0, 1])
 
         if not self.batch_size:
             self.batch_size = len(X)
@@ -93,13 +96,15 @@ class Torch(Iceberg, Module):
         X = X.reshape(self.batch_size, 1, 75, 75).astype(np.float32)
         X = Variable(from_numpy(X), requires_grad=True)
 
-        y = y.astype(np.float32)
+        #y = y.astype(np.float32)
         y = Variable(from_numpy(y))
 
         output = self(X)
-        loss = self.loss_fn(F.softmax(output), F.softmax(y))
+        print(output.shape, y.shape)
         print("++ [epoch-{}] y:{}".format(e, y.data.numpy().tolist()))
         print("++ [epoch-{}] output:{}".format(e, output.data.numpy().tolist()))
+
+        loss = self.loss_fn(output, y)#F.softmax(output), F.softmax(y))
         print("++ [epoch-{}] loss:{}".format(e, loss.data.numpy().tolist())) 
 
         #pred = F.binary_cross_entropy_with_logits(output, y)

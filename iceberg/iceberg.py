@@ -165,7 +165,7 @@ class Iceberg(object):
         data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
         angle = data['inc_angle'].astype(np.float64)
 
-        X = list(map(lambda l: np.array(l[1][0])*np.array(l[1][1]).T, \
+        X = list(map(lambda l: np.array(l[1][0])+np.array(l[1][1]), \
                 enumerate(zip(band_1.values, band_2.values))))
         #X = list(map(lambda l: (np.array(l[1][0])+np.array(l[1][1])).T*l[1][2], \
         #        enumerate(zip(band_1.values, band_2.values, angle.values))))

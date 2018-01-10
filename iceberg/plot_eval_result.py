@@ -69,16 +69,15 @@ def plot_model():
     ax = xgb.plot_importance(obj.model)
     plt.savefig("data/iceberg/feature_importance_plot.png")
 
-    ax = xgb.plot_tree(obj.model)
-    plt.savefig("data/iceberg/feature_tree_plot.png")
+    #ax = xgb.plot_tree(obj.model)
+    #plt.savefig("data/iceberg/feature_tree_plot.png")
+
+    plt.show()
 
 def start():
-    plot_pred()
+    #plot_pred()
     #plot_eval()
-    #plot_model()
+    plot_model()
 
 if __name__ == '__main__':
-    import matplotlib
-    matplotlib.use("TkAgg")
-    from matplotlib import pyplot as plt
     start()
