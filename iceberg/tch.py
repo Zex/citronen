@@ -79,7 +79,6 @@ class Torch(Iceberg, Module):
         y = y.astype(np.float32)
         y = Variable(from_numpy(y))
 
-
         for e in range(1, self.epochs+1):
             self.foreach_epoch(e, X, y)
             if e % 100:
