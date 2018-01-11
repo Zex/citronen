@@ -75,16 +75,19 @@ class Iceberg(object):
 
         self.cur_i += 1
 
-    def plot_img(self, img, angle, is_iceberg, iid, i):
-        row = 6; col = 12
-        cur = i%(row*col)+1
+    def get_ax(self, i):
+        cur = i%(self.row*self.col)+1
 
         if len(self.axes) > cur:
             ax = self.axes[cur]
             ax.clear()
         else:
-            ax = self.fig.add_subplot(row, col, i%(row*col)+1)
+            ax = self.fig.add_subplot(self.row, self.col, i%(self.row*self.col)+1)
             self.axes.append(ax)
+        return ax
+
+    def plot_img(self, img, angle, is_iceberg, iid, i):
+        ax = self.get_ax(i)
 
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
