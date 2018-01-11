@@ -40,8 +40,7 @@ def plot_pred():
     lbls = []
     fig = plt.figure(facecolor='black', edgecolor='k')
     ax = fig.add_subplot(111)
-    paths = glob.glob('data/iceberg/pred_180110*50.csv')
-    paths.append('data/iceberg/pred_1801071845_04912.csv')
+    paths = glob.glob('data/iceberg/pred_*.csv')
 
     for i, path in enumerate(paths):
         vals = load_pred(path)
