@@ -2,7 +2,7 @@
 
 branch=`git rev-parse --abbrev-ref HEAD`
 revision=`git rev-parse --short=6 HEAD`
-version=0.0.1-$branch-$revision
+version=0.1.1-$branch-$revision
 project=julian
 local_tag="$project:$version"
 remote_tag="local-dtr.zhihuiya.com/360/$local_tag"
