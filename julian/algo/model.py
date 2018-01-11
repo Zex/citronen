@@ -2,13 +2,12 @@
 # Author: Zex Li <top_zlynch@yahoo.com>
 import os
 import sys
+import logging
 import boto3
 from tensorflow.contrib import learn
 import tensorflow as tf
-from julian.algo.config import get_config, get_logger
+from julian.algo.config import get_config
 
-
-lgr = get_logger()
 
 class Interfere(object):
 
@@ -16,7 +15,7 @@ class Interfere(object):
         super(Interfere, self).__init__()
 
     def restore(self, sess):
-        print(self.graph_path)
+        logging.info('++ [graph] {}'.format(self.graph_path))
         self.saver = tf.train.import_meta_graph(self.graph_path)
         self.saver.restore(sess, self.model_path.split('.')[0])
         graph = tf.get_default_graph()
@@ -73,12 +72,12 @@ class Interfere(object):
             return
 
         try:
-            lgr.info("Fetching {}/{} to {}".format(self.bucket_name, src, dest))
+            logging.info("Fetching {}/{} to {}".format(self.bucket_name, src, dest))
             self.s3_cli.download_file(self.bucket_name, src, dest)
             if os.path.isfile(dest):
-                lgr.info("{} downloaded".format(dest))
+                logging.info("{} downloaded".format(dest))
         except Exception as ex:
-            lgr.error("Exception on fetching model: {}".format(ex))
+            logging.error("Exception on fetching model: {}".format(ex))
 
 if __name__ == '__main__':
     start()

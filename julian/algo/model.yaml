@@ -7,7 +7,7 @@ s3:
 springer:
     remote_model_base: "config/julian/models/springer"
     model_base: "models/springer"
-    model: 
+    model:
       graph: "cnn-119000.meta"
       index: "cnn-119000.index"
       path: "cnn-119000.data-00000-of-00001"
@@ -19,7 +19,7 @@ springer:
       cip_map: "cip_map.json"
       vocab_path: "lang/vocab.pickle"
     force_fetch: false
-  
+
 naics:
     remote_model_base: "config/julian/models/naics"
     model_base: "models/naics"

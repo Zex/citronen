@@ -7,6 +7,7 @@ import yaml
 import string
 import logging
 
+
 class Config(object):
 
     def __init__(self):
@@ -40,12 +41,3 @@ def get_config():
     if not globals().get('julian_config'):
         globals()['julian_config'] = Config()
     return globals().get('julian_config')
-
-
-def get_logger():
-    if not globals().get('julian_logger'):
-        lgr = logging.getLogger()
-        lgr.setLevel(logging.INFO)
-        lgr.addHandler(logging.StreamHandler(stream=sys.stdout))
-        globals()['julian_logger'] = lgr
-    return globals()['julian_logger']

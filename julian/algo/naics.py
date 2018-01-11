@@ -45,15 +45,3 @@ class Naics(Interfere):
                 })
 
         return ret
-
-
-def selftest():
-    obj = Naics()
-    res = obj.interfere([
-        'GOOTEN MORGEN',
-        'ICH BIN FLEXHEN EINEN HERONIGEN',
-        'WUSHIBIDIE ZWEIZICH',
-        ])
-
-if __name__ == '__main__':
-    selftest()

@@ -67,19 +67,3 @@ class Springer(Interfere):
                 })
 
         return ret
-
-
-def selftest():
-    from datetime import datetime
-    start = datetime.now()
-    obj = Springer()
-    res = obj.interfere([
-        'GOOTEN MORGEN',
-        'ICH BIN FLEXHEN EINEN HERONIGEN',
-        'WUSHIBIDIE ZWEIZICH',
-        ])
-    print('++ [result] {}'.format(res))
-    print('++ [elapsed] {}'.format(datetime.now()-start))
-
-if __name__ == '__main__':
-    selftest()
