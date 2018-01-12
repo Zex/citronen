@@ -132,7 +132,7 @@ class DriverInsurance(object):
         ana = svm.LinearSVC(penalty='l2', max_iter=1000, loss='squared_hinge', multi_class='ovr')
         ana.fit(X, y)
         pred = ana.predict(X)
-        print(pred)
+
         for iid, p in zip(data['id'], pred):
             print(iid, p)
         """
@@ -145,16 +145,13 @@ class DriverInsurance(object):
         self.col = 1
         self.axes = []
 
-        self.fig = plt.figure(figsize=(6, 6), facecolor='darkgray', edgecolor='black')
-        ax = self.get_ax(1)
+        #self.fig = plt.figure(figsize=(6, 6), facecolor='darkgray', edgecolor='black')
+        #ax = self.get_ax(1)
 
-        ax.set_facecolor('black')
-        ax.plot(comp[0:10,0],comp[0:10,1], 'o', markersize=1, color='blue', alpha=0.5, label='class1')
-        ax.plot(comp[10:20,0], comp[10:20,1], 'o', markersize=1, color='red', alpha=0.5, label='class2')
-    
-        self.fig.canvas.draw()
-        input()
-        return
+        #ax.set_facecolor('black')
+        #ax.plot(comp[0:10,0],comp[0:10,1], 'o', markersize=1, color='blue', alpha=0.5, label='class1')
+        #ax.plot(comp[10:20,0], comp[10:20,1], 'o', markersize=1, color='red', alpha=0.5, label='class2')
+        #self.fig.canvas.draw()
 
         for i, feat in enumerate(data.keys()):
             if feat in ('id', 'target'):
