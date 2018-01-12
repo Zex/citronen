@@ -3,7 +3,6 @@
 import sys
 import os
 sys.path.insert(0, os.getcwd())
-import sys
 import string
 import glob
 import ujson
@@ -25,8 +24,9 @@ class Xgb(DriverInsurance):
         if self.has_model:
             self.load_model()
 
+        X, y = self.preprocess()
         for epoch in range(1, self.epochs+1):
-            self.foreach_epoch(epoch)
+            self.foreach_epoch(epoch, X, y)
 
     def test(self):
         self.mode = Mode.TEST
@@ -76,18 +76,17 @@ class Xgb(DriverInsurance):
         res = self.model.eval(dtrain)
         print('++ [eval] {}'.format(res))
 
-    def foreach_epoch(self, epoch):
-        X, y = self.preprocess()
+    def foreach_epoch(self, epoch, X, y):
         params = {
             'learning_rate': self.lr,
             'update':'refresh',
 #           'process_type': 'update',
             'refresh_leaf': True,
-            'reg_lambda': 0.1,
-            'max_depth': 10,
+            'reg_lambda': 0.23,
+            'max_depth': 6,
 #            'reg_alpha': 3,
             'silent': False,
-            'n_jobs': 2,
+            'n_jobs': 3,
             'objective': 'binary:logistic',
             'eval_metrics': 'logloss',
         } 
