@@ -64,7 +64,7 @@ class Xgb(DriverInsurance):
 
     def eval(self):
         self.mode = Mode.EVAL
-        self.path = "data/driver_insurance/train.json"
+        self.path = "data/driver_insurance/train.csv"
         self.load_model()
 
         scores = self.model.get_score()
