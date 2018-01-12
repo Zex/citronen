@@ -74,7 +74,7 @@ class DriverInsurance(object):
     def preprocess(self):
         data = self.load_data(self.path)
         X = list(map(lambda f: data[f].values, data.keys()))
-        X = np.array(X)
+        X = np.array(X).reshape(X.shape[1], X.shape[0])
 
         if self.mode in (Mode.TRAIN, Mode.EVAL):
             y = data['target'].values.reshape(len(data['target']), 1).astype(np.float)
