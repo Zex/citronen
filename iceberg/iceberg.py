@@ -24,6 +24,7 @@ class Iceberg(object):
         self.epochs = 1000
         self.model = None
         self.model_dir = args.model_dir
+        self.log_path = os.path.join(self.model_dir, 'logs')
         self.eval_result_path = os.path.join(self.model_dir, 'logs', 'eval.json')
         self.has_model = args.load_model
         self.error_stop_cnt = 0
@@ -168,8 +169,10 @@ class Iceberg(object):
         data['inc_angle'] = data[data['inc_angle']=='na'] = '1.0'
         angle = data['inc_angle'].astype(np.float64)
 
-        X = list(map(lambda l: (np.array(l[1][0])+np.array(l[1][1]).T), \
+        X = list(map(lambda l: np.array([np.array(l[1][0]), np.array(l[1][1])]), \
                 enumerate(zip(band_1.values, band_2.values))))
+        #X = list(map(lambda l: (np.array(l[1][0])+np.array(l[1][1]).T), \
+        #        enumerate(zip(band_1.values, band_2.values))))
         #X = list(map(lambda l: (np.array(l[1][0])+np.array(l[1][1])).T*l[1][2], \
         #        enumerate(zip(band_1.values, band_2.values, angle.values))))
         X = np.array(X).astype(np.float32)
