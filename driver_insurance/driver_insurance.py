@@ -100,6 +100,7 @@ top20 = {
      "f38": 4448,
 }
 
+
 class DriverInsurance(object):
 
     def __init__(self, args):

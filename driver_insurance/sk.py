@@ -1,12 +1,14 @@
-#
-#
+# DriverInsurance identifier
+# Author: Zex Li <top_zlynch@yahoo.com>
+import sys
 import os
+sys.path.insert(0, os.getcwd())
 import glob
 import pickle
 import numpy as np
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from driver_insurance import DriverInsurance, Mode
+from driver_insurance.driver_insurance import DriverInsurance, Mode
 
 
 class RT(DriverInsurance):
@@ -23,13 +25,15 @@ class RT(DriverInsurance):
         if self.has_model:
             self.load_model()
         else:
-            self.model = RandomForestClassifier(n_estimators=128, max_depth=10, verbose=2, n_jobs=16)
-            #self.model = RandomForestRegressor(n_estimators=128, max_depth=10, verbose=3, n_jobs=8)
+            #self.model = RandomForestClassifier(n_estimators=1024, max_depth=10, verbose=2, n_jobs=30)
+            self.model = RandomForestRegressor(n_estimators=10, max_depth=10, verbose=1, n_jobs=40, criterion='mae')
 
         self.model = self.model.fit(X, y)
         self.save_model()
         score = self.model.score(X, y)
         print('++ [train] score:{}'.format(score))
+        print('++ [train] feat:{}'.format(self.model.n_features_))
+        print('++ [train] importance:{}'.format(self.model.feature_importances_))
 
     def test(self):
         self.mode = Mode.TEST
@@ -58,7 +62,6 @@ class RT(DriverInsurance):
             return None
 
         sorted(output, key=lambda f:os.stat(f).st_mtime)
-        print(output)
         output = output[-1]
         print("++ [test] model:{}".format(output))
 
