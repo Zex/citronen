@@ -5,6 +5,7 @@ import sys
 import ujson
 import string
 import numpy as np
+from datetime import datetime
 import argparse
 import pandas as pd
 from sklearn import decomposition as decom
@@ -109,6 +110,8 @@ class DriverInsurance(object):
         self.model = None
         self.model_dir = args.model_dir
         self.eval_result_path = os.path.join(self.model_dir, 'logs', 'eval.json')
+        self.result_path = "data/driver_insurance/pred_{}.csv".format(\
+                datetime.now().strftime("%y%m%d%H%M"))
         self.has_model = args.load_model
         self.error_stop_cnt = 0
         self.last_epoch = 0
@@ -181,11 +184,10 @@ class DriverInsurance(object):
     def preprocess(self):
         data = self.load_data(self.path)
         #X = list(map(lambda f: data[f].values, data.keys()))
-        X = [data[header[int(f[1:])]].values for f in top20]
+        #X = [data[header[int(f[1:])]].values for f in top20]
+        X = [data[f].values for f in data.keys() if f not in ('id', 'target')]
         X = np.array(X)
-        print(X.shape)
         X = X.reshape(X.shape[1], X.shape[0])
-        #ana = decom.PCA(n_components=10)
 
         if self.mode in (Mode.TRAIN, Mode.EVAL):
             y = data['target'].values.reshape(len(data['target']), 1).astype(np.float)
@@ -196,7 +198,8 @@ class DriverInsurance(object):
 #            comp = ana.fit_transform(X, y)
 #            print(comp)
             return X, y
-        return iid.values, X
+        iid = data['id'].values
+        return iid, X
 
     def load_model(self):
         pass
@@ -227,6 +230,17 @@ class DriverInsurance(object):
         if args.anal:
             drv_ins.analyze()
 
+    def csv_result(self, iid, result):
+        df = pd.DataFrame({
+            'id': iid,
+            'is_driver_insurance': np.around(result, decimals=6),
+        })
+
+        if not os.path.isfile(self.result_path):
+            df.to_csv(self.result_path, index=None, float_format='%0.6f')
+        else:
+            df.to_csv(self.result_path, index=None, float_format='%0.6f',\
+                    mode='a', header=False)
 
 if __name__ == '__main__':
     import matplotlib

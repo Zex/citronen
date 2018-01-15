@@ -31,8 +31,6 @@ class Xgb(DriverInsurance):
     def test(self):
         self.mode = Mode.TEST
         self.path = "data/driver_insurance/test.csv"
-        self.result_path = "data/driver_insurance/pred_{}.csv".format(\
-                datetime.now().strftime("%y%m%d%H%M"))
         self.load_model()
 
         def pred(iid, X):
@@ -49,18 +47,6 @@ class Xgb(DriverInsurance):
 
         iid, X = self.preprocess()
         pred(iid, X)
-
-    def csv_result(self, iid, result):
-        df = pd.DataFrame({
-            'id': iid,
-            'is_driver_insurance': np.around(result, decimals=6),
-        })
-
-        if not os.path.isfile(self.result_path):
-            df.to_csv(self.result_path, index=None, float_format='%0.6f')
-        else:
-            df.to_csv(self.result_path, index=None, float_format='%0.6f',\
-                    mode='a', header=False)
 
     def eval(self):
         self.mode = Mode.EVAL

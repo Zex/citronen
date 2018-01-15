@@ -25,8 +25,12 @@ class Tf(Iceberg):
             self.dropout_keep = tf.placeholder(tf.float32, name='dropout_keep')
 
         self.logits = self.get_logits()
-        self.pred = tf.argmax(self.logits, 1, name='pred')
-        self.loss = tf.reduce_mean(tf.nn.softmax(self.logits, 1), name='loss')
+        print('logits', self.logits)
+        print('input_y', self.input_y)
+        self.pred = tf.argmax(self.logits, -1, name='pred')
+        #self.loss = tf.reduce_mean(tf.nn.softmax(self.logits, 1), name='loss')
+        self.loss = tf.losses.log_loss(self.input_y, self.logits)
+        print('loss', self.loss)
 
         self.global_step = tf.Variable(self.init_step, name='global_step', trainable=False)
         self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=1e-9).minimize(
@@ -42,10 +46,25 @@ class Tf(Iceberg):
             pool_1 = tf.layers.max_pooling2d(conv_1, [5, 5], strides=(1,1))
 
         with tf.device('/cpu:0'):
-            conv_2 = tf.layers.conv2d(pool_1, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_2')
+            conv_2 = tf.layers.conv2d(self.input_x, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_2')
             pool_2 = tf.layers.max_pooling2d(conv_2, [5, 5], strides=(1,1))
 
-        logits = tf.layers.dense(pool_2, 2, kernel_initializer=tf.contrib.layers.xavier_initializer()) 
+        with tf.device('/cpu:0'):
+            conv_3 = tf.layers.conv2d(pool_1, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_3')
+            pool_3 = tf.layers.max_pooling2d(conv_3, [5, 5], strides=(1,1))
+
+        with tf.device('/cpu:0'):
+            conv_4 = tf.layers.conv2d(pool_2, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_4')
+            pool_4 = tf.layers.max_pooling2d(conv_4, [5, 5], strides=(1,1))
+
+        with tf.device('/cpu:0'):
+            conv_5 = tf.layers.conv2d(pool_3, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_5')
+            pool_5 = tf.layers.max_pooling2d(conv_5, [5, 5], strides=(1,1))
+
+        with tf.device('/cpu:0'):
+            #hidden = tf.reshape(tf.concat([pool_3, pool_4], 3), [-1, 23814])
+            hidden = tf.reshape(pool_5, [-1, 57*57*3])
+            logits = tf.layers.dense(hidden, 1, use_bias=True, activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer())
         return logits
 
     def foreach_epoch(self, sess):
@@ -61,7 +80,7 @@ class Tf(Iceberg):
         if self.mode == Mode.TRAIN:
             feed_dict.update({self.input_y: y})
             _, loss, pred, step, summ = sess.run(\
-                    [self.train_op, self.loss, self.pred, self.global_step, self.summary],\
+                    [self.train_op, self.loss, self.logits, self.global_step, self.summary],\
                     feed_dict=feed_dict)
             self.summary_writer.add_summary(summ, step)
             self.saver.save(sess, self.model_dir+'/cnn',
