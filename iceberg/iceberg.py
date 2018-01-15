@@ -21,7 +21,7 @@ class Iceberg(object):
         super(Iceberg, self).__init__()
         self.lr = 1e-2
         self.batch_size = args.batch_size
-        self.epochs = 1000
+        self.epochs = 1000000
         self.model = None
         self.model_dir = args.model_dir
         self.log_path = os.path.join(self.model_dir, 'logs')

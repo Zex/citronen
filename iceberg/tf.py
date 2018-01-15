@@ -17,6 +17,7 @@ class Tf(Iceberg):
         self.height, self.width = 75, 75
         self.channel = 2
         self.batch_size = 1604
+        self.summ_intv = 100
 
     def _build_model(self):
         with tf.device('/cpu:0'):
@@ -33,7 +34,7 @@ class Tf(Iceberg):
         print('loss', self.loss)
 
         self.global_step = tf.Variable(self.init_step, name='global_step', trainable=False)
-        self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=1e-9).minimize(
+        self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=1e-7).minimize(
                 self.loss, global_step=self.global_step, name='train_op')
 
         summary = []
@@ -82,11 +83,12 @@ class Tf(Iceberg):
             _, loss, pred, step, summ = sess.run(\
                     [self.train_op, self.loss, self.logits, self.global_step, self.summary],\
                     feed_dict=feed_dict)
-            self.summary_writer.add_summary(summ, step)
-            self.saver.save(sess, self.model_dir+'/cnn',
-                        global_step=tf.train.global_step(sess, self.global_step))
-            pred = np.squeeze(pred)
-            print('++ [step:{}] loss:{} pred:{}'.format(step, loss, pred), flush=True)
+            if step % self.summ_intv == 0:
+                self.summary_writer.add_summary(summ, step)
+                self.saver.save(sess, self.model_dir+'/cnn',
+                            global_step=tf.train.global_step(sess, self.global_step))
+                pred = np.squeeze(pred)
+                print('++ [step:{}] loss:{} pred:{}'.format(step, loss, pred), flush=True)
 
     def train(self):
         self.mode = Mode.TRAIN
