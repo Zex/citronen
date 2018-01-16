@@ -34,8 +34,10 @@ class Tf(Iceberg):
         print('loss', self.loss)
 
         self.global_step = tf.Variable(self.init_step, name='global_step', trainable=False)
-        self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=1e-2).minimize(
+        self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=0.9).minimize(
                 self.loss, global_step=self.global_step, name='train_op')
+        #self.train_op = tf.train.AdamOptimizer(self.lr).minimize(
+        #        self.loss, global_step=self.global_step, name='train_op')
 
         summary = []
         summary.append(tf.summary.scalar('loss', self.loss))
@@ -43,37 +45,45 @@ class Tf(Iceberg):
 
     def get_logits(self):
         with tf.device('/cpu:0'):
-            conv_1 = tf.layers.conv2d(self.input_x, 5, kernel_size=[5, 5], activation=tf.nn.relu, name='conv_1')
+            conv_1 = tf.layers.conv2d(self.input_x, 5, kernel_size=[5, 5], activation=tf.sigmoid, name='conv_1',\
+                kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_1 = tf.layers.max_pooling2d(conv_1, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_2 = tf.layers.conv2d(self.input_x, 5, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_2')
+            conv_2 = tf.layers.conv2d(self.input_x, 5, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_2',\
+                kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_2 = tf.layers.max_pooling2d(conv_2, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_3 = tf.layers.conv2d(pool_1, 5, kernel_size=[5, 5], activation=tf.nn.relu, name='conv_3')
+            conv_3 = tf.layers.conv2d(pool_1, 5, kernel_size=[5, 5], activation=tf.sigmoid, name='conv_3',\
+                kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_3 = tf.layers.max_pooling2d(conv_3, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_4 = tf.layers.conv2d(pool_2, 5, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_4')
+            conv_4 = tf.layers.conv2d(pool_2, 5, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_4',\
+                kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_4 = tf.layers.max_pooling2d(conv_4, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_5 = tf.layers.conv2d(pool_3, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_5')
+            conv_5 = tf.layers.conv2d(pool_3, 3, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_5',\
+                kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_5 = tf.layers.max_pooling2d(conv_5, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_6 = tf.layers.conv2d(pool_4, 5, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_6')
+            conv_6 = tf.layers.conv2d(pool_4, 5, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_6',\
+                kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_6 = tf.layers.max_pooling2d(conv_6, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_7 = tf.layers.conv2d(pool_5, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_7')
+            conv_7 = tf.layers.conv2d(pool_5, 3, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_7',\
+                kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_7 = tf.layers.max_pooling2d(conv_7, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
             #hidden = tf.reshape(tf.concat([pool_3, pool_4], 3), [-1, 23814])
             hidden = tf.reshape(pool_7, [-1, 53*53*3])
-            logits = tf.layers.dense(hidden, 1, use_bias=True, activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            logits = tf.layers.dense(hidden, 1, use_bias=True, activation=tf.sigmoid, name='logits',\
+                kernel_initializer=tf.contrib.layers.xavier_initializer())
         return logits
 
     def foreach_epoch(self, sess):
