@@ -12,7 +12,7 @@ class Tf(Iceberg):
 
     def __init__(self, args):
         super(Tf, self).__init__(args)
-        self.dropout = 0.3
+        self.dropout = 0.1
         self.init_step = 0
         self.height, self.width = 75, 75
         self.channel = 2
@@ -34,7 +34,7 @@ class Tf(Iceberg):
         print('loss', self.loss)
 
         self.global_step = tf.Variable(self.init_step, name='global_step', trainable=False)
-        self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=1e-7).minimize(
+        self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=1e-2).minimize(
                 self.loss, global_step=self.global_step, name='train_op')
 
         summary = []
@@ -43,35 +43,43 @@ class Tf(Iceberg):
 
     def get_logits(self):
         with tf.device('/cpu:0'):
-            conv_1 = tf.layers.conv2d(self.input_x, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_1')
-            pool_1 = tf.layers.max_pooling2d(conv_1, [5, 5], strides=(1,1))
+            conv_1 = tf.layers.conv2d(self.input_x, 5, kernel_size=[5, 5], activation=tf.nn.relu, name='conv_1')
+            pool_1 = tf.layers.max_pooling2d(conv_1, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_2 = tf.layers.conv2d(self.input_x, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_2')
-            pool_2 = tf.layers.max_pooling2d(conv_2, [5, 5], strides=(1,1))
+            conv_2 = tf.layers.conv2d(self.input_x, 5, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_2')
+            pool_2 = tf.layers.max_pooling2d(conv_2, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_3 = tf.layers.conv2d(pool_1, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_3')
-            pool_3 = tf.layers.max_pooling2d(conv_3, [5, 5], strides=(1,1))
+            conv_3 = tf.layers.conv2d(pool_1, 5, kernel_size=[5, 5], activation=tf.nn.relu, name='conv_3')
+            pool_3 = tf.layers.max_pooling2d(conv_3, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_4 = tf.layers.conv2d(pool_2, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_4')
-            pool_4 = tf.layers.max_pooling2d(conv_4, [5, 5], strides=(1,1))
+            conv_4 = tf.layers.conv2d(pool_2, 5, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_4')
+            pool_4 = tf.layers.max_pooling2d(conv_4, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
             conv_5 = tf.layers.conv2d(pool_3, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_5')
-            pool_5 = tf.layers.max_pooling2d(conv_5, [5, 5], strides=(1,1))
+            pool_5 = tf.layers.max_pooling2d(conv_5, [3, 3], strides=(1, 1))
+
+        with tf.device('/cpu:0'):
+            conv_6 = tf.layers.conv2d(pool_4, 5, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_6')
+            pool_6 = tf.layers.max_pooling2d(conv_6, [5, 5], strides=(1, 1))
+
+        with tf.device('/cpu:0'):
+            conv_7 = tf.layers.conv2d(pool_5, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_7')
+            pool_7 = tf.layers.max_pooling2d(conv_7, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
             #hidden = tf.reshape(tf.concat([pool_3, pool_4], 3), [-1, 23814])
-            hidden = tf.reshape(pool_5, [-1, 57*57*3])
+            hidden = tf.reshape(pool_7, [-1, 53*53*3])
             logits = tf.layers.dense(hidden, 1, use_bias=True, activation=tf.sigmoid, kernel_initializer=tf.contrib.layers.xavier_initializer())
         return logits
 
     def foreach_epoch(self, sess):
         x, y = self.preprocess()
         x = x.reshape(x.shape[0], self.height, self.width, self.channel)
-        print('++ [info] shape:{} dtype:{}'.format(x.shape, x.dtype))
+        #print('++ [info] shape:{} dtype:{}'.format(x.shape, x.dtype))
 
         feed_dict = {
                self.input_x: x,
