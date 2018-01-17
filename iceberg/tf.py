@@ -95,7 +95,7 @@ class Tf(Iceberg):
 
         with tf.device('/cpu:0'):
             #hidden = tf.concat([pool_7, pool_10], 3)
-            hidden = tf.reshape(pool_11, [-1, 35*35*3], name='hidden')
+            hidden = tf.reshape(pool_7, [-1, 53*53*3], name='hidden')
             logits = tf.layers.dense(hidden, 1, use_bias=True, activation=tf.sigmoid, name='logits',\
                 kernel_initializer=tf.contrib.layers.xavier_initializer())
         return logits
