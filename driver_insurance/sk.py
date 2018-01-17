@@ -26,7 +26,7 @@ class RT(DriverInsurance):
             self.load_model()
         else:
             #self.model = RandomForestClassifier(n_estimators=1024, max_depth=10, verbose=2, n_jobs=30)
-            self.model = RandomForestRegressor(n_estimators=10, max_depth=10, verbose=1, n_jobs=40, criterion='mae')
+            self.model = RandomForestRegressor(n_estimators=10, max_depth=10, verbose=2, n_jobs=20, criterion='mae')
 
         self.model = self.model.fit(X, y)
         self.save_model()
