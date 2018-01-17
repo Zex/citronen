@@ -1,6 +1,6 @@
 # Model handler
 import os, glob
-from julian.core.with_tf import init
+from julian.core.tf import init
 from julian.common.topic import Topic
 from julian.handler.model_handler import ModelHandler, MODE
 
