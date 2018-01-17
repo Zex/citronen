@@ -7,6 +7,7 @@ import string
 import numpy as np
 import argparse
 import pandas as pd
+from sklearn.utils import shuffle
 
 
 class Mode(object):
@@ -21,7 +22,7 @@ class Iceberg(object):
         super(Iceberg, self).__init__()
         self.lr = 1e-2
         self.batch_size = args.batch_size
-        self.epochs = 1000000
+        self.epochs = args.epochs
         self.model = None
         self.model_dir = args.model_dir
         self.log_path = os.path.join(self.model_dir, 'logs')
@@ -160,8 +161,11 @@ class Iceberg(object):
                         band, buf, met_colon, list_on = [], '', False, False
 
     
-    def preprocess(self):
+    def preprocess(self, need_shuffle=True):
         data = self.load_data(self.path)
+        
+        if need_shuffle:
+            data = shuffle(data)
 
         iid = data['id']
         band_1 = data['band_1']
@@ -193,7 +197,8 @@ class Iceberg(object):
         parser.add_argument('--test', action='store_true', default=False, help='test a model')
         parser.add_argument('--eval', action='store_true', default=False, help='eval a model')
         parser.add_argument('--anal', action='store_true', default=False, help='analyse data')
-        parser.add_argument('--batch_size', type=int, default=None, help='Batch size')
+        parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
+        parser.add_argument('--epochs', type=int, default=1000000, help='total epochs')
         parser.add_argument('--load_model', action='store_true', default=False, help='load exist model')
         parser.add_argument('--model_dir', type=str, default='models/iceberg', help='model directory')
         return parser.parse_args()
