@@ -1,10 +1,12 @@
 #!/bin/bash
 export TF_CPP_MIN_LOG_LEVEL=2
-python3 core/tf.py \
-  --data_path ../data/naics/full.csv \
-  --model_dir ../models/naics/50_1024_07_128860/cnn \
-  --max_doc 50 \
-  --vocab_path ../data/naics/vocab.pickle \
+export PYTHONPATH=`pwd`:$PYTHONPATH
+
+python3 julian/core/tf.py \
+  --data_path data/naics/full.csv \
+  --model_dir models/naics/50_1024_07/cnn \
+  --max_doc 100 \
+  --vocab_path data/naics/vocab.pickle \
   --batch_size 1024 \
   --summ_intv 1000 \
   --dropout 0.7 \

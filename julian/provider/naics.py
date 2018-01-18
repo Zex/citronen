@@ -14,21 +14,21 @@ from julian.provider.data_provider import DataProvider
 class NaicsProvider(DataProvider):
 
     def __init__(self, args, need_shuffle=True):
-        self.naics_codes_path = getattr(args, "naics_codes_path", "data/naics/codes_3digits.csv")
-        self.d3table = self.load_d3table()
-        self.class_map = list(set(self.d3table['code']))
+        self.naics_codes_path = getattr(args, "naics_codes_path", "data/naics/d6table.csv")
+        self.d6table = self.load_d6table()
+        self.class_map = list(set(self.d6table['code']))
         self.total_class = len(self.class_map)
         super(NaicsProvider, self).__init__(args, need_shuffle)
         self.load_all()
 
-    def load_d3table(self):
+    def load_d6table(self):
         raise_if_not_found(self.naics_codes_path)
         return pd.read_csv(self.naics_codes_path,
-                header=0, delimiter="#", dtype={"code":np.int})
+                header=0, delimiter="#", dtype={"code":np.str})
 
     def load_data(self, need_shuffle=True):
         raise_if_not_found(self.data_path)
-        chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
+        chunk = pd.read_csv(self.data_path, header=0, delimiter="#", dtype={'target':np.str})
         if need_shuffle:
             chunk = shuffle(chunk)
         return self.__process_chunk(*self.__extract_xy(chunk))
@@ -54,7 +54,7 @@ class NaicsProvider(DataProvider):
         return x, y
 
     def decode(self, pred):
-        header = ['iid', 'code', 'name']
+        header = ['code', 'name']
         df = pd.DataFrame(columns=header)
         pred = np.squeeze(pred).tolist()
 
@@ -62,8 +62,8 @@ class NaicsProvider(DataProvider):
             pred = [pred]
 
         for p in pred:
-            iid, code, name = self.level_decode(p)
-            df = df.append(pd.Series((iid, code, name), index=header), ignore_index=True)
+            code, name = self.level_decode(p)
+            df = df.append(pd.Series((code, name), index=header), ignore_index=True)
 
         if self.pred_output:
             if os.path.isfile(self.pred_output):
@@ -74,12 +74,13 @@ class NaicsProvider(DataProvider):
 
     def __extract_xy(self, chunk):
         chunk = chunk.dropna()
-        chunk["code"] = chunk["code"].apply(lambda x: np.int64(x[:3]))
-        return chunk["desc"], chunk["code"]
+        #chunk["target"] = chunk["target"].apply(lambda x: np.int64(x[:3]))
+        chunk["description"] = chunk["description"].apply(lambda l: l.lower())
+        return chunk["description"], chunk["target"]
 
     def level_decode(self, index):
         iid = self.class_map[index]
-        code = self.d3table[self.d3table["code"] == iid].values
+        code = self.d6table[self.d6table["code"] == iid].values
         code = np.squeeze(code).tolist()
         return iid, code[0], code[1]
 
@@ -88,7 +89,7 @@ class NaicsProvider(DataProvider):
 
     def train_vocab(self):
         chunk = pd.read_csv(self.data_path, header=0, delimiter="#")
-        return self.train_vocab_from_data(chunk["desc"])
+        return self.train_vocab_from_data(chunk["description"])
 
 class NaicsStreamProvider(NaicsProvider):
 

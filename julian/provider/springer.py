@@ -57,7 +57,7 @@ class SpringerProvider(DataProvider):
         if self.l2table:
             chunk = chunk.replace({"subcate":self.l2table})
 
-        text = chunk["desc"]
+        text = chunk["desc"].apply(lambda l: l.lower())
         label1 = chunk["cate"]
         label2 = chunk["subcate"]
         return text, label1, label2

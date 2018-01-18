@@ -68,7 +68,6 @@ class Julian(object):
                 "log_{}th".format(datetime.today().timetuple().tm_yday))
         if not os.path.isdir(self.log_path):
             os.makedirs(self.log_path)
-        #self.vocab_size = len(self.provider.global_tokens)
         self.vocab_size = len(self.provider.vocab_processor.vocabulary_)
         print("total vocab: {}".format(self.vocab_size))
 
@@ -180,7 +179,7 @@ class Julian(object):
             }
             if self.mode == Julian.Modes[2]: # predict
                 pred = sess.run([self.pred], feed_dict=feed_dict)
-                yield self.provider.decode(pred)
+                print(self.provider.decode(pred))
             elif self.mode == Julian.Modes[1]: # evaluate
                 pred = sess.run([self.pred], feed_dict=feed_dict)
 #                self.summary_writer.add_summary(summ, step)
@@ -212,15 +211,12 @@ class Julian(object):
                         global_step=tf.train.global_step(sess, self.global_step))
 
     def setup_model(self, sess):
-        if hasattr(self, '_model_ready') and self._model_ready:
-            return
         if self.restore:
             metas = sorted(glob.glob("{}/*meta".format(self.model_dir)), key=os.path.getmtime)
             self.graph_path = metas[-1] if metas else None
             self._restore_model(sess)
         else:
             self._build_model()
-        self._model_ready = True
 
     def run(self):
         with tf.Session() as sess:
@@ -229,7 +225,7 @@ class Julian(object):
             if self.mode == Julian.Modes[2]:
                 if self.pred_output and os.path.isfile(self.pred_output):
                     os.remove(self.pred_output)
-                yield from self.foreach_epoch(sess)
+                self.foreach_epoch(sess)
             elif self.mode == Julian.Modes[1]:
                 self.foreach_epoch(sess)
             else:
@@ -244,7 +240,7 @@ def init():
     parser.add_argument('--vocab_path', default=None, type=str, help='Path to input data')
     parser.add_argument('--name', default='julian', type=str, help='Model name')
     parser.add_argument('--pred_output_path', default="../data/julian/predict.csv", type=str, help='Path to prediction data ouput')
-    parser.add_argument('--epochs', default=100000, type=int, help="Total epochs to train")
+    parser.add_argument('--epochs', default=1000000, type=int, help="Total epochs to train")
     parser.add_argument('--dropout', default=0.5, type=float, help="Dropout keep prob")
     parser.add_argument('--clip_norm', default=5.0, type=int, help="Gradient clipping ratio")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
