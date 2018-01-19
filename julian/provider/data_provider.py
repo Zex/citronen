@@ -43,7 +43,7 @@ class DataProvider(object):
                         self.y[current:current+self.batch_size+1]
 
     def train_vocab_from_data(self, chunk):
-        vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc)
+        vocab_processor = learn.preprocessing.VocabularyProcessor(self.max_doc, min_frequency=1)
         x = list(vocab_processor.fit_transform(chunk))
         print("vocab size", len(vocab_processor.vocabulary_))
     

@@ -253,9 +253,15 @@ def init():
 
     return parser.parse_args()
 
+def dump_vocab(julian):
+    import ujson
+    ujson.dump(julian.provider.vocab_processor.vocabulary_._mapping, open('vocab_mapping.json', 'w'))
+    ujson.dump(julian.provider.vocab_processor.vocabulary_._freq, open('vocab_freq.json', 'w'))
+
 def start():
     args = init()
     julian = Julian(args)
+    dump_vocab(julian)
     julian.run()
 
 if __name__ == '__main__':
