@@ -37,12 +37,12 @@ class DataProvider(object):
     def batch_data(self):
         total_batch = int((len(self.x)-1)/self.batch_size)+1
         print("Total batch: {}".format(total_batch))
-
+        """
         if self.need_shuffle:
             ind = np.random.permutation(len(self.x))
             self.x = np.array(self.x)[ind]
             self.y = np.array(self.y)[ind]
-
+        """"
         for i in range(total_batch):
             current = i * self.batch_size
             yield self.x[current:current+self.batch_size+1], \
