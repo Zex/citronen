@@ -95,13 +95,14 @@ class Tf(Iceberg):
 
         with tf.device('/cpu:0'):
             #hidden = tf.concat([pool_7, pool_10], 3)
-            hidden = tf.reshape(pool_7, [-1, 53*53*3], name='hidden')
+            #hidden = tf.reshape(pool_7, [-1, 53*53*3], name='hidden')
+            hidden = tf.reshape(pool_5, [-1, 57*57*3], name='hidden')
             logits = tf.layers.dense(hidden, 1, use_bias=True, activation=tf.sigmoid, name='logits',\
                 kernel_initializer=tf.contrib.layers.xavier_initializer())
         return logits
 
     def batch_data(self):
-        X, y = self.preprocess()
+        X, y = self.X, self.y
         X = X.reshape(X.shape[0], self.height, self.width, self.channel)
         begin = 0
         
@@ -146,6 +147,8 @@ class Tf(Iceberg):
             self.summary_writer = tf.summary.FileWriter(self.log_path, sess.graph)
             self.saver = tf.train.Saver(tf.global_variables())
             sess.run(tf.global_variables_initializer())
+
+            self.X, self.y = self.preprocess()
 
             for e in range(self.epochs):
                 self.foreach_epoch(sess)
