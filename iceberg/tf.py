@@ -43,7 +43,7 @@ class Tf(Iceberg):
     def get_logits(self):
         with tf.device('/cpu:0'):
             conv_1 = tf.layers.conv2d(self.input_x, 5, kernel_size=[5, 5], activation=tf.sigmoid, \
-                name='conv_1')#, kernel_initializer=tf.contrib.layers.xavier_initializer())
+                name='conv_1', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_1 = tf.layers.max_pooling2d(conv_1, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
@@ -53,7 +53,7 @@ class Tf(Iceberg):
 
         with tf.device('/cpu:0'):
             conv_3 = tf.layers.conv2d(pool_1, 5, kernel_size=[5, 5], activation=tf.sigmoid,\
-                name='conv_3')#, kernel_initializer=tf.contrib.layers.xavier_initializer())
+                name='conv_3', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_3 = tf.layers.max_pooling2d(conv_3, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
@@ -63,7 +63,7 @@ class Tf(Iceberg):
 
         with tf.device('/cpu:0'):
             conv_5 = tf.layers.conv2d(pool_3, 3, kernel_size=[3, 3], activation=tf.sigmoid,\
-                name='conv_5')#, kernel_initializer=tf.contrib.layers.xavier_initializer())
+                name='conv_5', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_5 = tf.layers.max_pooling2d(conv_5, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
@@ -86,17 +86,19 @@ class Tf(Iceberg):
 
         with tf.device('/cpu:0'):
             conv_10 = tf.layers.conv2d(pool_9, 3, kernel_size=[5, 5], activation=tf.sigmoid,\
-                name='conv_10')#, kernel_initializer=tf.contrib.layers.xavier_initializer())
+                name='conv_10', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_10 = tf.layers.max_pooling2d(conv_10, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_11 = tf.layers.conv2d(pool_10, 3, kernel_size=[5, 5], activation=tf.sigmoid, name='conv_11')
+            conv_11 = tf.layers.conv2d(pool_10, 3, kernel_size=[5, 5], activation=tf.sigmoid,\
+                name='conv_11', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_11 = tf.layers.max_pooling2d(conv_11, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
             #hidden = tf.concat([pool_7, pool_10], 3)
             #hidden = tf.reshape(pool_7, [-1, 53*53*3], name='hidden')
-            hidden = tf.reshape(pool_5, [-1, 57*57*3], name='hidden')
+            #hidden = tf.reshape(pool_5, [-1, 57*57*3], name='hidden')
+            hidden = tf.reshape(pool_11, [-1, 35*35*3], name='hidden')
             logits = tf.layers.dense(hidden, 1, use_bias=True, activation=tf.sigmoid, name='logits',\
                 kernel_initializer=tf.contrib.layers.xavier_initializer())
         return logits
