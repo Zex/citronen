@@ -30,7 +30,7 @@ class Tf(Iceberg):
         self.loss = tf.losses.log_loss(self.input_y, self.logits)
 
         self.global_step = tf.Variable(self.init_step, name='global_step', trainable=False)
-        self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=0.9).minimize(
+        self.train_op = tf.train.AdamOptimizer(self.lr).minimize(
                 self.loss, global_step=self.global_step, name='train_op')
         #self.train_op = tf.train.AdamOptimizer(self.lr).minimize(
         #        self.loss, global_step=self.global_step, name='train_op')
@@ -42,50 +42,50 @@ class Tf(Iceberg):
 
     def get_logits(self):
         with tf.device('/cpu:0'):
-            conv_1 = tf.layers.conv2d(self.input_x, 5, kernel_size=[5, 5], activation=tf.nn.relu, \
+            conv_1 = tf.layers.conv2d(self.input_x, 5, kernel_size=[5, 5], activation=tf.sigmoid, \
                 name='conv_1', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_1 = tf.layers.max_pooling2d(conv_1, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_2 = tf.layers.conv2d(self.input_x, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_2',\
+            conv_2 = tf.layers.conv2d(self.input_x, 3, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_2',\
                 kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_2 = tf.layers.max_pooling2d(conv_2, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_3 = tf.layers.conv2d(pool_1, 5, kernel_size=[5, 5], activation=tf.nn.relu,\
+            conv_3 = tf.layers.conv2d(pool_1, 5, kernel_size=[5, 5], activation=tf.sigmoid,\
                 name='conv_3', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_3 = tf.layers.max_pooling2d(conv_3, [5, 5], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_4 = tf.layers.conv2d(pool_2, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_4',\
+            conv_4 = tf.layers.conv2d(pool_2, 3, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_4',\
                 kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_4 = tf.layers.max_pooling2d(conv_4, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_5 = tf.layers.conv2d(pool_3, 3, kernel_size=[3, 3], activation=tf.nn.relu,\
+            conv_5 = tf.layers.conv2d(pool_3, 3, kernel_size=[3, 3], activation=tf.sigmoid,\
                 name='conv_5', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_5 = tf.layers.max_pooling2d(conv_5, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_6 = tf.layers.conv2d(pool_4, 3, kernel_size=[3, 3], activation=tf.nn.relu,\
+            conv_6 = tf.layers.conv2d(pool_4, 3, kernel_size=[3, 3], activation=tf.sigmoid,\
                 name='conv_6', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_6 = tf.layers.max_pooling2d(conv_6, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_7 = tf.layers.conv2d(pool_5, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_7')
+            conv_7 = tf.layers.conv2d(pool_5, 3, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_7')
             pool_7 = tf.layers.max_pooling2d(conv_7, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_8 = tf.layers.conv2d(pool_6, 3, kernel_size=[3, 3], activation=tf.nn.relu, name='conv_8',\
+            conv_8 = tf.layers.conv2d(pool_6, 3, kernel_size=[3, 3], activation=tf.sigmoid, name='conv_8',\
                 kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_8 = tf.layers.max_pooling2d(conv_8, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_9 = tf.layers.conv2d(pool_7, 5, kernel_size=[5, 5], activation=tf.nn.relu, name='conv_9')
+            conv_9 = tf.layers.conv2d(pool_7, 5, kernel_size=[5, 5], activation=tf.sigmoid, name='conv_9')
             pool_9 = tf.layers.max_pooling2d(conv_9, [3, 3], strides=(1, 1))
 
         with tf.device('/cpu:0'):
-            conv_10 = tf.layers.conv2d(pool_9, 3, kernel_size=[5, 5], activation=tf.nn.relu,\
+            conv_10 = tf.layers.conv2d(pool_9, 3, kernel_size=[5, 5], activation=tf.sigmoid,\
                 name='conv_10', kernel_initializer=tf.contrib.layers.xavier_initializer())
             pool_10 = tf.layers.max_pooling2d(conv_10, [3, 3], strides=(1, 1))
 
