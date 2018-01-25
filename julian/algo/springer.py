@@ -4,11 +4,11 @@ import os
 import pickle
 import ujson
 import numpy as np
-from julian.algo.model import Interfere
+from julian.algo.model import Inference
 from julian.algo.config import get_config
 
 
-class Springer(Interfere):
+class Springer(Inference):
 
     def __init__(self):
         super(Springer, self).__init__()

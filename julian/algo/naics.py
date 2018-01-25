@@ -3,11 +3,11 @@
 import os
 import numpy as np
 import pandas as pd
-from julian.algo.model import Interfere
+from julian.algo.model import Inference
 from julian.algo.config import get_config
 
 
-class Naics(Interfere):
+class Naics(Inference):
 
     def __init__(self):
         super(Naics, self).__init__()

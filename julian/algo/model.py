@@ -9,10 +9,10 @@ import tensorflow as tf
 from julian.algo.config import get_config
 
 
-class Interfere(object):
+class Inference(object):
 
     def __init__(self):
-        super(Interfere, self).__init__()
+        super(Inference, self).__init__()
 
     def restore(self, sess):
         logging.info('++ [graph] {}'.format(self.graph_path))
@@ -51,7 +51,7 @@ class Interfere(object):
         self.sess = tf.Session()
         self.restore(self.sess)
 
-    def interfere(self, in_x):
+    def infer(self, in_x):
         if not in_x:
             return None
         x = list(self.vocab_processor.transform(in_x))
