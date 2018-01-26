@@ -4,6 +4,9 @@ import sys
 import os
 sys.path.insert(0, os.getcwd())
 import numpy as np
+import pandas as pd
+import glob
+from datetime import datetime
 import tensorflow as tf
 from iceberg.iceberg import Iceberg, Mode
 
@@ -16,7 +19,7 @@ class Tf(Iceberg):
         self.init_step = 0
         self.height, self.width = 75, 75
         self.channel = 2
-        self.summ_intv = 100
+        self.summ_intv = 1000
         self.lr = 1e-3
 
     def _build_model(self):
@@ -139,6 +142,7 @@ class Tf(Iceberg):
                             global_step=tf.train.global_step(sess, self.global_step))
                 pred = np.squeeze(pred)
                 print('++ [step:{}] loss:{} pred:{}'.format(step, loss, pred), flush=True)
+                self.inner_test(sess, step)
 
     def train(self):
         self.mode = Mode.TRAIN
@@ -155,6 +159,30 @@ class Tf(Iceberg):
 
             for e in range(self.epochs):
                 self.foreach_epoch(sess)
+
+    def inner_test(self, sess, step):
+        self.mode = Mode.TEST
+        self.path = "data/iceberg/test.json"
+        self.result_path = "data/iceberg/pred_tf_{}_{}.csv".format(\
+                step,
+                datetime.now().strftime("%y%m%d%H%M"))
+
+        iid, X = self.preprocess()
+        X = X.reshape(X.shape[0], self.height, self.width, self.channel)
+        feed_dict = {
+           self.input_x: X,
+           self.dropout_keep: 1,
+           }
+
+        pred = sess.run([self.logits], feed_dict=feed_dict)    
+        pred = np.squeeze(pred)
+        print('++ [inference] {}'.format(pred))
+        df = pd.DataFrame({
+                'id': iid,
+                'is_iceberg': pred,
+            })
+
+        df.to_csv(self.result_path, index=None, float_format='%0.6f')
 
 
 if __name__ == '__main__':
