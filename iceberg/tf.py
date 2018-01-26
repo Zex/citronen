@@ -17,6 +17,7 @@ class Tf(Iceberg):
         self.height, self.width = 75, 75
         self.channel = 2
         self.summ_intv = 100
+        self.lr = 1e-3
 
     def _build_model(self):
         with tf.device('/cpu:0'):
@@ -30,7 +31,7 @@ class Tf(Iceberg):
         self.loss = tf.losses.log_loss(self.input_y, self.logits)
 
         self.global_step = tf.Variable(self.init_step, name='global_step', trainable=False)
-        self.train_op = tf.train.AdamOptimizer(self.lr).minimize(
+        self.train_op = tf.train.MomentumOptimizer(self.lr, momentum=0.9).minimize(
                 self.loss, global_step=self.global_step, name='train_op')
         #self.train_op = tf.train.AdamOptimizer(self.lr).minimize(
         #        self.loss, global_step=self.global_step, name='train_op')
@@ -96,9 +97,9 @@ class Tf(Iceberg):
 
         with tf.device('/cpu:0'):
             #hidden = tf.concat([pool_7, pool_10], 3)
-            #hidden = tf.reshape(pool_7, [-1, 53*53*3], name='hidden')
+            hidden = tf.reshape(pool_7, [-1, 53*53*3], name='hidden')
             #hidden = tf.reshape(pool_5, [-1, 57*57*3], name='hidden')
-            hidden = tf.reshape(pool_11, [-1, 35*35*3], name='hidden')
+            #hidden = tf.reshape(pool_11, [-1, 35*35*3], name='hidden')
             logits = tf.layers.dense(hidden, 1, use_bias=True, activation=tf.sigmoid, name='logits',\
                 kernel_initializer=tf.contrib.layers.xavier_initializer())
         return logits
