@@ -136,13 +136,18 @@ class Tf(Iceberg):
             _, loss, pred, step, summ = sess.run(\
                     [self.train_op, self.loss, self.logits, self.global_step, self.summary],\
                     feed_dict=feed_dict)
+
             if step % self.summ_intv == 0:
                 self.summary_writer.add_summary(summ, step)
                 self.saver.save(sess, self.model_dir+'/cnn',
                             global_step=tf.train.global_step(sess, self.global_step))
                 pred = np.squeeze(pred)
                 print('++ [step:{}] loss:{} pred:{}'.format(step, loss, pred), flush=True)
-                self.inner_test(sess, step)
+
+                try:
+                    self.inner_test(sess, step)
+                except Exception as ex:
+                    print('-- [error] inner test {}'.format(ex))
 
     def train(self):
         self.mode = Mode.TRAIN
@@ -161,13 +166,14 @@ class Tf(Iceberg):
                 self.foreach_epoch(sess)
 
     def inner_test(self, sess, step):
+        prev_mode, prev_path = self.mode, self.path
         self.mode = Mode.TEST
         self.path = "data/iceberg/test.json"
         self.result_path = "data/iceberg/pred_tf_{}_{}.csv".format(\
                 step,
                 datetime.now().strftime("%y%m%d%H%M"))
 
-        iid, X = self.preprocess()
+        iid, X = self.preprocess(need_shuffle=False)
         X = X.reshape(X.shape[0], self.height, self.width, self.channel)
         feed_dict = {
            self.input_x: X,
@@ -183,6 +189,8 @@ class Tf(Iceberg):
             })
 
         df.to_csv(self.result_path, index=None, float_format='%0.6f')
+
+        self.mode, self.path = prev_mode, prev_path
 
 
 if __name__ == '__main__':
