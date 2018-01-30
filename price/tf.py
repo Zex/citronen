@@ -93,7 +93,7 @@ class Price(object):
         self.lr = 1e-3
         self.init_step = 0
         self.dropout_rate = 0.4
-        self.summ_intv = 1000
+        self.summ_intv = 10
         self.model_dir = "models/price"
         self.log_path = os.path.join(self.model_dir, 'cnn')
         self.total_feat = 942
@@ -119,11 +119,11 @@ class Price(object):
 
         print(self.layers)
 
-        flat = tf.reshape(self.layers[-1], [-1, 2736*64])
+        flat = tf.reshape(self.layers[-1], [-1, 912*3*64])
         hidden = tf.nn.dropout(flat, self.dropout_keep)
 
         with tf.device('/cpu:0'):
-            self.logits = tf.layers.dense(hidden, 1, use_bias=True,
+            self.logits = tf.layers.dense(flat, 1, use_bias=True,
                 kernel_initializer=tf.contrib.layers.xavier_initializer(), name='logits')
 
         print('logits', self.logits)
