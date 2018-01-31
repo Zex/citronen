@@ -15,7 +15,7 @@ from sklearn.utils import shuffle
 import pickle
 
 
-BATCH_SIZE = 128
+BATCH_SIZE = 512
 path = 'data/price/train.tsv'
 
 def preprocess(need_shuffle=True, mode='TRAIN'):
@@ -73,7 +73,7 @@ def load_or_fit(path, df=None, field=None, content=None):
             le = pickle.load(fd)
     
     ret = le.transform(input_x).toarray()
-    return le, ret#.reshape(ret.shape[0], ret.shape[1])
+    return le, ret
 
 
 class Price(object):
@@ -97,20 +97,28 @@ class Price(object):
             self.dropout_keep = tf.placeholder(tf.float32, name='dropout_keep')
 
         self.layers = []
-        total_layers = 5
+        total_layers = 3
+        n_filters = 5
 
         with tf.device('/cpu:0'):
             for i in range(total_layers):
                 if not self.layers:
-                    conv = tf.layers.conv1d(self.input_x, 3, kernel_size=5, name='conv_{}'.format(i))
+                    input_x = self.input_x
                 else:
-                    conv = tf.layers.conv1d(self.layers[-1], 3, kernel_size=5, name='conv_{}'.format(i))
+                    input_x = self.layers[-1]
+
+                conv = tf.layers.conv1d(input_x, \
+                        n_filters, kernel_size=5, name='conv_{}'.format(i),\
+                        activation=tf.nn.relu, \
+                        kernel_initializer=tf.contrib.layers.xavier_initializer(),\
+                        kernel_regularizer=tf.contrib.layers.l2_regularizer(0.3))
                 pool = tf.layers.max_pooling1d(conv, [3], [1], name='pool_{}'.format(i))
                 self.layers.append(pool)
 
-        #print(self.layers)
+        print(self.layers)
 
-        flat = tf.reshape(self.layers[-1], [-1, 912*3])
+        #flat = tf.reshape(self.layers[-1], [-1, 912*3])
+        flat = tf.reshape(self.layers[-1], [-1, 924*n_filters])
         hidden = tf.nn.dropout(flat, self.dropout_keep)
 
         with tf.device('/cpu:0'):
