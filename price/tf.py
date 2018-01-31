@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 #import seaborn as sns
 #from matplotlib import pyplot as plt
+from datetime import datetime
 from sklearn import preprocessing
 from sklearn.feature_extraction.text import TfidfVectorizer
 import tensorflow as tf
@@ -14,27 +15,32 @@ from sklearn.utils import shuffle
 import pickle
 
 
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 path = 'data/price/train.tsv'
 
-def preprocess(need_shuffle=True):
+def preprocess(need_shuffle=True, mode='TRAIN'):
     global path
     batch_size = BATCH_SIZE
     gen = pd.read_csv(path, delimiter='\t', chunksize=batch_size)
-    yield from [foreach_df(df, need_shuffle) for df in gen]
+    yield from [foreach_df(df, need_shuffle, mode) for df in gen]
 
 
-def foreach_df(df, need_shuffle=True):
+def foreach_df(df, need_shuffle=True, mode="TRAIN"):
     df = df.drop_duplicates()
     if need_shuffle:
         df = shuffle(df)
 
     X = encode_text(df)
     X = np.concatenate((X, df['shipping'].values.reshape(X.shape[0], 1)), 1).astype(np.float)
-    target = df['price'].astype(np.float)
     X = X.reshape(X.shape[0], X.shape[1], 1)
-    y = target.values.reshape(target.shape[0], 1)
-    return X, y
+
+    if mode == 'TRAIN':
+        target = df['price'].astype(np.float)
+        y = target.values.reshape(target.shape[0], 1)
+        return X, y
+
+    iid = df['test_id'].values
+    return iid, X
 
 def encode_text(df):
     path = 'data/price/content.pickle'
@@ -47,21 +53,6 @@ def encode_text(df):
     content = list(map(lambda l: ' '.join([l[0], l[1]]), zip(content, desc)))
     le, ret = load_or_fit(path, content=content)
     return ret
-
-def encode_cate(df):
-    path = 'data/price/cate.pickle'
-    le, cate = load_or_fit(df, path, 'category_name')
-    return cate
-        
-def encode_name(df):
-    path = 'data/price/name.pickle'
-    le, name = load_or_fit(df, path, 'name')
-    return name
-
-def encode_desc(df):
-    path = 'data/price/desc.pickle'
-    le, desc = load_or_fit(df, path, 'item_description')
-    return desc
 
 
 def load_or_fit(path, df=None, field=None, content=None):
@@ -93,7 +84,7 @@ class Price(object):
         self.lr = 1e-3
         self.init_step = 0
         self.dropout_rate = 0.4
-        self.summ_intv = 10
+        self.summ_intv = 1000
         self.model_dir = "models/price"
         self.log_path = os.path.join(self.model_dir, 'cnn')
         self.total_feat = 942
@@ -117,16 +108,17 @@ class Price(object):
                 pool = tf.layers.max_pooling1d(conv, [3], [1], name='pool_{}'.format(i))
                 self.layers.append(pool)
 
-        print(self.layers)
+        #print(self.layers)
 
-        flat = tf.reshape(self.layers[-1], [-1, 912*3*64])
+        flat = tf.reshape(self.layers[-1], [-1, 912*3])
         hidden = tf.nn.dropout(flat, self.dropout_keep)
 
         with tf.device('/cpu:0'):
-            self.logits = tf.layers.dense(flat, 1, use_bias=True,
+            self.logits = tf.layers.dense(hidden, 1, use_bias=True,\
+                activation=tf.nn.relu,\
                 kernel_initializer=tf.contrib.layers.xavier_initializer(), name='logits')
 
-        print('logits', self.logits)
+        #print('logits', self.logits)
         self.loss = tf.reduce_mean(tf.pow(tf.log(self.logits+1)-tf.log(self.input_y+1), 2), name='loss')
         #self.loss = tf.losses.log_loss(self.input_y, self.logits)
         self.global_step = tf.Variable(self.init_step, name="global_step", trainable=False)
@@ -175,7 +167,6 @@ class Price(object):
         global path
 
         def foreach_chunk(iid, X):
-    
             feed_dict = {
                self.input_x: X,
                self.dropout_keep: 1,
@@ -184,7 +175,7 @@ class Price(object):
             pred = sess.run([self.logits], feed_dict=feed_dict)    
             pred = np.squeeze(pred)
 
-            print('++ [inference] {}'.format(pred))
+            #print('++ [inference] {}'.format(pred))
             df = pd.DataFrame({
                     'test_id': iid,
                     'price': pred,
@@ -201,7 +192,7 @@ class Price(object):
                     step,
                     datetime.now().strftime("%y%m%d%H%M"))
     
-        gen = preprocess(need_shuffle=False)
+        gen = preprocess(need_shuffle=False, mode='TEST')
         [foreach_chunk(iid, X) for iid, X in gen]
         path = prev_path
 
