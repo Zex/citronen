@@ -76,6 +76,9 @@ class Provider(object):
                 continue
             for i, data in enumerate(img_grp):
                 print('++ [shape] {} {}'.format(data.shape, target[i-1] if i > 0 else None))
+                if i > 0:
+                    ax = self.get_ax(i)
+                    plot_target(target[i-1], ax)
                 if len(data.shape) == 3:
                     buf = data.reshape([data.shape[2], data.shape[0]*data.shape[1]])
                     print(buf.shape)
@@ -101,6 +104,18 @@ class Provider(object):
             break
 
 
+def plot_target(target, ax):
+    if isinstance(target, str):
+        seq = target.split()
+    else:
+        seq = target
+
+    x = [t for i, t in enumerate(seq) if i % 2 == 0] 
+    y = [t for i, t in enumerate(seq) if i % 2 != 0]
+
+    ax.scatter(x, y, linewidths=2, s=1)
+
+
 def start():
     plt.ion()
     prov = Provider()
@@ -108,5 +123,7 @@ def start():
 
 
 if __name__ == '__main__':
-    start()
+    #start()
+    target = "66 35 322 36 578 38 834 39 1090 41 1346 42 1602 44 1858 45 2113 48 2367 52 2622 54 2878 55 3134 56 3390 57 3646 57 3902 58 4158 59 4414 59 4670 59 4926 60 5182 60 5438 61 5695 60 5951 60 6207 60 6463 60 6719 61 6975 61 7232 61 7488 61 7744 61 8000 61 8256 61 8513 60 8769 60 9026 59 9282 59 9539 58 9795 58 10051 58 10307 58 10564 57 10820 57 11076 57 11332 56 11588 56 11845 54 12102 52 12359 51 12616 50 12872 50 13129 48 13386 47 13643 45 13900 42 14157 40 14414 39 14671 37 14929 34 15186 30 15443 24 15700 22 15962 6 15972 5"
+    plot_target(target)
 
