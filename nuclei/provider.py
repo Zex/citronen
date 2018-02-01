@@ -9,7 +9,7 @@ from scipy import misc
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-%matplotlib inline
+#%matplotlib inline
 
 import seaborn as sns
 
@@ -76,7 +76,11 @@ class Provider(object):
                 continue
             for i, data in enumerate(img_grp):
                 print('++ [shape] {} {}'.format(data.shape, target[i-1] if i > 0 else None))
-                
+                if len(data.shape) == 3:
+                    buf = data.reshape([data.shape[2], data.shape[0]*data.shape[1]])
+                    print(buf.shape)
+                    print(buf[0])
+                    #[print(row) for row in buf[0]]
                 if i == 0:
                     img = data
                     for d in range(4):
