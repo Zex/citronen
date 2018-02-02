@@ -16,17 +16,18 @@ from price.provider import *
 
 class Price(object):
 
-    def __init__(self):
+    def __init__(self, args):
         super(Price, self).__init__()
-        self.epochs = 1000000
-        self.lr = 1e-3
-        self.init_step = 0
-        self.dropout_rate = 0.4
-        self.summ_intv = 1000
-        self.model_dir = "models/price"
+        self.epochs = args.epochs
+        self.lr = args.lr
+        self.init_step = args.init_step
+        self.dropout_rate = args.dropout_rate
+        self.summ_intv = args.summ_intv
+        self.model_dir = args.model_dir
         self.log_path = os.path.join(self.model_dir, 'cnn')
         self.total_feat = 942
         self.channel = 1
+        self.cfg = Config()
 
     def _build_model(self):
         with tf.device('/cpu:0'):
@@ -68,7 +69,7 @@ class Price(object):
         self.loss = tf.reduce_mean(tf.pow(tf.log(self.logits+1)-tf.log(self.input_y+1), 2), name='loss')
         #self.loss = tf.losses.log_loss(self.input_y, self.logits)
         self.global_step = tf.Variable(self.init_step, name="global_step", trainable=False)
-        self.train_op = tf.train.AdamOptimizer(self.lr).minimize(\
+        self.train_op = tf.train.GradientDescentOptimizer(self.lr).minimize(\
             self.loss, global_step=self.global_step, name='train_op')
 
         summary = []
@@ -89,7 +90,7 @@ class Price(object):
                 self.foreach_epoch(sess, e)
      
     def foreach_epoch(self, sess, e):
-        for X, y in preprocess():
+        for X, y in preprocess(self.cfg):
             feed_dict = {
                 self.input_x: X,
                 self.input_y: y,
@@ -110,8 +111,6 @@ class Price(object):
     
 
     def inner_test(self, sess, step):
-        global path
-
         def foreach_chunk(iid, X):
             feed_dict = {
                self.input_x: X,
@@ -121,33 +120,29 @@ class Price(object):
             pred = sess.run([self.logits], feed_dict=feed_dict)    
             pred = np.squeeze(pred)
 
-            #print('++ [inference] {}'.format(pred))
             df = pd.DataFrame({
                     'test_id': iid,
                     'price': pred,
                 })
 
-            if not os.path.isfile(result_path):
-                df.to_csv(result_path, index=None, float_format='%0.6f')
-            else:
-                df.to_csv(result_path, index=None, float_format='%0.6f', header=False, mode='a')
+            to_csv(df, cfg.result_path)
 
-        prev_path = path
-        path = "data/price/test.tsv"
-        result_path = "data/price/pred_tf_{}_{}.csv".format(\
+        cfg = Config()
+
+        cfg.path = "data/price/test.tsv"
+        cfg.need_shuffle = False
+        cfg.mode = Mode.TEST
+        cfg.result_path = "data/price/pred_tf_{}_{}.csv".format(\
                     step,
                     datetime.now().strftime("%y%m%d%H%M"))
     
-        gen = preprocess(need_shuffle=False, mode='TEST')
-        [foreach_chunk(iid, X) for iid, X in gen]
-        path = prev_path
+        gen = preprocess(cfg)
+        list(map(lambda iid, X: foreach_chunk(iid, X), gen))
 
 
 def start():
-    obj = Price()
+    obj = Price(init())
     obj.train()
 
 if __name__ == '__main__':
     start()
-    #for x, y in preprocess():
-    #    print(x.shape, y.shape)
