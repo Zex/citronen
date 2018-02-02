@@ -82,7 +82,7 @@ class Price(object):
             to_csv(df, cfg.result_path)
 
         cfg = Config()
-        cfg.path = "data/price/test.tsv"
+        cfg.data_path = "data/price/test.tsv"
         cfg.need_shuffle = False
         cfg.mode = Mode.TEST
         cfg.result_path = "data/price/pred_xgb_{}_{}.csv".format(\

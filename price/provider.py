@@ -22,8 +22,8 @@ class Mode(Enum):
 
 class Config(object):
     
-    def __init__(self):
-        self.batch_size = 32
+    def __init__(self, args=None):
+        self.batch_size = args.batch_size if args else 32
         self.data_path = 'data/price/train.tsv'
         self.content_path = 'data/price/content.pickle'
         self.mode = Mode.TRAIN
@@ -57,7 +57,6 @@ def foreach_df(df, cfg):
         target = df['price'].astype(np.float)
         y = target.values.reshape(target.shape[0], 1)
         return X, y
-    print(df.keys())
     iid = df['test_id'].values
     return iid, X
 
@@ -99,7 +98,7 @@ def to_csv(df, path):
     else:
         df.to_csv(path, index=None, float_format='%0.6f', header=False, mode='a')
 
-def init(cls):
+def init():
     parser = argparse.ArgumentParser(description="Price estimation")
     parser.add_argument('--train', action='store_true', default=False, help='train a model')
     parser.add_argument('--test', action='store_true', default=False, help='test a model')
@@ -111,5 +110,6 @@ def init(cls):
     parser.add_argument('--model_dir', type=str, default='models/price', help='model directory')
     parser.add_argument('--lr', type=float, default=1e-10, help='initial learning rate')
     parser.add_argument('--summ_intv', type=int, default=1000, help='summary interval')
+    parser.add_argument('--init_step', type=int, default=1, help='initial step')
     parser.add_argument('--dropout_rate', type=float, default=0.3, help='dropout rate')
     return parser.parse_args()

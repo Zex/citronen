@@ -27,7 +27,7 @@ class Price(object):
         self.log_path = os.path.join(self.model_dir, 'cnn')
         self.total_feat = 942
         self.channel = 1
-        self.cfg = Config()
+        self.cfg = Config(args)
 
     def _build_model(self):
         with tf.device('/cpu:0'):
@@ -129,7 +129,7 @@ class Price(object):
 
         cfg = Config()
 
-        cfg.path = "data/price/test.tsv"
+        cfg.data_path = "data/price/test.tsv"
         cfg.need_shuffle = False
         cfg.mode = Mode.TEST
         cfg.result_path = "data/price/pred_tf_{}_{}.csv".format(\
@@ -137,7 +137,7 @@ class Price(object):
                     datetime.now().strftime("%y%m%d%H%M"))
     
         gen = preprocess(cfg)
-        list(map(lambda iid, X: foreach_chunk(iid, X), gen))
+        list(map(lambda z: foreach_chunk(z[0], z[1]), gen))
 
 
 def start():
