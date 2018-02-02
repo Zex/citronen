@@ -103,7 +103,7 @@ class Price(object):
             pred = np.squeeze(pred)
 
             if step % self.summ_intv == 0:
-                print('++ [step-{}] loss:{} pred:{}'.format(step, loss, pred))
+                print('++ [step-{}] loss:{} pred:{}'.format(step, loss, pred), flush=True)
                 self.summary_writer.add_summary(summ, step)
                 self.saver.save(sess, self.model_dir+'/cnn',
                             global_step=tf.train.global_step(sess, self.global_step))
