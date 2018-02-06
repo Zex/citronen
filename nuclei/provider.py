@@ -8,6 +8,7 @@ import pandas as pd
 from functools import reduce
 import argparse
 from scipy import misc
+from skimage.transform import resize as imresize
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -60,7 +61,7 @@ class Provider(object):
             for path in glob.iglob(os.path.join(grp, 'images/*.png')):
                 #print('++ [group] {}'.format(path))
                 data = plt.imread(path)
-                data = misc.imresize(data, (self.height, self.width, self.channel))
+                data = imresize(data, (self.height, self.width, self.channel))
                 img_id = os.path.basename(path).split('.')[0]
                 target = self.lbl[self.lbl['ImageId']==img_id]['EncodedPixels'].values
                 img_grp.append(data)
@@ -68,7 +69,7 @@ class Provider(object):
             for path in glob.iglob(os.path.join(grp, 'masks/*.png')):
                 #print('++ [found] {}'.format(path))
                 data = plt.imread(path)
-                data = misc.imresize(data, (self.height, self.width, self.channel))
+                data = imresize(data, (self.height, self.width, self.channel))
                 img_grp.append(data)
 
             list(map(lambda t: foreach_target(t, img_grp), target))
