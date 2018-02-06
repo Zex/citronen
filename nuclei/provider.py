@@ -60,7 +60,7 @@ class Provider(object):
 
             for path in glob.iglob(os.path.join(grp, 'images/*.png')):
                 #print('++ [group] {}'.format(path))
-                data = misc.imread(path)
+                data = plt.imread(path)
                 data = imresize(data, (self.height, self.width, self.channel))
                 img_id = os.path.basename(path).split('.')[0]
                 target = self.lbl[self.lbl['ImageId']==img_id]['EncodedPixels'].values
@@ -68,7 +68,7 @@ class Provider(object):
 
             for path in glob.iglob(os.path.join(grp, 'masks/*.png')):
                 #print('++ [found] {}'.format(path))
-                data = misc.imread(path)
+                data = plt.imread(path)
                 data = imresize(data, (self.height, self.width, self.channel))
                 img_grp.append(data)
 
