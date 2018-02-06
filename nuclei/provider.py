@@ -96,8 +96,6 @@ class Provider(object):
                     plot_target(target[i-1], img.shape, ax)
                 if len(data.shape) == 3:
                     buf = data.reshape([data.shape[2], data.shape[0]*data.shape[1]])
-                    print(buf.shape)
-                    print(buf[0])
                     #[print(row) for row in buf[0]]
                 if i == 0:
                     img = data
@@ -147,7 +145,7 @@ class Provider(object):
                 total_cls.append(len(masks))
                 continue
             total_cls = np.array(total_cls).reshape(len(total_cls), 1) 
-            yield np.array(X_batch), np.array(y_batch), total_cls
+            yield np.array(X_batch).astype(np.int32), np.array(y_batch).astype(np.int32), total_cls
             X_batch.clear(); y_batch.clear()
             total_cls = []
 
