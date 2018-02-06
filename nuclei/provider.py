@@ -42,8 +42,8 @@ class Provider(object):
         super(Provider, self).__init__()
         self.data_path = "data/nuclei/train"
         self.label_path = os.path.join(self.data_path, 'stage1_train_labels.csv')
-        self.width = 64
-        self.height = 64
+        self.width = 512
+        self.height = 512
         self.channel = 4
         self.batch_size = args.batch_size if args else 1
         self.load_label()
@@ -143,15 +143,15 @@ class Provider(object):
         total_cls = []
 
         for gi, (img_id, img_grp, target) in enumerate(self.iter_data()):
-            #if gi < 50:
-            #    continue
+#            if gi < 100:
+#                continue
             X = img_grp[0]
             masks = img_grp[1:]
             mask = np.zeros(masks[0].shape)
             mask = reduce(lambda mask, m: mask+m, masks)
             
-            #self.plot_Xmask(X, mask)
-            #yield X, mask
+#            self.plot_Xmask(X, mask)
+#            break
             if len(X_batch) < self.batch_size:
                 X_batch.append(X)
                 y_batch.append(mask)
