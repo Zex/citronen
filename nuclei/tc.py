@@ -232,7 +232,8 @@ class Runner(object):
 
 
 def start():
-    tc = Runner(init())
+    #args = init()
+    tc = Runner(Config())
     tc.train()
 
 

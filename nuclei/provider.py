@@ -23,6 +23,19 @@ def foreach_target(target_grp, img_grp):
         target_grp = target_grp[:-2]
     return target_grp
 
+class Config(object):
+
+    def __init__(self):
+        self.lr = 1e-3
+        self.train = True
+        self.batch_size = 128
+        self.summ_intv = 1000
+        self.init_step = 1
+        self.dropout_rate = 0.3
+        self.epochs = 1000000
+        self.model_dir = 'model/nuclei'
+
+
 class Provider(object):
     
     def __init__(self, args=None):
@@ -204,7 +217,7 @@ def init():
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
     parser.add_argument('--epochs', type=int, default=1000000, help='total epochs')
     parser.add_argument('--load_model', action='store_true', default=False, help='load exist model')
-    parser.add_argument('--model_dir', type=str, default='models/price', help='model directory')
+    parser.add_argument('--model_dir', type=str, default='models/nuclei', help='model directory')
     parser.add_argument('--lr', type=float, default=1e-10, help='initial learning rate')
     parser.add_argument('--summ_intv', type=int, default=1000, help='summary interval')
     parser.add_argument('--init_step', type=int, default=1, help='initial step')
