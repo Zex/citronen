@@ -11,7 +11,6 @@ from scipy import misc
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-from scipy.misc import imresize
 #%matplotlib inline
 
 import seaborn as sns
@@ -61,7 +60,7 @@ class Provider(object):
             for path in glob.iglob(os.path.join(grp, 'images/*.png')):
                 #print('++ [group] {}'.format(path))
                 data = plt.imread(path)
-                data = imresize(data, (self.height, self.width, self.channel))
+                data = misc.imresize(data, (self.height, self.width, self.channel))
                 img_id = os.path.basename(path).split('.')[0]
                 target = self.lbl[self.lbl['ImageId']==img_id]['EncodedPixels'].values
                 img_grp.append(data)
@@ -69,7 +68,7 @@ class Provider(object):
             for path in glob.iglob(os.path.join(grp, 'masks/*.png')):
                 #print('++ [found] {}'.format(path))
                 data = plt.imread(path)
-                data = imresize(data, (self.height, self.width, self.channel))
+                data = misc.imresize(data, (self.height, self.width, self.channel))
                 img_grp.append(data)
 
             list(map(lambda t: foreach_target(t, img_grp), target))
