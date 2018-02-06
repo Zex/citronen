@@ -9,6 +9,7 @@ from torch.nn import ReLU
 from torch.nn import MaxPool2d
 from torch.nn import MaxUnpool2d
 from torch.nn import Upsample
+from torch.optim import Adam
 from nuclei.provider import *
 
 
@@ -106,21 +107,6 @@ class TC(Module):
                 stride=1,
                 padding=0,
                 bias=True),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
             #MaxUnpool2d(kernel_size=(2, 2), stride=1),
             Upsample(scale_factor=2),
             Conv2d(4, 4,
@@ -138,38 +124,8 @@ class TC(Module):
                 stride=1,
                 padding=0,
                 bias=True),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
             #MaxUnpool2d(kernel_size=(2, 2), stride=1),
             Upsample(scale_factor=2),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
-            Conv2d(4, 4,
-                kernel_size=(3, 3),
-                stride=1,
-                padding=0,
-                bias=True),
             Conv2d(4, 4,
                 kernel_size=(3, 3),
                 stride=1,
@@ -189,6 +145,7 @@ class TC(Module):
 
     def forward(self, x):
         x = self.model(x)
+        return x.data.numpy()
 
 
 class Runner(object):
@@ -206,10 +163,12 @@ class Runner(object):
         self.prov = Provider()
         self.height, self.width = self.prov.height, self.prov.width
         self.channel = self.prov.channel
+        self.global_step = 0
 #        self.device = "/cpu:0"
 
     def _build_model(self):
         self.model = TC()
+        self.optimizer = Adam(self.model.parameters(), self.lr)
 
     def train(self):
         self._build_model()
@@ -217,15 +176,28 @@ class Runner(object):
         for e in range(self.epochs):
             self.foreach_epoch(e)
 
+    def loss_fn(self, pred, target):
+        return 1.0-pred*target/target
+
     def foreach_epoch(self, e):
         for X, y, total_nuclei in self.prov.gen_data():
+            self.global_step += 1
             X = X.reshape(X.shape[0], X.shape[-1], *X.shape[1:-1]).astype(np.float32)
             X = Variable(from_numpy(X))
+            y = Variable(from_numpy(y))
             output = self.model(X)
             #print(output)
-            plt.imshow(output)
-            plt.show()
-            break
+            loss = self.loss_fn(output, y)
+            print('++ [step/{}] {:.4f}'.format(self.global_step, loss))
+            loss.backward()
+            self.optimizer.step()
+
+    def save(self):
+      torch.save({
+          'epoch': global_epoch,
+          'model': self.model,
+          'optimizer': self.optimizer,
+          }, '{}/{}-{}'.format(self.model_dir, "torch", self.global_epoch))
             
     def inner_test(self, step):
         pass
