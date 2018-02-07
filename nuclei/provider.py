@@ -69,7 +69,7 @@ class Provider(object):
             for path in glob.iglob(os.path.join(grp, 'masks/*.png')):
                 #print('++ [found] {}'.format(path))
                 data = plt.imread(path)
-                data = imresize(data, (self.height, self.width, self.channel))
+                data = imresize(data, (self.height+2, self.width+2, 1))
                 img_grp.append(data)
 
             list(map(lambda t: foreach_target(t, img_grp), target))

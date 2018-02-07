@@ -175,7 +175,10 @@ class Runner(object):
             self.foreach_epoch(e)
 
     def loss_fn(self, pred, target):
-        return 1.0-pred*target/target
+        p = pred.squeeze()
+        t = target.squeeze()
+
+        return 1.0-p*t/t
 
     def foreach_epoch(self, e):
         for X, y, total_nuclei in self.prov.gen_data():
