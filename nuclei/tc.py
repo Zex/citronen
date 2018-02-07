@@ -136,6 +136,8 @@ class TC(Module):
         )
 
     def forward(self, x):
+        list(map(lambda p: print('param', p.shape), self.model.parameters()))
+        #list(map(lambda p: print('mod', p), self.model.modules()))
         x = self.model.cuda(x) if cuda.is_available() else self.model(x)
         print(x.shape)
         return x.data.numpy()
