@@ -1,5 +1,6 @@
 # Nuclei TORCH:w
 # Author: Zex Li <top_zlynch@yahoo.com>
+from datetime import datetime
 from torch import from_numpy, cuda
 from torch.autograd import Variable
 from torch.nn import Module
@@ -203,8 +204,10 @@ class Runner(object):
                     self.globa_step,
                     datetime.now().strftime("%y%m%d%H%M")))
             loss = self.loss_fn(output, y)
-            print('++ [step/{}] loss:{:.4f}'.format(\
-                   self.global_step, np.squeeze(loss.data.numpy())))
+            print('++ [step/{}/{}] loss:{:.4f}'.format(\
+                   self.global_step, \
+                   datetime.now().strftime("%y%m%d%H%M%S"), \
+                   np.squeeze(loss.data.numpy())))
             loss.backward()
             self.optimizer.step()
 
