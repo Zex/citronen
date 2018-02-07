@@ -172,9 +172,9 @@ class Runner(object):
         self.model = TC()
         self.optimizer = Adam(self.model.parameters(), self.lr)
         print('++ [info] cuda available: {}'.format(cuda.is_available()))
-        print('++ [info] parameters')
-        list(map(lambda p: print('param', p.shape), self.model.parameters()))
-        #list(map(lambda p: print('mod', p), self.model.modules()))
+#        print('++ [info] parameters')
+#        list(map(lambda p: print('param', p.shape), self.model.parameters()))
+#        list(map(lambda p: print('mod', p), self.model.modules()))
 
     def train(self):
         self._build_model()
@@ -191,22 +191,25 @@ class Runner(object):
     def foreach_epoch(self, e):
         for X, y, total_nuclei in self.prov.gen_data():
             self.global_step += 1
+
             X = X.reshape(X.shape[0], X.shape[-1], *X.shape[1:-1]).astype(np.float32)
             X = Variable(from_numpy(X))
             y = y.reshape(y.shape[0], y.shape[-1], *y.shape[1:-1]).astype(np.float32)
             y = Variable(from_numpy(y))
             output = self.model(X)
-            print("++ [output] {}".format(output))
+
             if self.global_step % 100 == 0:
+                print("++ [output] {}".format(output))
                 plt.imshow(np.squeeze(output))
                 plt.imsave("{}/ouput_{}-{}.png".format(
                     self.data_path,
                     self.globa_step,
                     datetime.now().strftime("%y%m%d%H%M")))
+
             loss = self.loss_fn(output, y)
             print('++ [step/{}/{}] loss:{:.4f}'.format(\
-                   self.global_step, \
-                   datetime.now().strftime("%y%m%d%H%M%S"), \
+                   self.global_step,\
+                   datetime.now().strftime("%y%m%d%H%M%S"),\
                    np.squeeze(loss.data.numpy())))
             loss.backward()
             self.optimizer.step()
