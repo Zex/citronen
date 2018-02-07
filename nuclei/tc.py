@@ -204,11 +204,12 @@ class Runner(object):
 
             if self.global_step % 100 == 0:
                 print("++ [output] {}".format(output))
-                plt.imshow(np.squeeze(output))
-                plt.imsave("{}/ouput_{}-{}.png".format(
-                    self.data_path,
-                    self.globa_step,
-                    datetime.now().strftime("%y%m%d%H%M")))
+                for o in output:
+                    plt.imshow(np.squeeze(o))
+                    plt.imsave("{}/ouput_{}-{}.png".format(
+                        self.data_path,
+                        self.globa_step,
+                        datetime.now().strftime("%y%m%d%H%M")))
 
                 print('++ [step/{}/{}] loss:{:.4f}'.format(\
                    self.global_step,\
