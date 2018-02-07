@@ -198,6 +198,10 @@ class Runner(object):
             y = Variable(from_numpy(y))
             output = self.model(X)
 
+            loss = self.loss_fn(output, y)
+            loss.backward()
+            self.optimizer.step()
+
             if self.global_step % 100 == 0:
                 print("++ [output] {}".format(output))
                 plt.imshow(np.squeeze(output))
@@ -206,13 +210,11 @@ class Runner(object):
                     self.globa_step,
                     datetime.now().strftime("%y%m%d%H%M")))
 
-            loss = self.loss_fn(output, y)
-            print('++ [step/{}/{}] loss:{:.4f}'.format(\
+                print('++ [step/{}/{}] loss:{:.4f}'.format(\
                    self.global_step,\
                    datetime.now().strftime("%y%m%d%H%M%S"),\
-                   np.squeeze(loss.data.numpy())))
-            loss.backward()
-            self.optimizer.step()
+                   np.squeeze(loss.data.numpy()).tolist()))
+
 
     def save(self):
       torch.save({
