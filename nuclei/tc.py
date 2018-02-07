@@ -10,6 +10,8 @@ from torch.nn import MaxPool2d
 from torch.nn import MaxUnpool2d
 from torch.nn import Upsample
 from torch.optim import Adam
+from torch.nn import MSELoss
+import torch
 from nuclei.provider import *
 
 
@@ -81,8 +83,9 @@ class TC(Module):
                 stride=1,
                 padding=0,
                 bias=True),
+            ReLU(),
             #MaxUnpool2d(kernel_size=(2, 2), stride=2),
-            Upsample(scale_factor=2),
+            Upsample(scale_factor=2, mode='bilinear'),
             Conv2d(1024, 512,
                 kernel_size=(3, 3),
                 stride=1,
@@ -93,8 +96,9 @@ class TC(Module):
                 stride=1,
                 padding=0,
                 bias=True),
+            ReLU(),
             #MaxUnpool2d(kernel_size=(2, 2), stride=2),
-            Upsample(scale_factor=2),
+            Upsample(scale_factor=2, mode='bilinear'),
             Conv2d(512, 256,
                 kernel_size=(3, 3),
                 stride=1,
@@ -105,8 +109,9 @@ class TC(Module):
                 stride=1,
                 padding=0,
                 bias=True),
+            ReLU(),
             #MaxUnpool2d(kernel_size=(2, 2), stride=2),
-            Upsample(scale_factor=2),
+            Upsample(scale_factor=2, mode='bilinear'),
             Conv2d(256, 128,
                 kernel_size=(3, 3),
                 stride=1,
@@ -117,7 +122,8 @@ class TC(Module):
                 stride=1,
                 padding=0,
                 bias=True),
-            Upsample(scale_factor=2),
+            ReLU(),
+            Upsample(scale_factor=2, mode='bilinear'),
             Conv2d(128, 64,
                 kernel_size=(3, 3),
                 stride=1,
@@ -133,12 +139,12 @@ class TC(Module):
                 stride=1,
                 padding=0,
                 bias=True),
+            ReLU(),
         )
 
     def forward(self, x):
         x = self.model.cuda(x) if cuda.is_available() else self.model(x)
-        print(x.shape)
-        return x.data.numpy()
+        return x#.data.numpy()
 
 
 class Runner(object):
@@ -158,6 +164,7 @@ class Runner(object):
         self.channel = self.prov.channel
         self.global_step = 0
         self.data_path = "data/nuclei/predict"
+        self.loss_fn = MSELoss()
 #        self.device = "/cpu:0"
 
     def _build_model(self):
@@ -175,27 +182,29 @@ class Runner(object):
             self.foreach_epoch(e)
 
     def loss_fn(self, pred, target):
-        p = pred.squeeze()
-        t = target.squeeze()
-
-        return 1.0-p*t/t
+        alpha = 1e-12
+        loss = np.sum(list(map(\
+                lambda z:1.0-z[0]*z[1]/(alpha+z[0]), zip(target, pred))))/len(target)
+        return loss
 
     def foreach_epoch(self, e):
         for X, y, total_nuclei in self.prov.gen_data():
             self.global_step += 1
             X = X.reshape(X.shape[0], X.shape[-1], *X.shape[1:-1]).astype(np.float32)
             X = Variable(from_numpy(X))
+            y = y.reshape(y.shape[0], y.shape[-1], *y.shape[1:-1]).astype(np.float32)
             y = Variable(from_numpy(y))
             output = self.model(X)
-            #print(output)
-            loss = self.loss_fn(output, y)
-            print('++ [step/{}] {:.4f}'.format(self.global_step, loss))
-            if self.global_step % self.summ_intv == 0:
+            print("++ [output] {}".format(output))
+            if self.global_step % 100 == 0:
                 plt.imshow(np.squeeze(output))
                 plt.imsave("{}/ouput_{}-{}.png".format(
                     self.data_path,
                     self.globa_step,
                     datetime.now().strftime("%y%m%d%H%M")))
+            loss = self.loss_fn(output, y)
+            print('++ [step/{}] loss:{:.4f}'.format(\
+                   self.global_step, np.squeeze(loss.data.numpy())))
             loss.backward()
             self.optimizer.step()
 

@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 from functools import reduce
 import argparse
-from scipy import misc
-from skimage.transform import resize as imresize
 import matplotlib
 matplotlib.use('TkAgg')
+from scipy import misc
+from skimage.transform import resize as imresize
 import matplotlib.pyplot as plt
 #%matplotlib inline
 
