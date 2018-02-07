@@ -136,8 +136,6 @@ class TC(Module):
         )
 
     def forward(self, x):
-        list(map(lambda p: print('param', p.shape), self.model.parameters()))
-        #list(map(lambda p: print('mod', p), self.model.modules()))
         x = self.model.cuda(x) if cuda.is_available() else self.model(x)
         print(x.shape)
         return x.data.numpy()
@@ -159,11 +157,16 @@ class Runner(object):
         self.height, self.width = self.prov.height, self.prov.width
         self.channel = self.prov.channel
         self.global_step = 0
+        self.data_path = "data/nuclei/predict"
 #        self.device = "/cpu:0"
 
     def _build_model(self):
         self.model = TC()
         self.optimizer = Adam(self.model.parameters(), self.lr)
+        print('++ [info] cuda available: {}'.format(cuda.is_available()))
+        print('++ [info] parameters')
+        list(map(lambda p: print('param', p.shape), self.model.parameters()))
+        #list(map(lambda p: print('mod', p), self.model.modules()))
 
     def train(self):
         self._build_model()
@@ -184,6 +187,12 @@ class Runner(object):
             #print(output)
             loss = self.loss_fn(output, y)
             print('++ [step/{}] {:.4f}'.format(self.global_step, loss))
+            if self.global_step % self.summ_intv == 0:
+                plt.imshow(np.squeeze(output))
+                plt.imsave("{}/ouput_{}-{}.png".format(
+                    self.data_path,
+                    self.globa_step,
+                    datetime.now().strftime("%y%m%d%H%M")))
             loss.backward()
             self.optimizer.step()
 

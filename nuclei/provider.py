@@ -42,8 +42,8 @@ class Provider(object):
         super(Provider, self).__init__()
         self.data_path = "data/nuclei/train"
         self.label_path = os.path.join(self.data_path, 'stage1_train_labels.csv')
-        self.width = 512
-        self.height = 512
+        self.width = 256
+        self.height = 256
         self.channel = 4
         self.batch_size = args.batch_size if args else 1
         self.load_label()
