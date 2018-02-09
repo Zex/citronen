@@ -28,7 +28,7 @@ class Config(object):
     def __init__(self):
         self.lr = 1e-3
         self.train = True
-        self.batch_size = 128
+        self.batch_size = 2
         self.summ_intv = 1000
         self.init_step = 1
         self.dropout_rate = 0.3
@@ -42,8 +42,10 @@ class Provider(object):
         super(Provider, self).__init__()
         self.data_path = "data/nuclei/train"
         self.label_path = os.path.join(self.data_path, 'stage1_train_labels.csv')
-        self.width = 256
-        self.height = 256
+        self.width = 32 #256
+        self.height = 32 #256
+        self.mask_width = 66
+        self.mask_height = 66
         self.channel = 4
         self.batch_size = args.batch_size if args else 1
         self.load_label()
@@ -69,7 +71,7 @@ class Provider(object):
             for path in glob.iglob(os.path.join(grp, 'masks/*.png')):
                 #print('++ [found] {}'.format(path))
                 data = plt.imread(path)
-                data = imresize(data, (self.height+2, self.width+2, 1))
+                data = imresize(data, (self.mask_height, self.mask_width, 1))
                 img_grp.append(data)
 
             list(map(lambda t: foreach_target(t, img_grp), target))
