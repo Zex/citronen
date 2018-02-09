@@ -198,6 +198,7 @@ class Runner(object):
             X = X.reshape(X.shape[0], X.shape[-1], *X.shape[1:-1]).astype(np.float32)
             X = Variable(from_numpy(X))
             y = y.reshape(y.shape[0], y.shape[-1], *y.shape[1:-1]).astype(np.float32)
+            y[y == 0] = 50
             y = Variable(from_numpy(y))
             output = self.model(X)
 
