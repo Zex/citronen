@@ -37,7 +37,7 @@ class StackEx(object):
         #self.onehot_encoder_path = "data/stackex/onehot_encoder.data"
         self.prepare()
 
-    def create_vocab_processor(self):
+    def build_vocab_processor(self):
         self.vocab_processor = tf.contrib.learn.preprocessing\
                 .text.VocabularyProcessor(\
                 self.max_doc_len)
@@ -50,11 +50,13 @@ class StackEx(object):
             self.vocab_processor.save(self.vocab_path)
 
     def prepare(self):
-        self.create_vocab_processor()
+        self.build_vocab_processor()
 
         output_base = os.path.dirname(self.data_path)
         if not os.path.isdir(output_base):
             os.makedirs(output_base)
+
+        self.build_model()
 
     def gen_data(self):
         with open(self.data_path) as fd:
@@ -67,15 +69,17 @@ class StackEx(object):
             text = ' '.join(text.split()).strip()
             yield text
 
+    def build_model(self):
+        pass
+
     def foreach_epoch(self):
         for e in range(self.epochs):
             self.foreach_step()
 
     def foreach_step(self):
         for X in self.gen_data():
-            pass
-            #self.onehot_encoder.fit(X)
-            #self.onehot_encoder.transform(X)
+            X = self.vocab_processor.transform(X)
+            #TODO
 
     def build_bow(self):
         for X in self.gen_data():
