@@ -43,7 +43,11 @@ class StackEx(object):
                 self.max_doc_len)
 
         if os.path.isfile(self.vocab_path):
-            self.vocab.load(self.vocab_path)
+            self.vocab_processor.restore(self.vocab_path)
+        else:
+            X = list(map(lambda x: x, self.gen_data()))
+            self.vocab_processor.fit(X)
+            self.vocab_processor.save(self.vocab_path)
 
     def prepare(self):
         self.create_vocab_processor()
@@ -91,12 +95,9 @@ class StackEx(object):
         return list(map(lambda c: get_index(c), text))
 
     def preprocess(self):
-        self.bow = from_pickle(self.bow_path)
-        self.bow = list(self.bow)
-
-        X = list(map(lambda x: x, self.gen_data()))
-        self.vocab_processor.fit(X)
-        self.vocab_processor.save(self.vocab_path)
+#        self.bow = from_pickle(self.bow_path)
+#        self.bow = list(self.bow)
+        pass
 
 
 if __name__ == '__main__':
