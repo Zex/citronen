@@ -33,7 +33,7 @@ class Config(object):
         self.init_step = 1
         self.dropout_rate = 0.3
         self.epochs = 1000000
-        self.model_dir = 'model/nuclei'
+        self.model_dir = 'models/nuclei'
 
 
 class Provider(object):
