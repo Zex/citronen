@@ -6,6 +6,7 @@ import re
 from lxml import etree
 import pickle
 import numpy as np
+from datetime import datetime
 import ujson
 
 from sklearn.preprocessing import OneHotEncoder
@@ -75,7 +76,7 @@ class StackEx(object):
     def __init__(self):
         self.max_doc_len = 128
 
-        self.z_dim = 10
+        self.z_dim = 50000
         self.x_dim = self.max_doc_len
         self.h_dim = 128
 
@@ -136,7 +137,7 @@ class StackEx(object):
         _, self.logits = self.P(self.z_samples)
         self.samples, _ = self.P(self.z)
 
-        self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(self.logits))
+        self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(self.logits+1))
         self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
                 logits=self.logits, labels=self.X), 1)
         self.vae_loss = tf.reduce_mean(self.kl_loss + self.recon_loss)
@@ -157,7 +158,7 @@ class StackEx(object):
                 feed_dict={self.X: X})
 
             if step % self.summ_intv == 0:
-                print('[step/{}] loss:{:.4}'.format(step, loss))
+                print('[step/{}] {} loss:{:.4}'.format(step, datetime.now(), loss))
                 samples = sess.run(self.samples, feed_dict={self.z: np.random.randn(50, self.z_dim)})
                 docs = list(self.vocab_processor.reverse(samples.astype(np.int)))
                 self.to_json({'sample': docs}, self.sample_path)
