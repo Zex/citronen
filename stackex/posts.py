@@ -30,15 +30,15 @@ class P:
         self.z_dim = z_dim
         self.h_dim = h_dim
         self.x_dim = x_dim
-
-        with tf.name_scope('P'):
-            self.w1 = tf.Variable(tf.contrib.layers.xavier_initializer()([self.z_dim, self.h_dim]))
-            self.b1 = tf.Variable(tf.zeros([self.h_dim,]))
-            self.w2 = tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.x_dim]))
-            self.b2 = tf.Variable(tf.zeros([self.h_dim,]))
+        self.dropout_keep = 0.7
 
     def __call__(self, z):
         with tf.name_scope('P'):
+            self.w1 = tf.Variable(tf.contrib.layers.xavier_initializer()([self.z_dim, self.h_dim]))
+            self.b1 = tf.Variable(tf.zeros([self.h_dim]))
+            self.w2 = tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.x_dim]))
+            self.b2 = tf.Variable(tf.zeros([self.x_dim]))
+
             h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w1, self.b1, name='l_1'))
             logits = tf.nn.xw_plus_b(h, self.w2, self.b2, name='l_2')
             prob = tf.nn.sigmoid(logits)
@@ -54,18 +54,18 @@ class Q:
         self.z_dim = z_dim
         self.h_dim = h_dim
         self.x_dim = x_dim
-
-        with tf.name_scope('Q'):
-            self.w1 = tf.Variable(tf.contrib.layers.xavier_initializer()([self.x_dim, self.h_dim]))
-            self.b1 = tf.Variable(tf.zeros([self.h_dim,]))
-            self.w2 = tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
-            self.b2 = tf.Variable(tf.zeros([self.z_dim,]))
+        self.dropout_keep = 0.7
 
     def __call__(self, X):
         with tf.name_scope('Q'):
+            self.w1 = tf.Variable(tf.contrib.layers.xavier_initializer()([self.x_dim, self.h_dim]))
+            self.b1 = tf.Variable(tf.zeros([self.h_dim]))
+            self.w2 = tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
+            self.b2 = tf.Variable(tf.zeros([self.z_dim]))
+
             h = tf.nn.relu(tf.nn.xw_plus_b(X, self.w1, self.b1, name='l_1'))
-            z = tf.nn.relu(tf.nn.xw_plus_b(h, self.w2, self.b2, name='l_1'))
-        return z
+            z = tf.nn.relu(tf.nn.xw_plus_b(h, self.w2, self.b2, name='l_2'))
+        return h, z
 
     def var_list(self):
         return [self.w1, self.b1, self.w2, self.b2]
@@ -74,9 +74,9 @@ class Q:
 class StackEx(object):
 
     def __init__(self):
-        self.max_doc_len = 128
+        self.max_doc_len = 128 #256
 
-        self.z_dim = 50000
+        self.z_dim = 128
         self.x_dim = self.max_doc_len
         self.h_dim = 128
 
@@ -87,11 +87,10 @@ class StackEx(object):
         self.bow = set()
         self.bow_path = "data/stackex/bow.data"
         self.vocab_path = "data/stackex/vocab.data"
+        self.sample_path = "data/stackex/samples.json"
         self.summ_intv = 1000
         self.epochs = 1000000
-        self.sample_path = "data/stackex/samples.json"
-        #self.onehot_encoder = OneHotEncoder()
-        #self.onehot_encoder_path = "data/stackex/onehot_encoder.data"
+        self.lr = 1e-4
         self.prepare()
 
     def build_vocab_processor(self):
@@ -119,13 +118,23 @@ class StackEx(object):
         with open(self.data_path) as fd:
             tree = etree.XML(fd.read())
         items = tree.xpath('row')
+        batch = []
 
         for i, item in enumerate(items):
             text = item.attrib.get('Body')
             text = re.sub("<.*?>", " ", text)
             text = ' '.join(text.split()).strip()
-            yield text
+
+            if len(batch) == self.batch_size:
+                yield batch
+                batch.clear()
+            else:
+                batch.append(text)
     
+    def samples(self, mu, var):
+        eps = tf.random_normal(shape=tf.shape(mu))
+        return mu + eps * tf.exp(var)
+
     def build_model(self):
         self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim])
         self.X = tf.placeholder(tf.float32, shape=[None, self.x_dim])
@@ -133,17 +142,21 @@ class StackEx(object):
         self.Q = Q(self.z_dim, self.h_dim, self.x_dim)
         self.P = P(self.z_dim, self.h_dim, self.x_dim)
 
-        self.z_samples = self.Q(self.X)
+        self.mu, self.var = self.Q(self.X)
+        self.z_samples = self.samples(self.mu, self.var)
         _, self.logits = self.P(self.z_samples)
         self.samples, _ = self.P(self.z)
-
-        self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(self.logits+1))
+        
+        self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(2*self.var) - 1.+ self.mu**2, 1)
         self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
-                logits=self.logits, labels=self.X), 1)
+                logits=self.samples, labels=self.X), 1)
         self.vae_loss = tf.reduce_mean(self.kl_loss + self.recon_loss)
 
         self.global_step = tf.Variable(self.init_step)
-        self.vae_train_op = tf.train.AdamOptimizer().minimize(self.vae_loss, global_step=self.global_step)
+        self.vae_train_op = tf.train.AdamOptimizer(self.lr).minimize(\
+                self.vae_loss, \
+                global_step=self.global_step, \
+                var_list=self.Q.var_list()+self.P.var_list())
 
     def foreach_epoch(self, sess):
         for e in range(self.epochs):
@@ -152,14 +165,21 @@ class StackEx(object):
     def foreach_step(self, sess):
         for X in self.gen_data():
             X = list(self.vocab_processor.transform(X))
+            
             if not X:
                 continue
-            _, loss, step = sess.run([self.vae_train_op, self.vae_loss, self.global_step], \
-                feed_dict={self.X: X})
 
+            z_data = np.random.randn(self.batch_size, self.z_dim)
+            _, loss, z_samples, step, mu, var = sess.run(
+                    [self.vae_train_op, self.vae_loss, self.z_samples, self.global_step, self.Q.w1, self.Q.w2], \
+                feed_dict={
+                    self.X: X,
+                    self.z: z_data,
+                    })
+            print(mu, var)
+            print('[step/{}] {} loss:{:.4}'.format(step, datetime.now(), loss))
             if step % self.summ_intv == 0:
-                print('[step/{}] {} loss:{:.4}'.format(step, datetime.now(), loss))
-                samples = sess.run(self.samples, feed_dict={self.z: np.random.randn(50, self.z_dim)})
+                samples = sess.run(self.samples, feed_dict={self.z: z_data})
                 docs = list(self.vocab_processor.reverse(samples.astype(np.int)))
                 self.to_json({'sample': docs}, self.sample_path)
 
