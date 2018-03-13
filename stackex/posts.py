@@ -168,6 +168,7 @@ class StackEx(object):
 
         for sample in self.gen_data():
             if len(batch) == self.batch_size:
+                np.random.shuffle(batch)
                 yield np.array(batch)
                 batch.clear()
             else:
