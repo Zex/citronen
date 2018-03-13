@@ -27,49 +27,74 @@ def from_pickle(path):
 
 class P:
 
-    def __init__(self, z_dim, h_dim, x_dim):
-        self.z_dim = z_dim
-        self.h_dim = h_dim
-        self.x_dim = x_dim
+    def __init__(self, args):
+        self.z_dim = args.z_dim
+        self.h_dim = args.h_dim
+        self.x_dim = args.x_dim
         self.dropout_keep = 0.7
 
     def __call__(self, z):
         with tf.name_scope('P'):
             self.w_x = tf.Variable(tf.contrib.layers.xavier_initializer()([self.z_dim, self.h_dim]))
-            self.b_x = tf.Variable(tf.zeros([self.h_dim]))
+            self.b_x = tf.Variable(tf.zeros([self.h_dim]), dtype=tf.float32)
             self.w_log = tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.x_dim]))
             self.b_log = tf.Variable(tf.zeros([self.x_dim]))
 
             h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
             logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
-            prob = tf.nn.sigmoid(logits)
+            prob = tf.nn.relu(logits)#sigmoid(logits)
             return prob, logits
 
     def var_list(self):
         return [self.w_x, self.w_log, self.b_x, self.b_log]
 
 
+class Config(object):
+    pass
+
 class Q:
 
-    def __init__(self, z_dim, h_dim, x_dim):
-        self.z_dim = z_dim
-        self.h_dim = h_dim
-        self.x_dim = x_dim
+    def __init__(self, args):
+        self.z_dim = args.z_dim
+        self.h_dim = args.h_dim
+        self.x_dim = args.x_dim
+        self.vocab_size = args.vocab_size
+        self.emb_dim = 100
+        self.rnn_size = 128
+        self.batch_size = 256
         self.dropout_keep = 0.7
 
     def __call__(self, X):
         with tf.name_scope('Q'):
             #x = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
-            self.w_x = tf.Variable(tf.contrib.layers.xavier_initializer()([self.x_dim, self.h_dim]))
+            self.w_x =  tf.Variable(tf.contrib.layers.xavier_initializer()([self.x_dim, self.h_dim]))
             self.b_x = tf.Variable(tf.zeros([self.h_dim]))
-            self.w_mu = tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
+            self.w_mu =  tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
             self.b_mu = tf.Variable(tf.zeros([self.z_dim]))
-            self.w_sigma = tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
+            self.w_sigma =  tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
             self.b_sigma = tf.Variable(tf.zeros([self.z_dim]))
+            
+            """
+            emb = tf.get_variable('emb', [self.x_dim, self.emb_dim], tf.float32, tf.random_normal_initializer())
+            emb_output = tf.nn.embedding_lookup(emb, X)
+            self.lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.rnn_size)
+            self.init_state = self.lstm_cell.zero_state(self.batch_size, tf.float32)
+            self.rnn_inputs = tf.split(axis=1, num_or_size_splits=self.x_dim, value=emb_output)
+            self.rnn_inputs_items = [tf.squeeze(x, [1]) for x in self.rnn_inputs]
+            outputs, last_state = tf.contrib.legacy_seq2seq.rnn_decoder(
+                    self.rnn_inputs_items, self.init_state,
+                    self.lstm_cell
+                    )
 
+            self.w_rnn = tf.get_variable('w_rnn', [self.rnn_size, self.x_dim], tf.float32, tf.contrib.layers.xavier_initializer())
+            self.b_rnn = tf.Variable(tf.zeros([self.x_dim]))
+            output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
+            h = tf.nn.sigmoid(tf.nn.xw_plus_b(output, self.w_rnn, self.b_rnn))
+            """
             h = tf.nn.sigmoid(tf.nn.xw_plus_b(X, self.w_x, self.b_x))
             mu = tf.nn.xw_plus_b(h, self.w_mu, self.b_mu)
             z = tf.nn.xw_plus_b(h, self.w_sigma, self.b_sigma)
+
             return mu, z
 
     def var_list(self):
@@ -81,7 +106,7 @@ class StackEx(object):
     def __init__(self):
         self.max_doc_len = 256 #128 #256
 
-        self.z_dim = 128
+        self.z_dim = 64
         self.x_dim = self.max_doc_len
         self.h_dim = 128
 
@@ -99,13 +124,13 @@ class StackEx(object):
         self.prepare()
 
     def build_vocab_processor(self):
-        self.vocab_processor = tf.contrib.learn.preprocessing\
-                .text.VocabularyProcessor(\
-                self.max_doc_len)
 
         if os.path.isfile(self.vocab_path):
-            self.vocab_processor.restore(self.vocab_path)
+            self.vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor.restore(self.vocab_path)
         else:
+            self.vocab_processor = tf.contrib.learn.preprocessing\
+                .text.VocabularyProcessor(\
+                self.max_doc_len)
             X = list(map(lambda x: x, self.gen_data()))
             self.vocab_processor.fit(X)
             list(map(lambda c: self.vocab_processor.vocabulary_._mapping.get(c), string.punctuation))
@@ -151,8 +176,14 @@ class StackEx(object):
         self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim])
         self.X = tf.placeholder(tf.float32, shape=[None, self.x_dim])
 
-        self.Q = Q(self.z_dim, self.h_dim, self.x_dim)
-        self.P = P(self.z_dim, self.h_dim, self.x_dim)
+        args = Config()
+        args.z_dim = self.z_dim
+        args.x_dim = self.x_dim
+        args.h_dim = self.h_dim
+        args.vocab_size = len(self.vocab_processor.vocabulary_)
+
+        self.Q = Q(args)
+        self.P = P(args)
 
         #self.X_norm = tf.nn.batch_normalization(self.X, 256, 223, 0., 1., 1e-8)
         self.mu, self.var = self.Q(self.X)
