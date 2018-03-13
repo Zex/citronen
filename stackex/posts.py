@@ -62,9 +62,9 @@ class Q:
         self.h_dim = args.h_dim
         self.x_dim = args.x_dim
         self.vocab_size = args.vocab_size
+        self.batch_size = args.batch_size
         self.emb_dim = 100
         self.rnn_size = 128
-        self.batch_size = 256
         self.dropout_keep = 0.7
 
     def __call__(self, X):
@@ -115,7 +115,7 @@ class StackEx(object):
 
         self.init_step = 1
         self.data_path = "data/ai.stackexchange.com/Posts.xml"
-        self.batch_size = 256
+        self.batch_size = 64
 
         self.bow = set()
         self.bow_path = "data/stackex/bow.data"
@@ -186,6 +186,7 @@ class StackEx(object):
         args.z_dim = self.z_dim
         args.x_dim = self.x_dim
         args.h_dim = self.h_dim
+        args.batch_size = self.batch_size
         args.vocab_size = len(self.vocab_processor.vocabulary_)
 
         self.Q = Q(args)
@@ -200,7 +201,7 @@ class StackEx(object):
         self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(2 * self.var) - 1.+ self.mu**2, 1)
         self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
                 logits=self.logits, labels=self.X), 1)
-        self.vae_loss = tf.reduce_mean(self.kl_loss + self.recon_loss)
+        self.vae_loss = tf.reduce_mean(self.recon_loss+self.kl_loss)
         
         self.global_step = tf.Variable(self.init_step)
         self.vae_train_op = tf.train.AdamOptimizer(self.lr).minimize(\
@@ -230,7 +231,7 @@ class StackEx(object):
                     self.X: X,
                     self.z: z_data,
                     })
-            kl, recon = np.sum(kl), np.sum(recon)
+            kl, recon = np.mean(kl), np.mean(recon)
             if step % self.summ_intv == 0:
                 print('[step/{}] {} loss:{:.4} kl:{:.4} recon:{:.4}'.format(\
                         step, datetime.now(), loss, kl, recon))
