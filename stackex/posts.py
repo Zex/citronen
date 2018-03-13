@@ -115,7 +115,7 @@ class StackEx(object):
 
         self.init_step = 1
         self.data_path = "data/ai.stackexchange.com/Posts.xml"
-        self.batch_size = 64
+        self.batch_size = 256
 
         self.bow = set()
         self.bow_path = "data/stackex/bow.data"
@@ -124,7 +124,7 @@ class StackEx(object):
                 datetime.now().strftime("%Y%m%d%H%M"))
         self.summ_intv = 1000
         self.epochs = 1000000
-        self.lr = 1e-3
+        self.lr = 1e-2
         self.prepare()
 
     def build_vocab_processor(self):
