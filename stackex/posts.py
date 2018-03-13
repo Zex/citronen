@@ -35,12 +35,13 @@ class P:
 
     def __call__(self, z):
         with tf.name_scope('P'):
-            self.w_x = tf.Variable(tf.contrib.layers.xavier_initializer()([self.z_dim, self.h_dim]))
+            self.w_x = tf.Variable(tf.random_normal_initializer()([self.z_dim, self.h_dim]))
             self.b_x = tf.Variable(tf.zeros([self.h_dim]), dtype=tf.float32)
-            self.w_log = tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.x_dim]))
+            self.w_log = tf.Variable(tf.random_normal_initializer()([self.h_dim, self.x_dim]))
             self.b_log = tf.Variable(tf.zeros([self.x_dim]))
 
             h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
+            #h = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
             logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
             prob = tf.nn.relu(logits)#sigmoid(logits)
             return prob, logits
@@ -73,8 +74,7 @@ class Q:
             self.b_mu = tf.Variable(tf.zeros([self.z_dim]))
             self.w_sigma =  tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
             self.b_sigma = tf.Variable(tf.zeros([self.z_dim]))
-            
-            """
+            """ 
             emb = tf.get_variable('emb', [self.x_dim, self.emb_dim], tf.float32, tf.random_normal_initializer())
             emb_output = tf.nn.embedding_lookup(emb, X)
             self.lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.rnn_size)
@@ -126,7 +126,8 @@ class StackEx(object):
     def build_vocab_processor(self):
 
         if os.path.isfile(self.vocab_path):
-            self.vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor.restore(self.vocab_path)
+            self.vocab_processor = tf.contrib.learn.preprocessing\
+                    .VocabularyProcessor.restore(self.vocab_path)
         else:
             self.vocab_processor = tf.contrib.learn.preprocessing\
                 .text.VocabularyProcessor(\
@@ -217,7 +218,8 @@ class StackEx(object):
             z_data = np.random.randn(self.batch_size, self.z_dim)
 
             mu, var, _, loss, z_samples, step = sess.run(
-                    [self.z_samples, self.P.w_x, self.vae_train_op, self.vae_loss, self.z_samples, self.global_step],\
+                    [self.recon_loss, self.logits, self.vae_train_op, \
+                            self.vae_loss, self.z_samples, self.global_step],\
                 feed_dict={
                     self.X: X,
                     self.z: z_data,
