@@ -35,9 +35,11 @@ class P:
 
     def __call__(self, z):
         with tf.name_scope('P'):
-            self.w_x = tf.Variable(tf.random_normal_initializer()([self.z_dim, self.h_dim]))
+            self.w_x = tf.Variable(tf.random_normal_initializer()(\
+                    [self.z_dim, self.h_dim]))
             self.b_x = tf.Variable(tf.zeros([self.h_dim]), dtype=tf.float32)
-            self.w_log = tf.Variable(tf.random_normal_initializer()([self.h_dim, self.x_dim]))
+            self.w_log = tf.Variable(tf.random_normal_initializer()(\
+                    [self.h_dim, self.x_dim]))
             self.b_log = tf.Variable(tf.zeros([self.x_dim]))
 
             h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
@@ -68,7 +70,8 @@ class Q:
     def __call__(self, X):
         with tf.name_scope('Q'):
             #x = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
-            self.w_x =  tf.Variable(tf.contrib.layers.xavier_initializer()([self.x_dim, self.h_dim]))
+            self.w_x =  tf.Variable(tf.random_normal_initializer()(\
+                    [self.x_dim, self.h_dim]))
             self.b_x = tf.Variable(tf.zeros([self.h_dim]))
             self.w_mu =  tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
             self.b_mu = tf.Variable(tf.zeros([self.z_dim]))
@@ -81,15 +84,15 @@ class Q:
             self.init_state = self.lstm_cell.zero_state(self.batch_size, tf.float32)
             self.rnn_inputs = tf.split(axis=1, num_or_size_splits=self.x_dim, value=emb_output)
             self.rnn_inputs_items = [tf.squeeze(x, [1]) for x in self.rnn_inputs]
-            outputs, last_state = tf.contrib.legacy_seq2seq.rnn_decoder(
+            outputs, self.last_state = tf.contrib.legacy_seq2seq.rnn_decoder(
                     self.rnn_inputs_items, self.init_state,
                     self.lstm_cell
                     )
 
-            self.w_rnn = tf.get_variable('w_rnn', [self.rnn_size, self.x_dim], tf.float32, tf.contrib.layers.xavier_initializer())
-            self.b_rnn = tf.Variable(tf.zeros([self.x_dim]))
+            self.w_rnn = tf.get_variable('w_rnn', [self.rnn_size, self.vocab_size], tf.float32, tf.contrib.layers.xavier_initializer())
+            self.b_rnn = tf.Variable(tf.zeros([self.vocab_size]))
             output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
-            h = tf.nn.sigmoid(tf.nn.xw_plus_b(output, self.w_rnn, self.b_rnn))
+            h = tf.nn.xw_plus_b(output, self.w_rnn, self.b_rnn)
             """
             h = tf.nn.sigmoid(tf.nn.xw_plus_b(X, self.w_x, self.b_x))
             mu = tf.nn.xw_plus_b(h, self.w_mu, self.b_mu)
@@ -106,7 +109,7 @@ class StackEx(object):
     def __init__(self):
         self.max_doc_len = 256 #128 #256
 
-        self.z_dim = 64
+        self.z_dim = 128
         self.x_dim = self.max_doc_len
         self.h_dim = 128
 
@@ -117,7 +120,8 @@ class StackEx(object):
         self.bow = set()
         self.bow_path = "data/stackex/bow.data"
         self.vocab_path = "data/stackex/vocab.data"
-        self.sample_path = "data/stackex/samples.json"
+        self.sample_path = "data/stackex/samples_{}.json".format(\
+                datetime.now().strftime("%Y%m%d%H%M"))
         self.summ_intv = 1000
         self.epochs = 1000000
         self.lr = 1e-3
@@ -134,7 +138,8 @@ class StackEx(object):
                 self.max_doc_len)
             X = list(map(lambda x: x, self.gen_data()))
             self.vocab_processor.fit(X)
-            list(map(lambda c: self.vocab_processor.vocabulary_._mapping.get(c), string.punctuation))
+            list(map(lambda c: self.vocab_processor.vocabulary_._mapping.get(c),\
+                    tring.punctuation))
             self.vocab_processor.save(self.vocab_path)
             print("[info] vocab:{}".format(len(self.vocab_processor.vocabulary_)))
 
@@ -217,18 +222,28 @@ class StackEx(object):
             X = np.array(X).astype(np.float32)
             z_data = np.random.randn(self.batch_size, self.z_dim)
 
-            mu, var, _, loss, z_samples, step = sess.run(
-                    [self.recon_loss, self.logits, self.vae_train_op, \
-                            self.vae_loss, self.z_samples, self.global_step],\
+            _, loss, kl, recon, z_samples, step = sess.run(
+                    [self.vae_train_op, \
+                            self.vae_loss, self.kl_loss, self.recon_loss, \
+                            self.z_samples, self.global_step],\
                 feed_dict={
                     self.X: X,
                     self.z: z_data,
                     })
+            kl, recon = np.sum(kl), np.sum(recon)
             if step % self.summ_intv == 0:
-                print('[step/{}] {} loss:{:.4}'.format(step, datetime.now(), loss))
+                print('[step/{}] {} loss:{:.4} kl:{:.4} recon:{:.4}'.format(\
+                        step, datetime.now(), loss, kl, recon))
                 samples = sess.run(self.samples, feed_dict={self.z: z_data})
                 docs = list(self.vocab_processor.reverse(samples.astype(np.int)))
-                self.to_json({'sample': docs}, self.sample_path)
+                meta = {
+                    'step': int(step),
+                    'loss': float('{:.4}'.format(loss)),
+                    'kl_loss': float('{:.4}'.format(kl)),
+                    'recon_loss': float('{:.4}'.format(recon)),
+                    'sample': docs
+                    }
+                self.to_json(meta, self.sample_path)
 
     def to_json(self, obj, output_path):
         with open(output_path, 'a') as fd:
