@@ -35,7 +35,7 @@ def foreach_loss(base_dir):
             loss.append(data.get('loss'))
             kl_loss.append(data.get('kl_loss'))
             recon_loss.append(data.get('recon_loss'))
-            _ = [print('[{}] {}'.format(data.get('step'), sample), flush=True) for sample in data.get('sample')]
+           # _ = [print('[{}] {}'.format(data.get('step'), sample), flush=True) for sample in data.get('sample')]
         plot_loss(loss, kl_loss, recon_loss)
 
 if __name__ == '__main__':
