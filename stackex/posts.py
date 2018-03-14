@@ -46,7 +46,7 @@ class P:
             self.b_log = tf.Variable(tf.zeros([self.x_dim]))
 
     def __call__(self, z):
-        h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
+        h = tf.nn.sigmoid(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
         #h = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
         logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
         prob = tf.nn.relu(logits)
