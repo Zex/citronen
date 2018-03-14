@@ -33,8 +33,9 @@ class P:
         self.h_dim = args.h_dim
         self.x_dim = args.x_dim
         self.dropout_keep = 0.7
+        self.build_model()
 
-    def __call__(self, z):
+    def build_model(self):
         with tf.name_scope('P'):
             self.w_x = tf.Variable(tf.random_normal_initializer()(\
                     [self.z_dim, self.h_dim]))
@@ -43,11 +44,12 @@ class P:
                     [self.h_dim, self.x_dim]))
             self.b_log = tf.Variable(tf.zeros([self.x_dim]))
 
-            h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
-            #h = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
-            logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
-            prob = tf.nn.relu(logits)#sigmoid(logits)
-            return prob, logits
+    def __call__(self, z):
+        h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
+        #h = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
+        logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
+        prob = tf.nn.relu(logits)
+        return logits, prob
 
     def var_list(self):
         return [self.w_x, self.w_log, self.b_x, self.b_log]
@@ -64,12 +66,10 @@ class Q:
         self.x_dim = args.x_dim
         self.vocab_size = args.vocab_size
         self.batch_size = args.batch_size
-        self.emb_dim = 100
-        self.rnn_size = 512
-        self.rnn_steps = self.x_dim
         self.dropout_keep = 0.7
+        self.build_model()
 
-    def __call__(self, X):
+    def build_model(self):
         with tf.name_scope('Q'):
             #x = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
             self.w_x =  tf.Variable(tf.random_normal_initializer()(\
@@ -80,11 +80,12 @@ class Q:
             self.w_sigma =  tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
             self.b_sigma = tf.Variable(tf.zeros([self.z_dim]))
              
-            h = tf.nn.sigmoid(tf.nn.xw_plus_b(X, self.w_x, self.b_x))
-            mu = tf.nn.xw_plus_b(h, self.w_mu, self.b_mu)
-            z = tf.nn.xw_plus_b(h, self.w_sigma, self.b_sigma)
+    def __call__(self, X):
+        h = tf.nn.sigmoid(tf.nn.xw_plus_b(X, self.w_x, self.b_x))
+        mu = tf.nn.xw_plus_b(h, self.w_mu, self.b_mu)
+        z = tf.nn.xw_plus_b(h, self.w_sigma, self.b_sigma)
+        return mu, z
 
-            return mu, z
 
     def var_list(self):
         return [self.w_x, self.b_x, self.w_mu, self.b_mu, self.w_sigma, self.b_sigma]
@@ -109,9 +110,10 @@ class StackEx(object):
         self.vocab_path = "data/stackex/vocab.data"
         now = datetime.now().strftime("%Y%m%d%H%M")
         self.sample_path = "data/stackex/samples_{}.json".format(now)
-        self.summ_intv = 10000
+        self.summ_intv = 1000
         self.epochs = 1000000
-        self.lr = 1e-7
+        self.clip_norm = 0.3
+        self.lr = 1e-3
         self.model_dir = "models/stackex/{}/vae".format(now)
         self.prepare()
 
@@ -193,11 +195,19 @@ class StackEx(object):
         self.vae_loss = tf.reduce_mean(self.recon_loss+self.kl_loss)
         
         self.global_step = tf.Variable(self.init_step)
+        grads, global_norm = tf.clip_by_global_norm(\
+                tf.gradients(self.vae_loss, self.P.var_list()+self.Q.var_list()),
+                #tf.trainable_variables(),
+                self.clip_norm)
+
+        """
         self.vae_train_op = tf.train.GradientDescentOptimizer(self.lr).minimize(\
                 self.vae_loss, \
                 global_step=self.global_step,\
                 var_list=self.P.var_list()+self.Q.var_list())
-
+        """
+        self.vae_train_op = tf.train.GradientDescentOptimizer(self.lr)\
+                .apply_gradients(zip(grads, self.P.var_list()+self.Q.var_list()))
         self.saver = tf.train.Saver(tf.global_variables())
 
     def foreach_epoch(self, sess):
@@ -214,10 +224,9 @@ class StackEx(object):
             #X = np.array(X).astype(np.float32)
             z_data = np.random.randn(self.sample_size, self.z_dim)
 
-            _, loss, kl, recon, z_samples, step = sess.run(
-                    [self.vae_train_op, \
-                            self.vae_loss, self.kl_loss, self.recon_loss, \
-                            self.z_samples, self.global_step],\
+            _, loss, kl, recon, step = sess.run([self.vae_train_op, \
+                        self.vae_loss, self.kl_loss, self.recon_loss, \
+                        self.global_step],\
                 feed_dict={
                     self.X: X,
                     self.z: z_data,
@@ -226,7 +235,7 @@ class StackEx(object):
             if str(loss) == str(np.nan):
                 print('[step/{}] early stop'.format(step))
                 sys.exit()
-
+            
             kl, recon = np.mean(kl), np.mean(recon)
             if step % self.summ_intv == 0:
                 print('[step/{}] {} loss:{:.4} kl:{:.4} recon:{:.4}'.format(\
@@ -235,6 +244,7 @@ class StackEx(object):
                 docs = list(self.vocab_processor.reverse(samples.astype(np.int)))
                 meta = {
                     'step': int(step),
+                    'model_dir': self.model_dir,
                     'lr': float('{:.4}'.format(self.lr)),
                     'loss': float('{:.4}'.format(loss)),
                     'kl_loss': float('{:.4}'.format(kl)),
