@@ -267,7 +267,7 @@ class StackEx(object):
                 try:
                     docs = list(self.vocab_processor.reverse(samples))
                 except IndexError:
-                    self.decode(samples)
+                    docs = self.decode(samples)
 
                 meta = {
                     'step': int(step),
