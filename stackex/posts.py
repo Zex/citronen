@@ -95,7 +95,7 @@ class Q:
 class StackEx(object):
 
     def __init__(self):
-        self.max_doc_len = 256
+        self.max_doc_len = 128
 
         self.z_dim = 64
         self.x_dim = self.max_doc_len
@@ -111,7 +111,7 @@ class StackEx(object):
         self.vocab_path = "data/stackex/vocab.data"
         now = datetime.now().strftime("%Y%m%d%H%M")
         self.sample_path = "data/stackex/samples_{}.json".format(now)
-        self.summ_intv = 1000
+        self.summ_intv = 10000
         self.epochs = 1000000
         self.clip_norm = 0.3
         self.lr = 1e-1
@@ -262,7 +262,13 @@ class StackEx(object):
                 print('[step/{}] {} loss:{:.4} kl:{:.4} recon:{:.4}'.format(\
                         step, datetime.now(), loss, kl, recon))
                 samples = sess.run(self.samples, feed_dict={self.z: z_data})
-                docs = list(self.vocab_processor.reverse(samples.astype(np.int)))
+                samples = samples.astype(np.int)
+
+                try:
+                    docs = list(self.vocab_processor.reverse(samples))
+                except IndexError:
+                    self.decode(samples)
+
                 meta = {
                     'step': int(step),
                     'model_dir': self.model_dir,
@@ -274,6 +280,15 @@ class StackEx(object):
                     }
                 self.to_json(meta, self.sample_path)
                 self.saver.save(sess, self.model_dir, global_step=step)
+
+    def decode(self, samples):
+        ret = []
+        for sample in np.abs(samples):
+            buf = list(map(lambda a: self.vocab_processor.vocabulary_._reverse_mapping[a] \
+                    if a < len(self.vocab_processor.vocabulary_) \
+                else '<{}>'.format(a), sample))
+            ret.append(' '.join(buf))
+        return ret
 
     def to_json(self, obj, output_path):
         with open(output_path, 'a') as fd:
