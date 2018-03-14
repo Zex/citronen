@@ -10,6 +10,7 @@ import pickle
 import numpy as np
 from datetime import datetime
 import ujson
+import glob
 
 from sklearn.preprocessing import OneHotEncoder
 import tensorflow as tf
@@ -94,7 +95,7 @@ class Q:
 class StackEx(object):
 
     def __init__(self):
-        self.max_doc_len = 128 #256
+        self.max_doc_len = 256
 
         self.z_dim = 64
         self.x_dim = self.max_doc_len
@@ -113,9 +114,27 @@ class StackEx(object):
         self.summ_intv = 1000
         self.epochs = 1000000
         self.clip_norm = 0.3
-        self.lr = 1e-3
+        self.lr = 1e-1
         self.model_dir = "models/stackex/{}/vae".format(now)
         self.prepare()
+
+    def train_vocab(self):
+        if os.path.isfile(self.vocab_path):
+            self.vocab_processor = tf.contrib.learn.preprocessing\
+                    .VocabularyProcessor.restore(self.vocab_path)
+        else:
+            self.vocab_processor = tf.contrib.learn.preprocessing\
+                .text.VocabularyProcessor(\
+                self.max_doc_len, min_frequency=1)
+
+        for path in glob.iglob('data/*.stackexchange.com/Posts.xml'):
+            print(path)
+            self.data_path = path
+            X = list(map(lambda x: x, self.gen_data()))
+            self.vocab_processor = self.vocab_processor.fit(X)
+            self.vocab_processor.save(self.vocab_path)
+        print("[info] vocab:{}".format(len(self.vocab_processor.vocabulary_)))
+
 
     def build_vocab_processor(self):
 
@@ -148,7 +167,7 @@ class StackEx(object):
         items = tree.xpath('row')
 
         for i, item in enumerate(items):
-            text = item.attrib.get('Body')
+            text = item.attrib.get('Body', item.attrib.get('Text'))
             text = re.sub("<.*?>", " ", text)
             text = ' '.join(text.split()).strip()
             yield text
@@ -195,8 +214,10 @@ class StackEx(object):
         self.vae_loss = tf.reduce_mean(self.recon_loss+self.kl_loss)
         
         self.global_step = tf.Variable(self.init_step)
+
+        params = self.P.var_list()+self.Q.var_list()
         grads, global_norm = tf.clip_by_global_norm(\
-                tf.gradients(self.vae_loss, self.P.var_list()+self.Q.var_list()),
+                tf.gradients(self.vae_loss, params),
                 #tf.trainable_variables(),
                 self.clip_norm)
 
@@ -207,7 +228,7 @@ class StackEx(object):
                 var_list=self.P.var_list()+self.Q.var_list())
         """
         self.vae_train_op = tf.train.GradientDescentOptimizer(self.lr)\
-                .apply_gradients(zip(grads, self.P.var_list()+self.Q.var_list()))
+                .apply_gradients(zip(grads, params), global_step=self.global_step)
         self.saver = tf.train.Saver(tf.global_variables())
 
     def foreach_epoch(self, sess):
@@ -288,6 +309,6 @@ class StackEx(object):
 
 if __name__ == '__main__':
     stex = StackEx()
-    #list(stex.gen_data())
-    #stex.preprocess()
     stex.train()
+    #stex.train_vocab()
+    
