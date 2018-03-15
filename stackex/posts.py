@@ -38,10 +38,10 @@ class P:
 
     def build_model(self):
         with tf.name_scope('P'):
-            self.w_x = tf.Variable(tf.random_normal_initializer()(\
+            self.w_x = tf.Variable(tf.contrib.layers.xavier_initializer()(\
                     [self.z_dim, self.h_dim]))
             self.b_x = tf.Variable(tf.zeros([self.h_dim]), dtype=tf.float32)
-            self.w_log = tf.Variable(tf.random_normal_initializer()(\
+            self.w_log = tf.Variable(tf.contrib.layers.xavier_initializer()(\
                     [self.h_dim, self.x_dim]))
             self.b_log = tf.Variable(tf.zeros([self.x_dim]))
 
@@ -73,7 +73,7 @@ class Q:
     def build_model(self):
         with tf.name_scope('Q'):
             #x = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
-            self.w_x =  tf.Variable(tf.random_normal_initializer()(\
+            self.w_x =  tf.Variable(tf.contrib.layers.xavier_initializer()(\
                     [self.x_dim, self.h_dim]))
             self.b_x = tf.Variable(tf.zeros([self.h_dim]))
             self.w_mu =  tf.Variable(tf.contrib.layers.xavier_initializer()([self.h_dim, self.z_dim]))
