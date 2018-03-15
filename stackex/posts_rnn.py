@@ -23,10 +23,10 @@ class P:
         self.x_dim = args.x_dim
         self.vocab_size = args.vocab_size
         self.batch_size = args.batch_size
-        self.h_dim = self.vocab_size
+        self.h_dim = self.batch_size#self.vocab_size
         self.emb_dim = 100
         self.rnn_size = 512
-        self.rnn_steps = self.x_dim
+        self.rnn_steps = self.z_dim
         self.dropout_keep = 0.7
         self.build_model()
 
@@ -62,8 +62,6 @@ class P:
             self.logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
             self.prob = tf.nn.relu(self.logits)
         
-            self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
-                logits=self.logits, labels=tf.cast(self.X, tf.float32)), 1)
             
     def __call__(self, sess, z):
         #h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
@@ -135,16 +133,14 @@ class Q:
             self.mu = tf.nn.xw_plus_b(h, self.w_mu, self.b_mu)
             self.var = tf.nn.xw_plus_b(h, self.w_sigma, self.b_sigma)
             self.z_samples = self.gaussian_samples(self.mu, self.var)
-        
-            self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(2 * self.var) - 1.+ self.mu**2, 1)
 
     def gaussian_samples(self, mu, var):
         with tf.name_scope('gaussian_samples'):
             eps = tf.random_normal(shape=tf.shape(mu))
             return mu + tf.exp(var/2) * eps
 
-    def __call__(self, X):
-        z_samples  = sess.run([self.z_samples], feed_dict={self.X: X})
+    def __call__(self, sess, X):
+        z_samples  = sess.run(self.z_samples, feed_dict={self.X: X})
         return z_samples
 
     def var_list(self):
@@ -156,11 +152,12 @@ class StackEx(object):
     def __init__(self):
         self.max_doc_len = 128 #256
 
-        self.z_dim = 64
+        self.z_dim = 128
         self.x_dim = self.max_doc_len
         self.h_dim = 64
 
         self.init_step = 1
+        self.clip_norm = 0.3
         self.data_path = "data/ai.stackexchange.com/Posts.xml"
         self.batch_size = 32
         self.sample_size = 10
@@ -249,7 +246,10 @@ class StackEx(object):
         #self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
         #        logits=self.logits, labels=tf.cast(self.X, tf.float32)), 1)
         #self.vae_loss = tf.reduce_mean(self.recon_loss+self.kl_loss)
-        self.vae_loss = tf.reduce_mean(self.Q.kl_loss+self.P.recon_loss)
+        self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(2 * self.Q.var) - 1.+ self.Q.mu**2, 1)
+        self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
+                logits=self.P.logits, labels=tf.cast(self.Q.X, tf.float32)), 1)
+        self.vae_loss = tf.reduce_mean(self.kl_loss+self.recon_loss)
         
         self.global_step = tf.Variable(self.init_step)
         grads, global_norm = tf.clip_by_global_norm(\
@@ -278,15 +278,17 @@ class StackEx(object):
             if not X:
                 continue
 
-            #X = np.array(X).astype(np.float32)
+            X = np.array(X).astype(np.int32)
             z_data = np.random.randn(self.sample_size, self.z_dim)
 
-            z_samples = self.Q(X)
+            z_samples = self.Q(sess, X)
 
             _, loss, kl, recon = sess.run([\
                     self.vae_train_op, self.vae_loss, \
-                    self.Q.kl_loss, self.P.recon_loss\
-                    ], feed_dict={self.P.z: z_samples})
+                    self.kl_loss, self.recon_loss\
+                    ], feed_dict={
+                        self.Q.X: X,
+                        self.P.z: z_samples})
 
             """
             _, loss, kl, recon, z_samples, step = sess.run(

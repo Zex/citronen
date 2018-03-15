@@ -153,12 +153,11 @@ class StackEx(object):
         print("[info] vocab:{}".format(len(self.vocab_processor.vocabulary_)))
 
     def prepare(self):
-        self.build_vocab_processor()
-
-        output_base = os.path.dirname(self.data_path)
+        output_base = os.path.dirname(self.vocab_path)
         if not os.path.isdir(output_base):
             os.makedirs(output_base)
 
+        self.build_vocab_processor()
         self.build_model()
 
     def gen_data(self):
