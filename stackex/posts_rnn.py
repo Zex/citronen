@@ -28,18 +28,22 @@ class P:
         self.rnn_size = 512
         self.rnn_steps = self.x_dim
         self.dropout_keep = 0.7
+        self.build_model()
 
-    def __call__(self, z):
+    def build_model(self):
         with tf.name_scope('P'):
+            self.z = tf.placeholder(tf.int32, shape=[None, self.z_dim], name='z')
+
             self.w_x = tf.Variable(tf.random_normal_initializer()(\
                     [self.z_dim, self.h_dim]))
             self.b_x = tf.Variable(tf.zeros([self.h_dim]), dtype=tf.float32)
             self.w_log = tf.Variable(tf.random_normal_initializer()(\
                     [self.h_dim, self.x_dim]))
             self.b_log = tf.Variable(tf.zeros([self.x_dim]))
-            """
-            emb = tf.get_variable('P/emb', [self.vocab_size, self.rnn_size], tf.float32, tf.random_normal_initializer())
-            emb_output = tf.nn.embedding_lookup(emb, z)
+            
+            emb = tf.get_variable('P/emb', [self.vocab_size, self.rnn_size], \
+                    tf.float32, tf.random_normal_initializer())
+            emb_output = tf.nn.embedding_lookup(emb, self.z)
             self.rnn_cell = tf.contrib.rnn.BasicLSTMCell(self.rnn_size, reuse=True)
             self.rnn_state = self.rnn_cell.zero_state(self.batch_size, tf.float32)
 
@@ -49,22 +53,27 @@ class P:
                         emb_output[:,step,:], self.rnn_state)
                 outputs.append(output)
 
-            output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
+            self.rnn_output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
             self.w_rnn = tf.get_variable('P/w_rnn', [self.rnn_size, self.vocab_size], \
                     tf.float32, tf.contrib.layers.xavier_initializer())
             self.b_rnn = tf.Variable(tf.zeros([self.vocab_size]))
-            h = tf.nn.xw_plus_b(output, self.w_rnn, self.b_rnn)
-            """
-
-    def __call__(self, z):
-        h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
-        #h = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
-        logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
-        prob = tf.nn.relu(logits)
+        
+            h = tf.nn.xw_plus_b(self.rnn_output, self.w_rnn, self.b_rnn)
+            self.logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
+            self.prob = tf.nn.relu(self.logits)
+        
+            self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
+                logits=self.logits, labels=tf.cast(self.X, tf.float32)), 1)
+            
+    def __call__(self, sess, z):
+        #h = tf.nn.relu(tf.nn.xw_plus_b(z, self.w_x, self.b_x))
+        #logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
+        #prob = tf.nn.relu(logits)
+        logits, prob = sess.run({self.logits, self.prob}, feed_dict={self.z: z})
         return logits, prob
 
     def var_list(self):
-        return [self.w_x, self.w_log, self.b_x, self.b_log]
+        return [self.w_rnn, self.b_rnn, self.w_x, self.w_log, self.b_x, self.b_log]
 
 
 class Config(object):
@@ -87,9 +96,10 @@ class Q:
 
     def build_model(self):
         with tf.name_scope('Q'):
+            self.X = tf.placeholder(tf.int32, shape=[None, self.x_dim], name='X')
             #x = tf.nn.batch_normalization(X, 100.258, 100.323, 0.24, 1., 1e-10)
             emb = tf.get_variable('Q/emb', [self.vocab_size, self.rnn_size], tf.float32, tf.random_normal_initializer())
-            emb_output = tf.nn.embedding_lookup(emb, X)
+            emb_output = tf.nn.embedding_lookup(emb, self.X)
             self.rnn_cell = tf.contrib.rnn.BasicLSTMCell(self.rnn_size)
             self.rnn_state = self.rnn_cell.zero_state(self.batch_size, tf.float32)
 
@@ -109,11 +119,10 @@ class Q:
 #                    self.rnn_cell
 #                    )
 
-            output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
+            self.rnn_output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
             self.w_rnn = tf.get_variable('Q/w_rnn', [self.rnn_size, self.vocab_size], \
                     tf.float32, tf.contrib.layers.xavier_initializer())
             self.b_rnn = tf.Variable(tf.zeros([self.vocab_size]))
-            h = tf.nn.xw_plus_b(output, self.w_rnn, self.b_rnn)
             
             self.w_mu =  tf.Variable(tf.contrib.layers.xavier_initializer()(\
                     [self.h_dim, self.z_dim]))
@@ -122,11 +131,21 @@ class Q:
                     [self.h_dim, self.z_dim]))
             self.b_sigma = tf.Variable(tf.zeros([self.z_dim]))
 
+            h = tf.nn.xw_plus_b(self.rnn_output, self.w_rnn, self.b_rnn)
+            self.mu = tf.nn.xw_plus_b(h, self.w_mu, self.b_mu)
+            self.var = tf.nn.xw_plus_b(h, self.w_sigma, self.b_sigma)
+            self.z_samples = self.gaussian_samples(self.mu, self.var)
+        
+            self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(2 * self.var) - 1.+ self.mu**2, 1)
+
+    def gaussian_samples(self, mu, var):
+        with tf.name_scope('gaussian_samples'):
+            eps = tf.random_normal(shape=tf.shape(mu))
+            return mu + tf.exp(var/2) * eps
+
     def __call__(self, X):
-        h = tf.nn.sigmoid(tf.nn.xw_plus_b(X, self.w_x, self.b_x))
-        mu = tf.nn.xw_plus_b(h, self.w_mu, self.b_mu)
-        z = tf.nn.xw_plus_b(h, self.w_sigma, self.b_sigma)
-        return mu, z
+        z_samples  = sess.run([self.z_samples], feed_dict={self.X: X})
+        return z_samples
 
     def var_list(self):
         return [self.w_rnn, self.b_rnn, self.w_mu, self.b_mu, self.w_sigma, self.b_sigma]
@@ -204,14 +223,10 @@ class StackEx(object):
             else:
                 batch.append(' '.join(sample.split()))
     
-    def gaussian_samples(self, mu, var):
-        with tf.name_scope('gaussian_samples'):
-            eps = tf.random_normal(shape=tf.shape(mu))
-            return mu + tf.exp(var/2) * eps
 
     def build_model(self):
-        self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim], name='z')
-        self.X = tf.placeholder(tf.int32, shape=[None, self.x_dim], name='X')
+        #self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim], name='z')
+        #self.X = tf.placeholder(tf.int32, shape=[None, self.x_dim], name='X')
         #self.z = tf.placeholder(tf.int32, shape=[None, self.z_dim], name='z')
         #self.X = tf.placeholder(tf.int32, shape=[None, self.x_dim], name='X')
 
@@ -226,16 +241,16 @@ class StackEx(object):
         self.P = P(args)
 
         #self.X_norm = tf.nn.batch_normalization(self.X, 256, 223, 0., 1., 1e-8)
-        self.mu, self.var = self.Q(self.X)
-        self.z_samples = self.gaussian_samples(self.mu, self.var)
-        _, self.logits = self.P(self.z_samples)
-        self.samples, _ = self.P(self.z)
+        #self.mu, self.var = self.Q(self.X)
+        #self.z_samples = self.gaussian_samples(self.mu, self.var)
+        #_, self.logits = self.P(self.z_samples)
+        #self.samples, _ = self.P(self.z)
         
-        print(self.samples, self.logits, self.X)
-        self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(2 * self.var) - 1.+ self.mu**2, 1)
-        self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
-                logits=self.logits, labels=tf.cast(self.X, tf.float32)), 1)
-        self.vae_loss = tf.reduce_mean(self.recon_loss+self.kl_loss)
+        #self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(2 * self.var) - 1.+ self.mu**2, 1)
+        #self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
+        #        logits=self.logits, labels=tf.cast(self.X, tf.float32)), 1)
+        #self.vae_loss = tf.reduce_mean(self.recon_loss+self.kl_loss)
+        self.vae_loss = tf.reduce_mean(self.Q.kl_loss+self.P.recon_loss)
         
         self.global_step = tf.Variable(self.init_step)
         grads, global_norm = tf.clip_by_global_norm(\
@@ -267,6 +282,14 @@ class StackEx(object):
             #X = np.array(X).astype(np.float32)
             z_data = np.random.randn(self.sample_size, self.z_dim)
 
+            z_samples = self.Q(X)
+
+            _, loss, kl, recon = sess.run([\
+                    self.vae_train_op, self.vae_loss, \
+                    self.Q.kl_loss, self.P.recon_loss\
+                    ], feed_dict={self.P.z: z_samples})
+
+            """
             _, loss, kl, recon, z_samples, step = sess.run(
                     [self.vae_train_op, \
                             self.vae_loss, self.kl_loss, self.recon_loss, \
@@ -275,7 +298,7 @@ class StackEx(object):
                     self.X: X,
                     self.z: z_data,
                     })
-            print(z_samples) 
+            """
             if str(loss) == str(np.nan):
                 print('[step/{}] early stop'.format(step))
                 sys.exit()
