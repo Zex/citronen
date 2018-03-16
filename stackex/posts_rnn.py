@@ -14,6 +14,9 @@ import ujson
 from sklearn.preprocessing import OneHotEncoder
 import tensorflow as tf
 
+class Config(object):
+    pass
+
 
 class P:
 
@@ -74,8 +77,6 @@ class P:
         return [self.w_rnn, self.b_rnn, self.w_x, self.w_log, self.b_x, self.b_log]
 
 
-class Config(object):
-    pass
 
 class Q:
 
@@ -116,8 +117,14 @@ class Q:
 #                    self.rnn_inputs_items, self.rnn_state,
 #                    self.rnn_cell
 #                    )
-
             self.rnn_output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
+            print(self.rnn_output)
+            self.conv_input = tf.reshape(self.rnn_output, [self.batch_size, *self.rnn_output.shape])
+            conv = tf.nn.relu(tf.contrib.layers.conv2d(self.rnn_output, 3, [3, 3]))
+            pool = tf.nn.max_pool(conv, [3, 3])
+
+            print(pool)
+
             self.w_rnn = tf.get_variable('Q/w_rnn', [self.rnn_size, self.vocab_size], \
                     tf.float32, tf.contrib.layers.xavier_initializer())
             self.b_rnn = tf.Variable(tf.zeros([self.vocab_size]))
