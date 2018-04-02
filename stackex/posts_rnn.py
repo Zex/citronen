@@ -35,7 +35,7 @@ class P:
 
     def build_model(self):
         with tf.name_scope('P'):
-            self.z = tf.placeholder(tf.int32, shape=[None, self.z_dim], name='z')
+            self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim], name='z')
 
             self.w_x = tf.Variable(tf.random_normal_initializer()(\
                     [self.z_dim, self.h_dim]))
@@ -44,24 +44,31 @@ class P:
                     [self.h_dim, self.x_dim]))
             self.b_log = tf.Variable(tf.zeros([self.x_dim]))
             
-            emb = tf.get_variable('P/emb', [self.vocab_size, self.rnn_size], \
-                    tf.float32, tf.random_normal_initializer())
-            emb_output = tf.nn.embedding_lookup(emb, self.z)
-            self.rnn_cell = tf.contrib.rnn.BasicLSTMCell(self.rnn_size, reuse=True)
-            self.rnn_state = self.rnn_cell.zero_state(self.batch_size, tf.float32)
+            self.rnn_cell = tf.contrib.rnn.BasicLSTMCell(self.rnn_size)
 
+            self.rnn_state = self.rnn_cell.zero_state(self.batch_size, tf.float32)
+            """
             outputs = []
             for step in range(self.rnn_steps):
                 output, self.rnn_state = self.rnn_cell(\
-                        emb_output[:,step,:], self.rnn_state)
+                        self.z[:,step,:], self.rnn_state)
                 outputs.append(output)
+            """
+            outputs, self.rnn_state = tf.nn.static_rnn(self.rnn_cell, 
+                    tf.split(self.z, num_or_size_splits=self.x_dim),
+                    initial_state=self.rnn_state)
 
-            self.rnn_output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
+            self.rnn_output = outputs[-1]#tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
             self.w_rnn = tf.get_variable('P/w_rnn', [self.rnn_size, self.vocab_size], \
                     tf.float32, tf.contrib.layers.xavier_initializer())
             self.b_rnn = tf.Variable(tf.zeros([self.vocab_size]))
-        
+
+            self.w_flat = tf.get_variable('P/w_flat', [self.vocab_size, self.h_dim], \
+                    tf.float32, tf.contrib.layers.xavier_initializer())
+            self.b_flat = tf.Variable(tf.zeros([self.h_dim]))
+
             h = tf.nn.xw_plus_b(self.rnn_output, self.w_rnn, self.b_rnn)
+            h = tf.nn.xw_plus_b(h, self.w_flat, self.b_flat)
             self.logits = tf.nn.xw_plus_b(h, self.w_log, self.b_log)
             self.prob = tf.nn.relu(self.logits)
         
@@ -117,13 +124,16 @@ class Q:
 #                    self.rnn_inputs_items, self.rnn_state,
 #                    self.rnn_cell
 #                    )
+
+            #outputs, self.rnn_state = tf.nn.static_rnn(self.rnn_cell, emb_output)
+
             self.rnn_output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.rnn_size])
-            print(self.rnn_output)
+            """
             self.conv_input = tf.reshape(self.rnn_output, [self.batch_size, *self.rnn_output.shape])
+
             conv = tf.nn.relu(tf.contrib.layers.conv2d(self.rnn_output, 3, [3, 3]))
             pool = tf.nn.max_pool(conv, [3, 3])
-
-            print(pool)
+            """
 
             self.w_rnn = tf.get_variable('Q/w_rnn', [self.rnn_size, self.vocab_size], \
                     tf.float32, tf.contrib.layers.xavier_initializer())
@@ -256,7 +266,7 @@ class StackEx(object):
         self.kl_loss = 0.5 * tf.reduce_sum(tf.exp(2 * self.Q.var) - 1.+ self.Q.mu**2, 1)
         self.recon_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(\
                 logits=self.P.logits, labels=tf.cast(self.Q.X, tf.float32)), 1)
-        self.vae_loss = tf.reduce_mean(self.kl_loss+self.recon_loss)
+        self.vae_loss = tf.reduce_mean(self.recon_loss)#self.kl_loss+self.recon_loss)
         
         self.global_step = tf.Variable(self.init_step)
         grads, global_norm = tf.clip_by_global_norm(\
@@ -290,9 +300,9 @@ class StackEx(object):
 
             z_samples = self.Q(sess, X)
 
-            _, loss, kl, recon = sess.run([\
+            _, loss, kl, recon, step = sess.run([\
                     self.vae_train_op, self.vae_loss, \
-                    self.kl_loss, self.recon_loss\
+                    self.kl_loss, self.recon_loss, self.global_step, \
                     ], feed_dict={
                         self.Q.X: X,
                         self.P.z: z_samples})
