@@ -8,7 +8,7 @@ export gradle_target="$pkg_base/gradle-4.4-bin.zip"
 export gradle_root="$pkg_base/gradle-4.4"
 
 #export kafka_src="http://mirrors.hust.edu.cn/apache/kafka/1.0.0/kafka-1.0.0-src.tgz"
-export kafka_src="http://apache.mirrors.ionfish.org/kafka/1.0.0/kafka_2.11-1.0.0.tgz"
+export kakfa_src="http://apache.mirrors.ionfish.org/kafka/2.1.0/kafka_2.11-2.1.0.tgz"
 export kafka_target="$pkg_base/kafka_2.11-1.0.0.tgz"
 export kafka_root="$pkg_base/kafka_2.11-1.0.0"
 
